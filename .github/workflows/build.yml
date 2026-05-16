@@ -22,7 +22,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: npm
 
       - name: Install Clojure tools
         uses: DeLaGuardo/setup-clojure@12
@@ -30,7 +29,7 @@ jobs:
           cli: latest
 
       - name: Install npm deps
-        run: npm ci
+        run: npm install
 
       - name: Build release
         run: npx shadow-cljs release app
