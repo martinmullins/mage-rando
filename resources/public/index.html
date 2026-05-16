@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VOID RITES</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0f;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
+    }
+    #app canvas {
+      display: block;
+      image-rendering: pixelated;
+    }
+    #loading {
+      color: #7c3aed;
+      font-size: 18px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"><div id="loading">AWAKENING...</div></div>
+  <script src="/js/main.js"></script>
+</body>
+</html>

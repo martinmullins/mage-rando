@@ -1,0 +1,15 @@
+{
+  "name": "void-rites",
+  "version": "0.1.0",
+  "description": "Void Rites - An eldritch dice-slotting roguelike",
+  "scripts": {
+    "dev": "shadow-cljs watch app",
+    "build": "shadow-cljs release app",
+    "server": "npx serve resources/public"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "shadow-cljs": "^2.25.2",
+    "serve": "^14.0.0"
+  }
+}
