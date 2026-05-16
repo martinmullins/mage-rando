@@ -65,16 +65,13 @@ function startCombat(def) {
     dice:rollDice(n), slots:{}, used:new Set(), rerolls:1, stunned:false
   };
 }
-
 function pickIntent(enemy) {
   return {ability:enemy.abilities[Math.floor(Math.random()*enemy.abilities.length)], dice:rollDice(enemy.diceCount)};
 }
-
 function showMsg(m){ state.msg=m; state.msgTimer=150; }
 
 // ── Slot helpers ───────────────────────────────────────────────────────────────
 function slotVals(idx) {
-  // filter out internal _N keys used to track die origin
   return Object.entries(state.combat.slots[idx]||{})
     .filter(([k])=>!k.startsWith('_')).map(([,v])=>v);
 }
@@ -118,7 +115,6 @@ function activateItem(idx) {
   combat.slots[idx]={};
   if(combat.enemy.curHp<=0) setTimeout(()=>transitionToLoot(),350);
 }
-
 function dealDmg(n){ state.combat.enemy.curHp=Math.max(0,state.combat.enemy.curHp-n); showMsg('-'+n+' damage!'); }
 function healHp(n) { state.player.hp=Math.min(state.player.maxHp,state.player.hp+n); showMsg('+'+n+' HP!'); }
 function doReroll(){
@@ -131,11 +127,10 @@ function slotDie(dieIdx,itemIdx,slotIdx) {
   const c=state.combat;
   if(c.dice[dieIdx]==='used') return;
   const val=c.dice[dieIdx];
-  // restore any die already occupying this slot
   const prev=(c.slots[itemIdx]||{})[slotIdx];
   if(prev!==undefined){
-    const prevDieIdx=(c.slots[itemIdx]||{})['_'+slotIdx];
-    if(prevDieIdx!==undefined) c.dice[prevDieIdx]=prev;
+    const pi=(c.slots[itemIdx]||{})['_'+slotIdx];
+    if(pi!==undefined) c.dice[pi]=prev;
   }
   if(!c.slots[itemIdx]) c.slots[itemIdx]={};
   c.slots[itemIdx][slotIdx]=val;
@@ -143,7 +138,6 @@ function slotDie(dieIdx,itemIdx,slotIdx) {
   c.dice[dieIdx]='used';
   state.selDie=null;
 }
-
 function unslotDie(itemIdx,slotIdx) {
   const c=state.combat, s=c.slots[itemIdx]||{};
   const val=s[slotIdx], orig=s['_'+slotIdx];
@@ -166,25 +160,21 @@ function endTurn() {
       showMsg('Sanity drained by '+ability.amount+'!');
     }
   } else {
-    showMsg('Enemy stunned — they skipped their attack!');
+    showMsg('Enemy stunned — they skipped!');
   }
   if(player.hp<=0||player.sanity<=0){state.screen='gameover';return;}
   if(combat.enemy.curHp<=0){transitionToLoot();return;}
   const n=3+Math.min(player.items.length,2);
-  combat.dice=rollDice(n);
-  combat.slots={}; combat.used=new Set(); combat.rerolls=1;
-  combat.stunned=false; combat.intent=pickIntent(combat.enemy);
+  combat.dice=rollDice(n); combat.slots={}; combat.used=new Set();
+  combat.rerolls=1; combat.stunned=false; combat.intent=pickIntent(combat.enemy);
   state.selDie=null;
 }
-
 function transitionToLoot() {
   const fd=FLOORS.find(f=>f.id===state.floor);
   const owned=new Set(state.player.items.map(i=>i.id));
-  const pool=ITEMS.filter(i=>!owned.has(i.id)).sort(()=>Math.random()-0.5);
-  state.lootOptions=pool.slice(0,fd?fd.loot:3);
+  state.lootOptions=ITEMS.filter(i=>!owned.has(i.id)).sort(()=>Math.random()-0.5).slice(0,fd?fd.loot:3);
   state.screen='loot';
 }
-
 function pickLoot(i) {
   const item=state.lootOptions[i]; if(!item) return;
   state.player.items.push(item);
@@ -197,18 +187,23 @@ function pickLoot(i) {
   state.selDie=null;
 }
 
-// ── p5.js sketch ───────────────────────────────────────────────────────────────
+// ── p5 sketch ──────────────────────────────────────────────────────────────────────
 new p5(function(p){
 
-  let GW,GH,sc,portrait,ox,oy;
+  let GW,GH,sc,portrait,ox,oy,VW,VH;
+
+  // Use visualViewport when available (Safari iOS gives actual visible area)
+  function vw(){ return window.visualViewport ? window.visualViewport.width  : window.innerWidth;  }
+  function vh(){ return window.visualViewport ? window.visualViewport.height : window.innerHeight; }
 
   function relayout(){
-    portrait = window.innerHeight > window.innerWidth;
+    VW=vw(); VH=vh();
+    portrait = VH > VW;
     GW = portrait ? 390 : 800;
     GH = portrait ? 750 : 600;
-    sc = Math.min(window.innerWidth/GW, window.innerHeight/GH);
-    ox = (window.innerWidth  - GW*sc)/2;
-    oy = (window.innerHeight - GH*sc)/2;
+    sc = Math.min(VW/GW, VH/GH);
+    ox = (VW - GW*sc)/2;
+    oy = (VH - GH*sc)/2;
   }
 
   function gx(x){ return (x-ox)/sc; }
@@ -219,12 +214,10 @@ new p5(function(p){
   function dro(x,y,w,h,col,sw,r=0){ p.noFill();p.stroke(col);p.strokeWeight(sw); r?p.rect(x,y,w,h,r):p.rect(x,y,w,h); p.noStroke(); }
   function tx(s,x,y,col,sz,al='LEFT'){ p.fill(col);p.noStroke();p.textSize(sz);p.textAlign(p[al]);p.text(s,x,y); }
   function ir(mx,my,x,y,w,h){ return mx>=x&&mx<=x+w&&my>=y&&my<=y+h; }
-
   function bar(x,y,w,h,cur,max,fg,bg,lbl){
     dr(x,y,w,h,bg); dr(x,y,Math.round(w*cur/max),h,fg); dro(x,y,w,h,C.BORDER,1);
     tx(lbl+': '+cur+'/'+max, x+4,y+h-5, C.TEXT,10);
   }
-
   function die(x,y,sz,val,sel){
     const used=val==='used';
     dr(x,y,sz,sz,used?C.DIE_USED:C.DIE_BG,6);
@@ -232,8 +225,6 @@ new p5(function(p){
     if(sel) dro(x-3,y-3,sz+6,sz+6,C.ACCENT,2,9);
     if(!used) tx(''+val,x+sz/2,y+sz*0.65,C.TEXT,sz*0.48,'CENTER');
   }
-
-  // ── item card ──
   function itemCard(item,idx,x,y,w,h){
     const slots=(state.combat?state.combat.slots[idx]:null)||{};
     const used=state.combat&&state.combat.used.has(idx);
@@ -242,13 +233,11 @@ new p5(function(p){
     dro(x,y,w,h,ready?C.ACCENT:C.BORDER,ready?2:1,8);
     tx(item.glyph,x+20,y+h*0.5+6,C.ACCENT,16,'CENTER');
     tx(item.name,x+38,y+14,used?C.TEXT_MUT:C.TEXT,11);
-    // desc word-wrapped
     p.fill(C.TEXT_DIM);p.noStroke();p.textSize(9);p.textAlign(p.LEFT);
     p.text(item.desc,x+38,y+26,w-80,28);
-    // slots
     for(let s=0;s<item.slots;s++){
-      const sx=x+38+s*44, sy=y+h-24;
-      const sv=slots[s], filled=sv!==undefined;
+      const sx=x+38+s*44,sy=y+h-24;
+      const sv=slots[s],filled=sv!==undefined;
       dr(sx,sy,38,18,filled?C.SLOT_FULL:C.SLOT_EMPTY,4);
       dro(sx,sy,38,18,filled?(ready?C.ACCENT:C.ACCENT2):C.BORDER,1,4);
       if(filled) tx(''+sv,sx+19,sy+14,C.TEXT,14,'CENTER');
@@ -256,8 +245,6 @@ new p5(function(p){
     }
     if(ready) tx('▶ TAP TO FIRE',x+w-6,y+h-5,C.ACCENT,9,'RIGHT');
   }
-
-  // ── turn banner ──
   function turnBanner(x,y,w){
     const a=0.55+0.45*Math.sin(p.frameCount*0.12);
     dr(x,y,w,26,C.PANEL,6);
@@ -266,7 +253,7 @@ new p5(function(p){
     tx('① tap a die  ② tap a slot  ③ tap artifact to fire  ④ END TURN',x+w/2,y+22,C.TEXT_DIM,8,'CENTER');
   }
 
-  // ── TITLE ──
+  // ── screens ──
   function drawTitle(){
     const cx=GW/2,cy=GH/2;
     p.noFill();
@@ -278,37 +265,23 @@ new p5(function(p){
     tx('— tap anywhere to begin the ritual —',cx,cy+60,C.ACCENT,11,'CENTER');
   }
 
-  // ── COMBAT LANDSCAPE ──
   function combatLand(){
-    const {combat,player,floor}=state;
-    const {enemy,intent,dice,rerolls}=combat;
+    const {combat,player,floor}=state,{enemy,intent,dice,rerolls}=combat;
     const fd=FLOORS.find(f=>f.id===floor);
-
-    dr(10,10,440,580,C.DEEP,12);
-    dr(450,10,340,580,C.DEEP,12);
-
-    // player
+    dr(10,10,440,580,C.DEEP,12); dr(450,10,340,580,C.DEEP,12);
     tx('CULTIST',20,34,C.ACCENT2,14);
     bar(20,40,200,18,player.hp,player.maxHp,C.HP_FG,C.HP_BG,'HP');
     bar(20,64,200,18,player.sanity,player.maxSanity,C.SAN_FG,C.SAN_BG,'SANITY');
     turnBanner(20,90,422);
-
-    // dice
     tx('RITUAL FRAGMENTS',20,130,C.TEXT_DIM,9);
     dice.forEach((v,i)=>die(20+i*56,136,48,v,state.selDie===i));
-
-    // items
     tx('CURSED ARTIFACTS',20,198,C.TEXT_DIM,9);
     player.items.forEach((item,i)=>itemCard(item,i,20,205+i*74,422,66));
     if(!player.items.length) tx('Defeat the enemy to earn artifacts.',20,220,C.TEXT_MUT,10);
-
-    // enemy
     tx('FLOOR '+floor+' — '+(fd?fd.name:''),455,24,C.TEXT_DIM,10);
     tx(enemy.name,638,46,C.TEXT,12,'RIGHT');
     tx(enemy.glyph,555,135,enemy.color,56,'CENTER');
     bar(455,205,330,20,enemy.curHp,enemy.maxHp,C.HP_FG,C.HP_BG,'ENEMY HP');
-
-    // intent
     dr(455,234,330,78,C.PANEL,8); dro(455,234,330,78,C.BORDER,1,8);
     tx('ENEMY INTENT',460,250,C.TEXT_DIM,9);
     const {ability}=intent;
@@ -316,46 +289,32 @@ new p5(function(p){
     const id=combat.stunned?'STUNNED — will skip'
       :ability.dmg>0?'Will deal '+ability.dmg+' damage'
       :ability.effect==='sanity'?'Will drain '+ability.amount+' sanity'
-      :ability.effect==='skip'?'Will skip your turn':'???';
+      :'Will skip your turn';
     tx(id,460,283,C.TEXT,11);
     intent.dice.forEach((d,i)=>die(460+i*30,290,24,d,false));
-
-    // buttons
     const rh=state.hover==='reroll',eh=state.hover==='endturn';
     dr(455,322,150,44,rh?C.ACCENT:C.PANEL,7); dro(455,322,150,44,C.ACCENT,1,7);
     tx('REROLL',530,340,C.TEXT,12,'CENTER');
     tx('('+rerolls+' left)',530,355,C.TEXT_DIM,10,'CENTER');
     dr(615,322,175,44,eh?'#b91c1c':C.DANGER,7);
     tx('END TURN  ▶',702,349,C.TEXT,15,'CENTER');
-
-    // floating message
     if(state.msg&&state.msgTimer>0){
-      dr(150,311,300,22,C.DEEP,5);
-      tx(state.msg,300,327,C.GOLD,13,'CENTER');
+      dr(150,311,300,22,C.DEEP,5); tx(state.msg,300,327,C.GOLD,13,'CENTER');
     }
   }
 
-  // ── COMBAT PORTRAIT ──
   function combatPort(){
-    const {combat,player,floor}=state;
-    const {enemy,intent,dice,rerolls}=combat;
-    const fd=FLOORS.find(f=>f.id===floor);
-    const W=GW-20;
-
-    // player bar
+    const {combat,player,floor}=state,{enemy,intent,dice,rerolls}=combat;
+    const fd=FLOORS.find(f=>f.id===floor), W=GW-20;
     dr(10,10,W,88,C.DEEP,10);
     tx('FLOOR '+floor+' — '+(fd?fd.name:''),15,24,C.TEXT_DIM,9);
     tx('CULTIST',15,40,C.ACCENT2,13);
     bar(15,44,W/2-8,18,player.hp,player.maxHp,C.HP_FG,C.HP_BG,'HP');
     bar(15,68,W/2-8,18,player.sanity,player.maxSanity,C.SAN_FG,C.SAN_BG,'SANITY');
-
-    // enemy
     dr(10,106,W,104,C.DEEP,10);
     tx(enemy.name,GW/2,120,C.TEXT,11,'CENTER');
     tx(enemy.glyph,GW/2,168,enemy.color,50,'CENTER');
     bar(15,186,W,20,enemy.curHp,enemy.maxHp,C.HP_FG,C.HP_BG,'ENEMY HP');
-
-    // intent
     dr(10,216,W,60,C.PANEL,8); dro(10,216,W,60,C.BORDER,1,8);
     tx('ENEMY INTENT',15,231,C.TEXT_DIM,9);
     const {ability}=intent;
@@ -363,30 +322,20 @@ new p5(function(p){
     const id=combat.stunned?'STUNNED — will skip'
       :ability.dmg>0?'Will deal '+ability.dmg+' damage'
       :ability.effect==='sanity'?'Will drain '+ability.amount+' sanity'
-      :ability.effect==='skip'?'Skips your turn':'???';
+      :'Skips your turn';
     tx(id,15,262,C.TEXT,10);
     intent.dice.forEach((d,i)=>die(W-10-intent.dice.length*28+i*28,248,22,d,false));
-
-    // turn banner
     turnBanner(10,284,W);
-
-    // dice tray
     tx('RITUAL FRAGMENTS',15,321,C.TEXT_DIM,9);
-    const dw=48,dgap=6,dtotal=dice.length*(dw+dgap)-dgap;
-    const dx0=(GW-dtotal)/2;
+    const dw=48,dgap=6,dtotal=dice.length*(dw+dgap)-dgap,dx0=(GW-dtotal)/2;
     dice.forEach((v,i)=>die(dx0+i*(dw+dgap),327,dw,v,state.selDie===i));
-
-    // action buttons
     const bw=(W-10)/2;
     const rh=state.hover==='reroll',eh=state.hover==='endturn';
     dr(10,385,bw,40,rh?C.ACCENT:C.PANEL,7); dro(10,385,bw,40,C.ACCENT,1,7);
     tx('REROLL ('+rerolls+')',10+bw/2,409,C.TEXT,12,'CENTER');
     dr(10+bw+10,385,bw,40,eh?'#b91c1c':C.DANGER,7);
     tx('END TURN  ▶',10+bw+10+bw/2,409,C.TEXT,13,'CENTER');
-
     if(state.msg&&state.msgTimer>0) tx(state.msg,GW/2,378,C.GOLD,12,'CENTER');
-
-    // items
     tx('CURSED ARTIFACTS',15,436,C.TEXT_DIM,9);
     player.items.forEach((item,i)=>itemCard(item,i,10,443+i*72,W,64));
     if(!player.items.length) tx('Defeat the enemy to earn artifacts.',15,455,C.TEXT_MUT,10);
@@ -394,11 +343,10 @@ new p5(function(p){
 
   function drawCombat(){ portrait?combatPort():combatLand(); }
 
-  // ── LOOT ──
   function drawLoot(){
     const opts=state.lootOptions;
     tx('OFFERINGS FROM THE VOID',GW/2,46,C.ACCENT2,portrait?17:21,'CENTER');
-    tx('Tap a card to take that artifact.',GW/2,64,C.TEXT_DIM,11,'CENTER');
+    tx('Tap a card to claim that artifact.',GW/2,64,C.TEXT_DIM,11,'CENTER');
     if(portrait){
       opts.forEach((item,i)=>{
         const cx=10,cy=80+i*88,w=GW-20,h=80;
@@ -412,23 +360,21 @@ new p5(function(p){
         tx('TAP TO TAKE ▶',cx+w-8,cy+h-8,hov?C.ACCENT:C.TEXT_DIM,9,'RIGHT');
       });
     } else {
-      const cardW=170,gap=20,total=opts.length*(cardW+gap)-gap,sx=GW/2-total/2;
+      const cw=170,gap=20,total=opts.length*(cw+gap)-gap,sx=GW/2-total/2;
       opts.forEach((item,i)=>{
-        const cx=sx+i*(cardW+gap),cy=88;
-        const hov=state.hover===('loot'+i);
-        dr(cx,cy,cardW,230,hov?C.PANEL_ALT:C.PANEL,12);
-        dro(cx,cy,cardW,230,hov?C.ACCENT:C.BORDER,hov?2:1,12);
-        tx(item.glyph,cx+cardW/2,cy+68,C.ACCENT,34,'CENTER');
-        tx(item.name,cx+cardW/2,cy+96,C.TEXT,13,'CENTER');
+        const cx=sx+i*(cw+gap),cy=88,hov=state.hover===('loot'+i);
+        dr(cx,cy,cw,230,hov?C.PANEL_ALT:C.PANEL,12);
+        dro(cx,cy,cw,230,hov?C.ACCENT:C.BORDER,hov?2:1,12);
+        tx(item.glyph,cx+cw/2,cy+68,C.ACCENT,34,'CENTER');
+        tx(item.name,cx+cw/2,cy+96,C.TEXT,13,'CENTER');
         p.fill(C.TEXT_DIM);p.noStroke();p.textSize(10);p.textAlign(p.CENTER);
-        p.text(item.desc,cx+12,cy+114,cardW-24,56);
-        dr(cx+25,cy+186,cardW-50,30,hov?C.ACCENT:C.ACCENT,6);
-        tx('TAKE IT',cx+cardW/2,cy+205,C.TEXT,12,'CENTER');
+        p.text(item.desc,cx+12,cy+114,cw-24,56);
+        dr(cx+25,cy+186,cw-50,30,hov?C.ACCENT:C.ACCENT,6);
+        tx('TAKE IT',cx+cw/2,cy+205,C.TEXT,12,'CENTER');
       });
     }
   }
 
-  // ── GAME OVER ──
   function drawGameOver(){
     tx('⊗',GW/2,GH/2-58,C.DANGER,54,'CENTER');
     tx('YOU HAVE BEEN UNMADE',GW/2,GH/2-8,C.DANGER,portrait?20:27,'CENTER');
@@ -436,8 +382,6 @@ new p5(function(p){
     dr(GW/2-80,GH/2+52,160,40,C.ACCENT,6);
     tx('TRY AGAIN',GW/2,GH/2+77,C.TEXT,13,'CENTER');
   }
-
-  // ── VICTORY ──
   function drawVictory(){
     tx('⊛',GW/2,GH/2-58,C.GOLD,54,'CENTER');
     tx('THE SLEEPER STIRS',GW/2,GH/2-8,C.GOLD,portrait?20:29,'CENTER');
@@ -446,19 +390,24 @@ new p5(function(p){
     tx('PLAY AGAIN',GW/2,GH/2+77,C.TEXT,13,'CENTER');
   }
 
-  // ── Setup / draw ──────────────────────────────────────────────────────────────
+  // ── setup / draw ──
   p.setup = function(){
     relayout();
-    p.createCanvas(window.innerWidth, window.innerHeight);
+    p.createCanvas(VW,VH);
     p.textFont('Courier New');
     initState();
+    // re-layout when visualViewport resizes (Safari address bar show/hide)
+    if(window.visualViewport){
+      window.visualViewport.addEventListener('resize',()=>{
+        relayout();
+        p.resizeCanvas(VW,VH);
+      });
+    }
   };
-
   p.windowResized = function(){
     relayout();
-    p.resizeCanvas(window.innerWidth, window.innerHeight);
+    p.resizeCanvas(VW,VH);
   };
-
   p.draw = function(){
     if(state.msgTimer>0) state.msgTimer--;
     p.background(C.VOID);
@@ -475,7 +424,7 @@ new p5(function(p){
     p.pop();
   };
 
-  // ── Input ─────────────────────────────────────────────────────────────────────
+  // ── input ──
   function updateHover(mx,my){
     state.hover=null;
     if(state.screen==='combat'){
@@ -489,12 +438,11 @@ new p5(function(p){
       }
     }
     if(state.screen==='loot'){
-      const opts=state.lootOptions;
       if(portrait){
-        opts.forEach((_,i)=>{ if(ir(mx,my,10,80+i*88,GW-20,80)) state.hover='loot'+i; });
+        state.lootOptions.forEach((_,i)=>{ if(ir(mx,my,10,80+i*88,GW-20,80)) state.hover='loot'+i; });
       } else {
-        const cw=170,gap=20,total=opts.length*(cw+gap)-gap,sx=GW/2-total/2;
-        opts.forEach((_,i)=>{ if(ir(mx,my,sx+i*(cw+gap),88,cw,230)) state.hover='loot'+i; });
+        const cw=170,gap=20,total=state.lootOptions.length*(cw+gap)-gap,sx=GW/2-total/2;
+        state.lootOptions.forEach((_,i)=>{ if(ir(mx,my,sx+i*(cw+gap),88,cw,230)) state.hover='loot'+i; });
       }
     }
   }
@@ -502,30 +450,25 @@ new p5(function(p){
   function click(rawX,rawY){
     const mx=gx(rawX),my=gy(rawY);
     updateHover(mx,my);
-
     if(state.screen==='title'){
       const ff=FLOORS[0];
       startCombat(ENEMIES.find(e=>e.id===ff.enemies[Math.floor(Math.random()*ff.enemies.length)]));
       state.screen='combat'; return;
     }
     if(state.screen==='gameover'||state.screen==='victory'){
-      if(ir(mx,my,GW/2-80,GH/2+52,160,40)) initState();
-      return;
+      if(ir(mx,my,GW/2-80,GH/2+52,160,40)) initState(); return;
     }
     if(state.screen==='loot'){
-      const opts=state.lootOptions;
       if(portrait){
-        opts.forEach((_,i)=>{ if(ir(mx,my,10,80+i*88,GW-20,80)) pickLoot(i); });
+        state.lootOptions.forEach((_,i)=>{ if(ir(mx,my,10,80+i*88,GW-20,80)) pickLoot(i); });
       } else {
-        const cw=170,gap=20,total=opts.length*(cw+gap)-gap,sx=GW/2-total/2;
-        opts.forEach((_,i)=>{ if(ir(mx,my,sx+i*(cw+gap),88,cw,230)) pickLoot(i); });
+        const cw=170,gap=20,total=state.lootOptions.length*(cw+gap)-gap,sx=GW/2-total/2;
+        state.lootOptions.forEach((_,i)=>{ if(ir(mx,my,sx+i*(cw+gap),88,cw,230)) pickLoot(i); });
       }
       return;
     }
     if(state.screen==='combat'){
       const {combat,player}=state;
-
-      // buttons
       if(portrait){
         const W=GW-20,bw=(W-10)/2;
         if(ir(mx,my,10,385,bw,40)){
@@ -538,21 +481,15 @@ new p5(function(p){
         }
         if(ir(mx,my,615,322,175,44)){ endTurn(); return; }
       }
-
-      // dice
-      const dw=48,dgap=portrait?6:8;
-      const dtotal=combat.dice.length*(dw+dgap)-dgap;
-      const dx0=portrait?(GW-dtotal)/2:20;
-      const dy=portrait?327:136;
+      const dw=48,dgap=portrait?6:8,dtotal=combat.dice.length*(dw+dgap)-dgap;
+      const dx0=portrait?(GW-dtotal)/2:20, dy=portrait?327:136;
       for(let i=0;i<combat.dice.length;i++){
         if(ir(mx,my,dx0+i*(dw+dgap),dy,dw,dw)&&combat.dice[i]!=='used'){
           state.selDie=state.selDie===i?null:i; return;
         }
       }
-
-      // item slots then card body
-      const ch=portrait?64:66, cg=portrait?72:74;
-      const cy0=portrait?443:205, cx0=portrait?10:20, cw=portrait?GW-20:422;
+      const ch=portrait?64:66,cg=portrait?72:74;
+      const cy0=portrait?443:205,cx0=portrait?10:20,cw2=portrait?GW-20:422;
       for(let idx=0;idx<player.items.length;idx++){
         const item=player.items[idx],iy=cy0+idx*cg;
         for(let s=0;s<item.slots;s++){
@@ -563,7 +500,7 @@ new p5(function(p){
             return;
           }
         }
-        if(ir(mx,my,cx0,iy,cw,ch)){ activateItem(idx); return; }
+        if(ir(mx,my,cx0,iy,cw2,ch)){ activateItem(idx); return; }
       }
       state.selDie=null;
     }
