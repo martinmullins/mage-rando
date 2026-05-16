@@ -1,554 +1,578 @@
 // VOID RITES - Eldritch dice-slotting roguelike
-// Standalone p5.js build (no compilation required)
 
 const C = {
-  VOID:      '#0a0a0f', DEEP:  '#12121e', PANEL:    '#1a1a2e',
-  PANEL_ALT: '#16213e', BORDER:'#2d2d5e', ACCENT:   '#7c3aed',
-  ACCENT2:   '#a855f7', DANGER:'#dc2626', WARNING:  '#d97706',
-  SUCCESS:   '#059669', GOLD:  '#f59e0b', TEXT:     '#e5e7eb',
-  TEXT_DIM:  '#6b7280', TEXT_MUT:'#374151',
-  DIE_BG:   '#1e1e3f', DIE_BORDER:'#7c3aed', DIE_USED:'#2d1f4f',
-  SLOT_EMPTY:'#1f2937', SLOT_FULL:'#312e81',
-  HP_FG:    '#dc2626', HP_BG:'#1f1515',
-  SAN_FG:   '#7c3aed', SAN_BG:'#150d20'
+  VOID:'#0a0a0f',DEEP:'#12121e',PANEL:'#1a1a2e',PANEL_ALT:'#16213e',
+  BORDER:'#2d2d5e',ACCENT:'#7c3aed',ACCENT2:'#a855f7',
+  DANGER:'#dc2626',GOLD:'#f59e0b',TEXT:'#e5e7eb',
+  TEXT_DIM:'#6b7280',TEXT_MUT:'#374151',
+  DIE_BG:'#1e1e3f',DIE_BORDER:'#7c3aed',DIE_USED:'#2d1f4f',
+  SLOT_EMPTY:'#1f2937',SLOT_FULL:'#312e81',
+  HP_FG:'#dc2626',HP_BG:'#1f1515',
+  SAN_FG:'#7c3aed',SAN_BG:'#150d20'
 };
 
 const ENEMIES = [
-  { id:'herald',  name:'The Herald of Gnawing Voids', hp:20, maxHp:20, diceCount:2, color:'#6d28d9', glyph:'◈', tier:1,
-    abilities:[{name:'Entropy Bite',slots:[3],dmg:5},{name:'Unravel',slots:[5,6],dmg:0,effect:'sanity',amount:2}] },
-  { id:'watcher', name:'The Watcher Between Seconds', hp:30, maxHp:30, diceCount:3, color:'#9333ea', glyph:'⊗', tier:1,
-    abilities:[{name:'Temporal Gnash',slots:[4,5],dmg:8},{name:'Erase Moment',slots:[6],dmg:0,effect:'skip'}] },
-  { id:'choir',   name:'Choir of Unmaking', hp:45, maxHp:45, diceCount:3, color:'#7e22ce', glyph:'⊛', tier:2,
-    abilities:[{name:'Cacophony',slots:[2,3],dmg:6},{name:'Soul Fracture',slots:[5],dmg:10},{name:'Consume Thought',slots:[6],dmg:0,effect:'sanity',amount:4}] },
-  { id:'sleeper', name:'The Sleeper Beneath All Things', hp:80, maxHp:80, diceCount:4, color:'#4c1d95', glyph:'⊜', tier:3, boss:true,
-    abilities:[{name:'Dream Crush',slots:[4],dmg:15},{name:'Void Surge',slots:[5,6],dmg:20},{name:'Ancient Hunger',slots:[3,4,5],dmg:0,effect:'sanity',amount:6}] }
+  {id:'herald', name:'The Herald of Gnawing Voids', hp:20,maxHp:20,diceCount:2,color:'#6d28d9',glyph:'◈',tier:1,
+    abilities:[{name:'Entropy Bite',dmg:5},{name:'Unravel',dmg:0,effect:'sanity',amount:2}]},
+  {id:'watcher',name:'The Watcher Between Seconds',  hp:30,maxHp:30,diceCount:3,color:'#9333ea',glyph:'⊗',tier:1,
+    abilities:[{name:'Temporal Gnash',dmg:8},{name:'Erase Moment',dmg:0,effect:'skip'}]},
+  {id:'choir',  name:'Choir of Unmaking',            hp:45,maxHp:45,diceCount:3,color:'#7e22ce',glyph:'⊛',tier:2,
+    abilities:[{name:'Cacophony',dmg:6},{name:'Soul Fracture',dmg:10},{name:'Consume Thought',dmg:0,effect:'sanity',amount:4}]},
+  {id:'sleeper',name:'The Sleeper Beneath All Things',hp:80,maxHp:80,diceCount:4,color:'#4c1d95',glyph:'⊜',tier:3,boss:true,
+    abilities:[{name:'Dream Crush',dmg:15},{name:'Void Surge',dmg:20},{name:'Ancient Hunger',dmg:0,effect:'sanity',amount:6}]}
 ];
 
 const ITEMS = [
-  {id:'bloodied-lens',  name:'Bloodied Lens',   glyph:'◉', desc:'Slot any die to deal its value as damage.',           slots:1, req:'any',    effect:'dmg-val'},
-  {id:'ritual-dagger',  name:'Ritual Dagger',   glyph:'◇', desc:'Slot any die. Deals face value damage.',               slots:1, req:'any',    effect:'dmg-val'},
-  {id:'shattered-idol', name:'Shattered Idol',  glyph:'◆', desc:'Slot a 4-5-6 to deal 9 damage.',                       slots:1, req:'high',   effect:'dmg', amount:9},
-  {id:'void-compass',   name:'Void Compass',    glyph:'⊕', desc:'Slot a 1 or 2 to reroll all free dice.',               slots:1, req:'low',    effect:'reroll'},
-  {id:'cursed-tome',    name:'Cursed Tome',     glyph:'⊞', desc:'Slot two matching dice to deal 14 damage.',            slots:2, req:'pair',   effect:'dmg', amount:14},
-  {id:'entropy-sigil',  name:'Entropy Sigil',   glyph:'⊟', desc:'Slot a 3 to heal 4 HP.',                              slots:1, req:'three',  effect:'heal', amount:4},
-  {id:'void-crown',     name:'Void Crown',      glyph:'⊠', desc:'Slot any die. Deals value+2 damage.',                 slots:1, req:'any',    effect:'dmg-val-plus', amount:2},
-  {id:'obsidian-eye',   name:'Obsidian Eye',    glyph:'◈', desc:'Slot two odd dice to deal 11 damage.',                slots:2, req:'odd-pair',effect:'dmg', amount:11},
-  {id:'flaying-word',   name:'Flaying Word',    glyph:'⟁', desc:'Slot a 5 or 6 to deal 13 damage.',                   slots:1, req:'high2',  effect:'dmg', amount:13},
-  {id:'mind-splinter',  name:'Mind Splinter',   glyph:'⟃', desc:'Slot any odd die to deal 7 damage.',                  slots:1, req:'odd',    effect:'dmg', amount:7},
-  {id:'rift-step',      name:'Rift Step',       glyph:'⟂', desc:'Slot a 2 to stun enemy (skip their attack).',         slots:1, req:'two',    effect:'stun'},
-  {id:'blood-tithe',    name:'Blood Tithe',     glyph:'⟇', desc:'Slot three matching dice to deal 28 damage.',         slots:3, req:'triple', effect:'dmg', amount:28}
+  {id:'bloodied-lens', name:'Bloodied Lens',  glyph:'◉',desc:'Slot any die → deals its face value as damage.',   slots:1,req:'any',   effect:'dmg-val'},
+  {id:'ritual-dagger', name:'Ritual Dagger',  glyph:'◇',desc:'Slot any die → deals its face value as damage.',   slots:1,req:'any',   effect:'dmg-val'},
+  {id:'shattered-idol',name:'Shattered Idol', glyph:'◆',desc:'Slot a 4, 5, or 6 → deals 9 damage.',              slots:1,req:'high',  effect:'dmg',amount:9},
+  {id:'void-compass',  name:'Void Compass',   glyph:'⊕',desc:'Slot a 1 or 2 → reroll all un-slotted dice.',      slots:1,req:'low',   effect:'reroll'},
+  {id:'cursed-tome',   name:'Cursed Tome',    glyph:'⊞',desc:'Slot two matching dice → deals 14 damage.',        slots:2,req:'pair',  effect:'dmg',amount:14},
+  {id:'entropy-sigil', name:'Entropy Sigil',  glyph:'⊟',desc:'Slot a 3 → heal 4 HP.',                           slots:1,req:'three', effect:'heal',amount:4},
+  {id:'void-crown',    name:'Void Crown',     glyph:'⊠',desc:'Slot any die → deals face value + 2 damage.',      slots:1,req:'any',   effect:'dmg-val-plus',amount:2},
+  {id:'obsidian-eye',  name:'Obsidian Eye',   glyph:'◈',desc:'Slot two odd dice → deals 11 damage.',             slots:2,req:'odd-pair',effect:'dmg',amount:11},
+  {id:'flaying-word',  name:'Flaying Word',   glyph:'⟁',desc:'Slot a 5 or 6 → deals 13 damage.',                slots:1,req:'high2', effect:'dmg',amount:13},
+  {id:'mind-splinter', name:'Mind Splinter',  glyph:'⟃',desc:'Slot any odd die → deals 7 damage.',              slots:1,req:'odd',   effect:'dmg',amount:7},
+  {id:'rift-step',     name:'Rift Step',      glyph:'⟂',desc:'Slot a 2 → stun enemy, cancelling their attack.',  slots:1,req:'two',   effect:'stun'},
+  {id:'blood-tithe',   name:'Blood Tithe',    glyph:'⟇',desc:'Slot three matching dice → deals 28 damage.',      slots:3,req:'triple',effect:'dmg',amount:28}
 ];
 
 const FLOORS = [
-  {id:1, name:'The Whispering Crypts',    enemies:['herald','watcher'], loot:3},
-  {id:2, name:'The Drowned Cathedral',    enemies:['watcher','choir'],  loot:3},
-  {id:3, name:'The Void Between Stars',   enemies:['sleeper'],          loot:4}
+  {id:1,name:'The Whispering Crypts',  enemies:['herald','watcher'],loot:3},
+  {id:2,name:'The Drowned Cathedral',  enemies:['watcher','choir'], loot:3},
+  {id:3,name:'The Void Between Stars', enemies:['sleeper'],         loot:4}
 ];
 
-// ── State ────────────────────────────────────────────────────────────────────
+// ── State ──────────────────────────────────────────────────────────────────────
 let state;
-
 function initState() {
   state = {
-    screen: 'title',
-    player: { hp:30, maxHp:30, sanity:10, maxSanity:10, items:[] },
-    floor: 1,
-    combat: null,
-    lootOptions: [],
-    selDie: null,
-    hover: null,
-    msg: null, msgTimer: 0
+    screen:'title',
+    player:{hp:30,maxHp:30,sanity:10,maxSanity:10,items:[]},
+    floor:1,combat:null,lootOptions:[],
+    selDie:null,hover:null,msg:null,msgTimer:0
   };
 }
 
-function rollDie() { return Math.floor(Math.random()*6)+1; }
-function rollDice(n) { return Array.from({length:n}, rollDie); }
+function rollDie()  { return Math.floor(Math.random()*6)+1; }
+function rollDice(n){ return Array.from({length:n},rollDie); }
 
-function startCombat(enemyDef) {
-  const enemy = Object.assign({}, enemyDef, {curHp: enemyDef.hp});
-  const intent = pickIntent(enemy);
-  const diceCount = 3 + Math.min(state.player.items.length, 2);
+function startCombat(def) {
+  const enemy = Object.assign({},def,{curHp:def.hp});
+  const n = 3 + Math.min(state.player.items.length, 2);
   state.combat = {
-    enemy, intent,
-    dice: rollDice(diceCount),
-    slots: {},   // itemIdx -> {0: val, 1: val, ...}
-    used: new Set(),
-    rerolls: 1,
-    stunned: false
+    enemy, intent:pickIntent(enemy),
+    dice:rollDice(n), slots:{}, used:new Set(), rerolls:1, stunned:false
   };
 }
 
 function pickIntent(enemy) {
-  const ab = enemy.abilities[Math.floor(Math.random()*enemy.abilities.length)];
-  return { ability: ab, dice: rollDice(enemy.diceCount) };
+  return {ability:enemy.abilities[Math.floor(Math.random()*enemy.abilities.length)], dice:rollDice(enemy.diceCount)};
 }
 
-function showMsg(m) { state.msg = m; state.msgTimer = 130; }
+function showMsg(m){ state.msg=m; state.msgTimer=150; }
 
-// ── Requirement checking ─────────────────────────────────────────────────────
-function slotVals(itemIdx) {
-  const s = state.combat.slots[itemIdx] || {};
-  return Object.values(s);
+// ── Slot helpers ───────────────────────────────────────────────────────────────
+function slotVals(idx) {
+  // filter out internal _N keys used to track die origin
+  return Object.entries(state.combat.slots[idx]||{})
+    .filter(([k])=>!k.startsWith('_')).map(([,v])=>v);
 }
-
-function slotsFilledFor(item, itemIdx) {
-  return slotVals(itemIdx).length === item.slots;
-}
-
-function reqMet(item, itemIdx) {
-  const vals = slotVals(itemIdx);
-  if (vals.length !== item.slots) return false;
-  switch(item.req) {
+function slotsFilled(item,idx){ return slotVals(idx).length===item.slots; }
+function reqMet(item,idx) {
+  const v=slotVals(idx);
+  if(v.length!==item.slots) return false;
+  switch(item.req){
     case 'any':      return true;
-    case 'high':     return vals.every(v => v >= 4);
-    case 'high2':    return vals.every(v => v >= 5);
-    case 'low':      return vals.every(v => v <= 2);
-    case 'two':      return vals.every(v => v === 2);
-    case 'three':    return vals.every(v => v === 3);
-    case 'odd':      return vals.every(v => v % 2 === 1);
-    case 'pair':     return vals.length===2 && vals[0]===vals[1];
-    case 'odd-pair': return vals.length===2 && vals.every(v=>v%2===1);
-    case 'triple':   return vals.length===3 && vals[0]===vals[1] && vals[1]===vals[2];
+    case 'high':     return v.every(x=>x>=4);
+    case 'high2':    return v.every(x=>x>=5);
+    case 'low':      return v.every(x=>x<=2);
+    case 'two':      return v.every(x=>x===2);
+    case 'three':    return v.every(x=>x===3);
+    case 'odd':      return v.every(x=>x%2===1);
+    case 'pair':     return v.length===2&&v[0]===v[1];
+    case 'odd-pair': return v.length===2&&v.every(x=>x%2===1);
+    case 'triple':   return v.length===3&&v[0]===v[1]&&v[1]===v[2];
     default: return true;
   }
 }
 
-// ── Activation ───────────────────────────────────────────────────────────────
-function activateItem(itemIdx) {
-  const {combat, player} = state;
-  if (combat.used.has(itemIdx)) { showMsg('Already used this turn!'); return; }
-  const item = player.items[itemIdx];
-  if (!item) return;
-  if (!slotsFilledFor(item, itemIdx)) { showMsg('Fill all slots first!'); return; }
-  if (!reqMet(item, itemIdx)) { showMsg('Wrong dice for this artifact!'); return; }
-
-  const vals = slotVals(itemIdx);
-  const sum = vals.reduce((a,b)=>a+b,0);
-
-  switch(item.effect) {
+// ── Activation ─────────────────────────────────────────────────────────────────
+function activateItem(idx) {
+  const {combat,player}=state;
+  if(combat.used.has(idx)){showMsg('Already fired this turn!');return;}
+  const item=player.items[idx]; if(!item) return;
+  if(!slotsFilled(item,idx)){showMsg('Fill all slots first!');return;}
+  if(!reqMet(item,idx)){showMsg('Wrong dice for this artifact!');return;}
+  const vals=slotVals(idx), sum=vals.reduce((a,b)=>a+b,0);
+  switch(item.effect){
     case 'dmg':          dealDmg(item.amount); break;
     case 'dmg-val':      dealDmg(sum); break;
-    case 'dmg-val-plus': dealDmg(sum + item.amount); break;
+    case 'dmg-val-plus': dealDmg(sum+item.amount); break;
     case 'heal':         healHp(item.amount); break;
-    case 'reroll':       rerollFree(); break;
-    case 'stun':         combat.stunned = true; showMsg('Enemy stunned — attack cancelled!'); break;
-    default:             showMsg('Activated: ' + item.name);
+    case 'reroll':       doReroll(); break;
+    case 'stun':         combat.stunned=true; showMsg('Enemy stunned — attack cancelled!'); break;
+    default:             showMsg('Activated: '+item.name);
   }
-
-  combat.used.add(itemIdx);
-  combat.slots[itemIdx] = {};
-
-  if (combat.enemy.curHp <= 0) {
-    setTimeout(() => transitionToLoot(), 400);
-  }
+  combat.used.add(idx);
+  combat.slots[idx]={};
+  if(combat.enemy.curHp<=0) setTimeout(()=>transitionToLoot(),350);
 }
 
-function dealDmg(amount) {
-  state.combat.enemy.curHp = Math.max(0, state.combat.enemy.curHp - amount);
-  showMsg('-' + amount + ' damage!');
-}
-
-function healHp(amount) {
-  state.player.hp = Math.min(state.player.maxHp, state.player.hp + amount);
-  showMsg('+' + amount + ' HP!');
-}
-
-function rerollFree() {
-  state.combat.dice = state.combat.dice.map(v => v === 'used' ? 'used' : rollDie());
+function dealDmg(n){ state.combat.enemy.curHp=Math.max(0,state.combat.enemy.curHp-n); showMsg('-'+n+' damage!'); }
+function healHp(n) { state.player.hp=Math.min(state.player.maxHp,state.player.hp+n); showMsg('+'+n+' HP!'); }
+function doReroll(){
+  state.combat.dice=state.combat.dice.map(v=>v==='used'?'used':rollDie());
   showMsg('Rerolled free dice!');
 }
 
-// ── Slot / unslot die ────────────────────────────────────────────────────────
-function slotDie(dieIdx, itemIdx, slotIdx) {
-  const {combat} = state;
-  if (combat.dice[dieIdx] === 'used') return;
-  const val = combat.dice[dieIdx];
-  // free any die already in that slot
-  const existing = (combat.slots[itemIdx] || {})[slotIdx];
-  if (existing !== undefined) {
-    // find that die index and restore it
-    const oldDieIdx = (combat.slots[itemIdx] || {})['_idx_'+slotIdx];
-    if (oldDieIdx !== undefined) combat.dice[oldDieIdx] = existing;
+// ── Slot / unslot ──────────────────────────────────────────────────────────────
+function slotDie(dieIdx,itemIdx,slotIdx) {
+  const c=state.combat;
+  if(c.dice[dieIdx]==='used') return;
+  const val=c.dice[dieIdx];
+  // restore any die already occupying this slot
+  const prev=(c.slots[itemIdx]||{})[slotIdx];
+  if(prev!==undefined){
+    const prevDieIdx=(c.slots[itemIdx]||{})['_'+slotIdx];
+    if(prevDieIdx!==undefined) c.dice[prevDieIdx]=prev;
   }
-  if (!combat.slots[itemIdx]) combat.slots[itemIdx] = {};
-  combat.slots[itemIdx][slotIdx] = val;
-  combat.slots[itemIdx]['_idx_'+slotIdx] = dieIdx;
-  combat.dice[dieIdx] = 'used';
-  state.selDie = null;
+  if(!c.slots[itemIdx]) c.slots[itemIdx]={};
+  c.slots[itemIdx][slotIdx]=val;
+  c.slots[itemIdx]['_'+slotIdx]=dieIdx;
+  c.dice[dieIdx]='used';
+  state.selDie=null;
 }
 
-function unslotDie(itemIdx, slotIdx) {
-  const {combat} = state;
-  const s = combat.slots[itemIdx] || {};
-  const val = s[slotIdx];
-  const origIdx = s['_idx_'+slotIdx];
-  if (val === undefined) return;
-  if (origIdx !== undefined) combat.dice[origIdx] = val;
-  delete combat.slots[itemIdx][slotIdx];
-  delete combat.slots[itemIdx]['_idx_'+slotIdx];
+function unslotDie(itemIdx,slotIdx) {
+  const c=state.combat, s=c.slots[itemIdx]||{};
+  const val=s[slotIdx], orig=s['_'+slotIdx];
+  if(val===undefined) return;
+  if(orig!==undefined) c.dice[orig]=val;
+  delete c.slots[itemIdx][slotIdx];
+  delete c.slots[itemIdx]['_'+slotIdx];
 }
 
-// ── End turn ─────────────────────────────────────────────────────────────────
+// ── End turn ───────────────────────────────────────────────────────────────────
 function endTurn() {
-  const {combat, player} = state;
-  if (!combat.stunned) {
-    const {ability} = combat.intent;
-    if (ability.dmg && ability.dmg > 0) {
-      player.hp = Math.max(0, player.hp - ability.dmg);
-      showMsg('Enemy dealt ' + ability.dmg + ' damage!');
-    } else if (ability.effect === 'sanity') {
-      player.sanity = Math.max(0, player.sanity - ability.amount);
-      showMsg('Sanity drained by ' + ability.amount + '!');
+  const {combat,player}=state;
+  if(!combat.stunned){
+    const {ability}=combat.intent;
+    if(ability.dmg>0){
+      player.hp=Math.max(0,player.hp-ability.dmg);
+      showMsg('Enemy dealt '+ability.dmg+' damage!');
+    } else if(ability.effect==='sanity'){
+      player.sanity=Math.max(0,player.sanity-ability.amount);
+      showMsg('Sanity drained by '+ability.amount+'!');
     }
   } else {
-    showMsg('Stunned — enemy skipped!');
+    showMsg('Enemy stunned — they skipped their attack!');
   }
-
-  if (player.hp <= 0 || player.sanity <= 0) {
-    state.screen = 'gameover';
-    return;
-  }
-  if (combat.enemy.curHp <= 0) {
-    transitionToLoot();
-    return;
-  }
-
-  // next player turn
-  const diceCount = 3 + Math.min(player.items.length, 2);
-  combat.dice = rollDice(diceCount);
-  combat.slots = {};
-  combat.used = new Set();
-  combat.rerolls = 1;
-  combat.stunned = false;
-  combat.intent = pickIntent(combat.enemy);
-  state.selDie = null;
+  if(player.hp<=0||player.sanity<=0){state.screen='gameover';return;}
+  if(combat.enemy.curHp<=0){transitionToLoot();return;}
+  const n=3+Math.min(player.items.length,2);
+  combat.dice=rollDice(n);
+  combat.slots={}; combat.used=new Set(); combat.rerolls=1;
+  combat.stunned=false; combat.intent=pickIntent(combat.enemy);
+  state.selDie=null;
 }
 
 function transitionToLoot() {
-  const floorDef = FLOORS.find(f => f.id === state.floor);
-  const owned = new Set(state.player.items.map(i=>i.id));
-  const pool = ITEMS.filter(i => !owned.has(i.id));
-  const shuffled = pool.sort(()=>Math.random()-0.5);
-  state.lootOptions = shuffled.slice(0, floorDef ? floorDef.loot : 3);
-  state.screen = 'loot';
+  const fd=FLOORS.find(f=>f.id===state.floor);
+  const owned=new Set(state.player.items.map(i=>i.id));
+  const pool=ITEMS.filter(i=>!owned.has(i.id)).sort(()=>Math.random()-0.5);
+  state.lootOptions=pool.slice(0,fd?fd.loot:3);
+  state.screen='loot';
 }
 
-function pickLoot(idx) {
-  const item = state.lootOptions[idx];
-  if (!item) return;
+function pickLoot(i) {
+  const item=state.lootOptions[i]; if(!item) return;
   state.player.items.push(item);
-
-  const nextFloor = state.floor + 1;
-  const nextFloorDef = FLOORS.find(f => f.id === nextFloor);
-  if (nextFloorDef) {
-    state.floor = nextFloor;
-    const enemyId = nextFloorDef.enemies[Math.floor(Math.random()*nextFloorDef.enemies.length)];
-    const enemyDef = ENEMIES.find(e => e.id === enemyId);
-    startCombat(enemyDef);
-    state.screen = 'combat';
-  } else {
-    state.screen = 'victory';
-  }
-  state.selDie = null;
+  const next=FLOORS.find(f=>f.id===state.floor+1);
+  if(next){
+    state.floor++;
+    startCombat(ENEMIES.find(e=>e.id===next.enemies[Math.floor(Math.random()*next.enemies.length)]));
+    state.screen='combat';
+  } else { state.screen='victory'; }
+  state.selDie=null;
 }
 
-// ── p5.js sketch ─────────────────────────────────────────────────────────────
-new p5(function(p) {
+// ── p5.js sketch ───────────────────────────────────────────────────────────────
+new p5(function(p){
 
-  // ── helpers ──
-  function rect(x,y,w,h,col,r=0) {
-    p.fill(col); p.noStroke();
-    r>0 ? p.rect(x,y,w,h,r) : p.rect(x,y,w,h);
-  }
-  function rectOut(x,y,w,h,col,sw,r=0) {
-    p.noFill(); p.stroke(col); p.strokeWeight(sw);
-    r>0 ? p.rect(x,y,w,h,r) : p.rect(x,y,w,h);
-    p.noStroke();
-  }
-  function txt(s,x,y,col,sz,align='LEFT') {
-    p.fill(col); p.noStroke(); p.textSize(sz);
-    p.textAlign(p[align]);
-    p.text(s,x,y);
-  }
-  function inRect(mx,my,x,y,w,h) {
-    return mx>=x&&mx<=x+w&&my>=y&&my<=y+h;
+  let GW,GH,sc,portrait,ox,oy;
+
+  function relayout(){
+    portrait = window.innerHeight > window.innerWidth;
+    GW = portrait ? 390 : 800;
+    GH = portrait ? 750 : 600;
+    sc = Math.min(window.innerWidth/GW, window.innerHeight/GH);
+    ox = (window.innerWidth  - GW*sc)/2;
+    oy = (window.innerHeight - GH*sc)/2;
   }
 
-  // ── draw helpers ──
-  function bar(x,y,w,h,cur,max,fg,bg,label) {
-    rect(x,y,w,h,bg);
-    rect(x,y,Math.round(w*(cur/max)),h,fg);
-    rectOut(x,y,w,h,C.BORDER,1);
-    txt(label+': '+cur+'/'+max, x+4,y+h-5, C.TEXT,10);
+  function gx(x){ return (x-ox)/sc; }
+  function gy(y){ return (y-oy)/sc; }
+
+  // ── primitives ──
+  function dr(x,y,w,h,col,r=0){ p.fill(col);p.noStroke(); r?p.rect(x,y,w,h,r):p.rect(x,y,w,h); }
+  function dro(x,y,w,h,col,sw,r=0){ p.noFill();p.stroke(col);p.strokeWeight(sw); r?p.rect(x,y,w,h,r):p.rect(x,y,w,h); p.noStroke(); }
+  function tx(s,x,y,col,sz,al='LEFT'){ p.fill(col);p.noStroke();p.textSize(sz);p.textAlign(p[al]);p.text(s,x,y); }
+  function ir(mx,my,x,y,w,h){ return mx>=x&&mx<=x+w&&my>=y&&my<=y+h; }
+
+  function bar(x,y,w,h,cur,max,fg,bg,lbl){
+    dr(x,y,w,h,bg); dr(x,y,Math.round(w*cur/max),h,fg); dro(x,y,w,h,C.BORDER,1);
+    tx(lbl+': '+cur+'/'+max, x+4,y+h-5, C.TEXT,10);
   }
 
-  function drawDie(x,y,sz,val,sel) {
-    const used = val==='used';
-    const bg = used ? C.DIE_USED : C.DIE_BG;
-    const bd = used ? C.TEXT_MUT : val===6 ? C.GOLD : val>=4 ? C.ACCENT2 : C.DIE_BORDER;
-    rect(x,y,sz,sz,bg,6);
-    rectOut(x,y,sz,sz,bd,sel?2.5:1.5,6);
-    if (sel) rectOut(x-3,y-3,sz+6,sz+6,C.ACCENT,2,9);
-    if (!used) txt(''+val, x+sz/2, y+sz/2+7, used?C.TEXT_MUT:C.TEXT, sz===48?22:17, 'CENTER');
+  function die(x,y,sz,val,sel){
+    const used=val==='used';
+    dr(x,y,sz,sz,used?C.DIE_USED:C.DIE_BG,6);
+    dro(x,y,sz,sz,used?C.TEXT_MUT:val===6?C.GOLD:val>=4?C.ACCENT2:C.DIE_BORDER,sel?2.5:1.5,6);
+    if(sel) dro(x-3,y-3,sz+6,sz+6,C.ACCENT,2,9);
+    if(!used) tx(''+val,x+sz/2,y+sz*0.65,C.TEXT,sz*0.48,'CENTER');
   }
 
-  function drawItemCard(item, itemIdx, x, y, w) {
-    const {combat} = state;
-    const slots = combat ? (combat.slots[itemIdx]||{}) : {};
-    const used = combat && combat.used.has(itemIdx);
-    const bg = used ? C.TEXT_MUT : C.PANEL;
-    rect(x,y,w,72,bg,8);
-    rectOut(x,y,w,72,C.BORDER,1,8);
-    txt(item.glyph, x+22,y+30, C.ACCENT,20,'CENTER');
-    txt(item.name,  x+42,y+18, used?C.TEXT_MUT:C.TEXT, 12);
-    txt(item.desc,  x+42,y+33, C.TEXT_DIM, 10);
+  // ── item card ──
+  function itemCard(item,idx,x,y,w,h){
+    const slots=(state.combat?state.combat.slots[idx]:null)||{};
+    const used=state.combat&&state.combat.used.has(idx);
+    const ready=!used&&slotsFilled(item,idx)&&reqMet(item,idx);
+    dr(x,y,w,h,used?'#111':C.PANEL,8);
+    dro(x,y,w,h,ready?C.ACCENT:C.BORDER,ready?2:1,8);
+    tx(item.glyph,x+20,y+h*0.5+6,C.ACCENT,16,'CENTER');
+    tx(item.name,x+38,y+14,used?C.TEXT_MUT:C.TEXT,11);
+    // desc word-wrapped
+    p.fill(C.TEXT_DIM);p.noStroke();p.textSize(9);p.textAlign(p.LEFT);
+    p.text(item.desc,x+38,y+26,w-80,28);
     // slots
-    for(let s=0;s<item.slots;s++) {
-      const sx=x+42+s*46, sy=y+46;
-      const sv=slots[s];
-      const filled=sv!==undefined;
-      rect(sx,sy,40,22,filled?C.SLOT_FULL:C.SLOT_EMPTY,5);
-      rectOut(sx,sy,40,22,C.BORDER,1,5);
-      if(filled) txt(''+sv,sx+20,sy+16,C.TEXT,16,'CENTER');
+    for(let s=0;s<item.slots;s++){
+      const sx=x+38+s*44, sy=y+h-24;
+      const sv=slots[s], filled=sv!==undefined;
+      dr(sx,sy,38,18,filled?C.SLOT_FULL:C.SLOT_EMPTY,4);
+      dro(sx,sy,38,18,filled?(ready?C.ACCENT:C.ACCENT2):C.BORDER,1,4);
+      if(filled) tx(''+sv,sx+19,sy+14,C.TEXT,14,'CENTER');
+      else       tx('slot',sx+19,sy+13,C.TEXT_MUT,8,'CENTER');
     }
-    // activate hint
-    if (!used && slotsFilledFor(item, itemIdx) && reqMet(item, itemIdx)) {
-      rectOut(x,y,w,72,C.ACCENT,1.5,8);
-      txt('CLICK TO ACTIVATE',x+w-8,y+62,C.ACCENT,9,'RIGHT');
-    }
+    if(ready) tx('▶ TAP TO FIRE',x+w-6,y+h-5,C.ACCENT,9,'RIGHT');
+  }
+
+  // ── turn banner ──
+  function turnBanner(x,y,w){
+    const a=0.55+0.45*Math.sin(p.frameCount*0.12);
+    dr(x,y,w,26,C.PANEL,6);
+    p.noFill();p.stroke(C.ACCENT);p.strokeWeight(a*2);p.rect(x,y,w,26,6);p.noStroke();
+    tx('YOUR TURN',x+w/2,y+10,C.ACCENT2,11,'CENTER');
+    tx('① tap a die  ② tap a slot  ③ tap artifact to fire  ④ END TURN',x+w/2,y+22,C.TEXT_DIM,8,'CENTER');
   }
 
   // ── TITLE ──
-  function drawTitle() {
-    p.background(C.VOID);
-    const cx=400,cy=300;
+  function drawTitle(){
+    const cx=GW/2,cy=GH/2;
     p.noFill();
-    for(let i=1;i<=5;i++){p.stroke(C.BORDER);p.strokeWeight(0.5);p.ellipse(cx,cy,i*70,i*70);}
+    for(let i=1;i<=5;i++){p.stroke(C.BORDER);p.strokeWeight(0.5);p.ellipse(cx,cy,i*60,i*60);}
     p.noStroke();
-    txt('⊜',cx,cy-40,C.ACCENT,65,'CENTER');
-    txt('VOID RITES',cx,cy+10,C.ACCENT2,46,'CENTER');
-    txt('AN ELDRITCH DICE-SLOTTING ROGUELIKE',cx,cy+36,C.TEXT_DIM,13,'CENTER');
-    txt('— click to begin the ritual —',cx,cy+75,C.ACCENT,13,'CENTER');
+    tx('⊜',cx,cy-32,C.ACCENT,50,'CENTER');
+    tx('VOID RITES',cx,cy+8,C.ACCENT2,portrait?32:42,'CENTER');
+    tx('AN ELDRITCH DICE-SLOTTING ROGUELIKE',cx,cy+28,C.TEXT_DIM,portrait?10:13,'CENTER');
+    tx('— tap anywhere to begin the ritual —',cx,cy+60,C.ACCENT,11,'CENTER');
   }
 
-  // ── COMBAT ──
-  function drawCombat() {
-    p.background(C.VOID);
-    const {combat,player,floor} = state;
-    const {enemy,intent,dice,rerolls} = combat;
+  // ── COMBAT LANDSCAPE ──
+  function combatLand(){
+    const {combat,player,floor}=state;
+    const {enemy,intent,dice,rerolls}=combat;
+    const fd=FLOORS.find(f=>f.id===floor);
 
-    // panels
-    rect(10,10,440,580,C.DEEP,12);
-    rect(450,10,340,580,C.DEEP,12);
+    dr(10,10,440,580,C.DEEP,12);
+    dr(450,10,340,580,C.DEEP,12);
 
-    // floor label
-    const floorDef = FLOORS.find(f=>f.id===floor);
-    txt('FLOOR '+floor+' — '+(floorDef?floorDef.name:''), 455,24,C.TEXT_DIM,10);
+    // player
+    tx('CULTIST',20,34,C.ACCENT2,14);
+    bar(20,40,200,18,player.hp,player.maxHp,C.HP_FG,C.HP_BG,'HP');
+    bar(20,64,200,18,player.sanity,player.maxSanity,C.SAN_FG,C.SAN_BG,'SANITY');
+    turnBanner(20,90,422);
 
-    // player info
-    txt('CULTIST', 20,36,C.ACCENT2,14);
-    bar(20,42,195,18, player.hp,player.maxHp, C.HP_FG,C.HP_BG,'HP');
-    bar(20,66,195,18, player.sanity,player.maxSanity, C.SAN_FG,C.SAN_BG,'SANITY');
-
-    // enemy
-    txt(enemy.name, 640,56,C.TEXT,13,'RIGHT');
-    txt(enemy.glyph, 550,148,enemy.color,62,'CENTER');
-    bar(455,218,330,20,enemy.curHp,enemy.maxHp,C.HP_FG,C.HP_BG,'ENEMY HP');
-
-    // intent
-    rect(455,248,330,80,C.PANEL,8);
-    rectOut(455,248,330,80,C.BORDER,1,8);
-    txt('ENEMY INTENT',460,264,C.TEXT_DIM,10);
-    const {ability} = intent;
-    txt(ability.name,460,282,C.DANGER,13);
-    const intentDesc = combat.stunned ? 'STUNNED (will skip this attack)'
-      : ability.dmg>0 ? 'Will deal '+ability.dmg+' damage'
-      : ability.effect==='sanity' ? 'Will drain '+ability.amount+' sanity'
-      : ability.effect==='skip' ? 'Will skip your turn' : '???';
-    txt(intentDesc,460,300,C.TEXT,12);
-    intent.dice.forEach((d,i)=>drawDie(460+i*34,308,26,d,false));
-
-    // buttons
-    const rHover = state.hover==='reroll';
-    const eHover = state.hover==='endturn';
-    rect(455,345,155,38,rHover?C.ACCENT:C.PANEL,6);
-    txt('REROLL ('+rerolls+' left)',532,369,C.TEXT,13,'CENTER');
-    rect(620,345,170,38,eHover?C.ACCENT:C.DANGER,6);
-    txt('END TURN',705,369,C.TEXT,13,'CENTER');
-
-    // dice tray
-    txt('YOUR RITUAL FRAGMENTS', 20,105,C.TEXT_DIM,10);
-    dice.forEach((v,i) => drawDie(20+i*58,112,48,v,state.selDie===i));
+    // dice
+    tx('RITUAL FRAGMENTS',20,130,C.TEXT_DIM,9);
+    dice.forEach((v,i)=>die(20+i*56,136,48,v,state.selDie===i));
 
     // items
-    txt('CURSED ARTIFACTS & SPELLS', 20,174,C.TEXT_DIM,10);
-    player.items.forEach((item,i) => {
-      drawItemCard(item, i, 20, 182+i*80, 420);
-    });
-    if (player.items.length===0) {
-      txt('No artifacts yet — defeat enemies to earn loot.', 20,200,C.TEXT_MUT,11);
-    }
+    tx('CURSED ARTIFACTS',20,198,C.TEXT_DIM,9);
+    player.items.forEach((item,i)=>itemCard(item,i,20,205+i*74,422,66));
+    if(!player.items.length) tx('Defeat the enemy to earn artifacts.',20,220,C.TEXT_MUT,10);
 
-    // message
-    if (state.msg && state.msgTimer>0) {
-      txt(state.msg, 400,340,C.GOLD,16,'CENTER');
+    // enemy
+    tx('FLOOR '+floor+' — '+(fd?fd.name:''),455,24,C.TEXT_DIM,10);
+    tx(enemy.name,638,46,C.TEXT,12,'RIGHT');
+    tx(enemy.glyph,555,135,enemy.color,56,'CENTER');
+    bar(455,205,330,20,enemy.curHp,enemy.maxHp,C.HP_FG,C.HP_BG,'ENEMY HP');
+
+    // intent
+    dr(455,234,330,78,C.PANEL,8); dro(455,234,330,78,C.BORDER,1,8);
+    tx('ENEMY INTENT',460,250,C.TEXT_DIM,9);
+    const {ability}=intent;
+    tx(ability.name,460,267,C.DANGER,13);
+    const id=combat.stunned?'STUNNED — will skip'
+      :ability.dmg>0?'Will deal '+ability.dmg+' damage'
+      :ability.effect==='sanity'?'Will drain '+ability.amount+' sanity'
+      :ability.effect==='skip'?'Will skip your turn':'???';
+    tx(id,460,283,C.TEXT,11);
+    intent.dice.forEach((d,i)=>die(460+i*30,290,24,d,false));
+
+    // buttons
+    const rh=state.hover==='reroll',eh=state.hover==='endturn';
+    dr(455,322,150,44,rh?C.ACCENT:C.PANEL,7); dro(455,322,150,44,C.ACCENT,1,7);
+    tx('REROLL',530,340,C.TEXT,12,'CENTER');
+    tx('('+rerolls+' left)',530,355,C.TEXT_DIM,10,'CENTER');
+    dr(615,322,175,44,eh?'#b91c1c':C.DANGER,7);
+    tx('END TURN  ▶',702,349,C.TEXT,15,'CENTER');
+
+    // floating message
+    if(state.msg&&state.msgTimer>0){
+      dr(150,311,300,22,C.DEEP,5);
+      tx(state.msg,300,327,C.GOLD,13,'CENTER');
     }
   }
 
+  // ── COMBAT PORTRAIT ──
+  function combatPort(){
+    const {combat,player,floor}=state;
+    const {enemy,intent,dice,rerolls}=combat;
+    const fd=FLOORS.find(f=>f.id===floor);
+    const W=GW-20;
+
+    // player bar
+    dr(10,10,W,88,C.DEEP,10);
+    tx('FLOOR '+floor+' — '+(fd?fd.name:''),15,24,C.TEXT_DIM,9);
+    tx('CULTIST',15,40,C.ACCENT2,13);
+    bar(15,44,W/2-8,18,player.hp,player.maxHp,C.HP_FG,C.HP_BG,'HP');
+    bar(15,68,W/2-8,18,player.sanity,player.maxSanity,C.SAN_FG,C.SAN_BG,'SANITY');
+
+    // enemy
+    dr(10,106,W,104,C.DEEP,10);
+    tx(enemy.name,GW/2,120,C.TEXT,11,'CENTER');
+    tx(enemy.glyph,GW/2,168,enemy.color,50,'CENTER');
+    bar(15,186,W,20,enemy.curHp,enemy.maxHp,C.HP_FG,C.HP_BG,'ENEMY HP');
+
+    // intent
+    dr(10,216,W,60,C.PANEL,8); dro(10,216,W,60,C.BORDER,1,8);
+    tx('ENEMY INTENT',15,231,C.TEXT_DIM,9);
+    const {ability}=intent;
+    tx(ability.name,15,247,C.DANGER,12);
+    const id=combat.stunned?'STUNNED — will skip'
+      :ability.dmg>0?'Will deal '+ability.dmg+' damage'
+      :ability.effect==='sanity'?'Will drain '+ability.amount+' sanity'
+      :ability.effect==='skip'?'Skips your turn':'???';
+    tx(id,15,262,C.TEXT,10);
+    intent.dice.forEach((d,i)=>die(W-10-intent.dice.length*28+i*28,248,22,d,false));
+
+    // turn banner
+    turnBanner(10,284,W);
+
+    // dice tray
+    tx('RITUAL FRAGMENTS',15,321,C.TEXT_DIM,9);
+    const dw=48,dgap=6,dtotal=dice.length*(dw+dgap)-dgap;
+    const dx0=(GW-dtotal)/2;
+    dice.forEach((v,i)=>die(dx0+i*(dw+dgap),327,dw,v,state.selDie===i));
+
+    // action buttons
+    const bw=(W-10)/2;
+    const rh=state.hover==='reroll',eh=state.hover==='endturn';
+    dr(10,385,bw,40,rh?C.ACCENT:C.PANEL,7); dro(10,385,bw,40,C.ACCENT,1,7);
+    tx('REROLL ('+rerolls+')',10+bw/2,409,C.TEXT,12,'CENTER');
+    dr(10+bw+10,385,bw,40,eh?'#b91c1c':C.DANGER,7);
+    tx('END TURN  ▶',10+bw+10+bw/2,409,C.TEXT,13,'CENTER');
+
+    if(state.msg&&state.msgTimer>0) tx(state.msg,GW/2,378,C.GOLD,12,'CENTER');
+
+    // items
+    tx('CURSED ARTIFACTS',15,436,C.TEXT_DIM,9);
+    player.items.forEach((item,i)=>itemCard(item,i,10,443+i*72,W,64));
+    if(!player.items.length) tx('Defeat the enemy to earn artifacts.',15,455,C.TEXT_MUT,10);
+  }
+
+  function drawCombat(){ portrait?combatPort():combatLand(); }
+
   // ── LOOT ──
-  function drawLoot() {
-    p.background(C.VOID);
-    txt('OFFERINGS FROM THE VOID', 400,60,C.ACCENT2,22,'CENTER');
-    txt('Choose one artifact to carry forward.', 400,86,C.TEXT_DIM,13,'CENTER');
-    const opts = state.lootOptions;
-    const cardW=170, gap=20;
-    const totalW = opts.length*(cardW+gap)-gap;
-    const startX = 400-totalW/2;
-    opts.forEach((item,i)=>{
-      const cx=startX+i*(cardW+gap), cy=160;
-      const hover = state.hover===('loot'+i);
-      rect(cx,cy,cardW,230,hover?C.PANEL_ALT:C.PANEL,12);
-      rectOut(cx,cy,cardW,230,hover?C.ACCENT:C.BORDER,hover?2:1,12);
-      txt(item.glyph, cx+cardW/2,cy+70,C.ACCENT,36,'CENTER');
-      txt(item.name,  cx+cardW/2,cy+100,C.TEXT,13,'CENTER');
-      // wrap desc
-      p.fill(C.TEXT_DIM); p.noStroke(); p.textSize(10);
-      p.textAlign(p.CENTER);
-      p.text(item.desc, cx+10,cy+118,cardW-20,60);
-      rect(cx+25,cy+185,cardW-50,34,hover?C.ACCENT:C.ACCENT,6);
-      txt('TAKE IT',cx+cardW/2,cy+207,C.TEXT,13,'CENTER');
-    });
+  function drawLoot(){
+    const opts=state.lootOptions;
+    tx('OFFERINGS FROM THE VOID',GW/2,46,C.ACCENT2,portrait?17:21,'CENTER');
+    tx('Tap a card to take that artifact.',GW/2,64,C.TEXT_DIM,11,'CENTER');
+    if(portrait){
+      opts.forEach((item,i)=>{
+        const cx=10,cy=80+i*88,w=GW-20,h=80;
+        const hov=state.hover===('loot'+i);
+        dr(cx,cy,w,h,hov?C.PANEL_ALT:C.PANEL,10);
+        dro(cx,cy,w,h,hov?C.ACCENT:C.BORDER,hov?2:1,10);
+        tx(item.glyph,cx+26,cy+h/2+8,C.ACCENT,24,'CENTER');
+        tx(item.name,cx+50,cy+18,C.TEXT,13);
+        p.fill(C.TEXT_DIM);p.noStroke();p.textSize(10);p.textAlign(p.LEFT);
+        p.text(item.desc,cx+50,cy+32,w-60,40);
+        tx('TAP TO TAKE ▶',cx+w-8,cy+h-8,hov?C.ACCENT:C.TEXT_DIM,9,'RIGHT');
+      });
+    } else {
+      const cardW=170,gap=20,total=opts.length*(cardW+gap)-gap,sx=GW/2-total/2;
+      opts.forEach((item,i)=>{
+        const cx=sx+i*(cardW+gap),cy=88;
+        const hov=state.hover===('loot'+i);
+        dr(cx,cy,cardW,230,hov?C.PANEL_ALT:C.PANEL,12);
+        dro(cx,cy,cardW,230,hov?C.ACCENT:C.BORDER,hov?2:1,12);
+        tx(item.glyph,cx+cardW/2,cy+68,C.ACCENT,34,'CENTER');
+        tx(item.name,cx+cardW/2,cy+96,C.TEXT,13,'CENTER');
+        p.fill(C.TEXT_DIM);p.noStroke();p.textSize(10);p.textAlign(p.CENTER);
+        p.text(item.desc,cx+12,cy+114,cardW-24,56);
+        dr(cx+25,cy+186,cardW-50,30,hov?C.ACCENT:C.ACCENT,6);
+        tx('TAKE IT',cx+cardW/2,cy+205,C.TEXT,12,'CENTER');
+      });
+    }
   }
 
   // ── GAME OVER ──
-  function drawGameOver() {
-    p.background(C.VOID);
-    txt('⊗',400,240,C.DANGER,60,'CENTER');
-    txt('YOU HAVE BEEN UNMADE',400,290,C.DANGER,28,'CENTER');
-    txt('The void has consumed another cultist.',400,320,C.TEXT_DIM,14,'CENTER');
-    rect(320,360,160,42,C.ACCENT,6);
-    txt('TRY AGAIN',400,386,C.TEXT,14,'CENTER');
+  function drawGameOver(){
+    tx('⊗',GW/2,GH/2-58,C.DANGER,54,'CENTER');
+    tx('YOU HAVE BEEN UNMADE',GW/2,GH/2-8,C.DANGER,portrait?20:27,'CENTER');
+    tx('The void claimed another cultist.',GW/2,GH/2+17,C.TEXT_DIM,12,'CENTER');
+    dr(GW/2-80,GH/2+52,160,40,C.ACCENT,6);
+    tx('TRY AGAIN',GW/2,GH/2+77,C.TEXT,13,'CENTER');
   }
 
   // ── VICTORY ──
-  function drawVictory() {
-    p.background(C.VOID);
-    txt('⊛',400,240,C.GOLD,60,'CENTER');
-    txt('THE SLEEPER STIRS',400,290,C.GOLD,30,'CENTER');
-    txt('The ritual is complete. The void is satisfied... for now.',400,320,C.TEXT_DIM,13,'CENTER');
-    rect(320,360,160,42,C.ACCENT,6);
-    txt('PLAY AGAIN',400,386,C.TEXT,14,'CENTER');
+  function drawVictory(){
+    tx('⊛',GW/2,GH/2-58,C.GOLD,54,'CENTER');
+    tx('THE SLEEPER STIRS',GW/2,GH/2-8,C.GOLD,portrait?20:29,'CENTER');
+    tx('The ritual is complete. The void is satisfied.',GW/2,GH/2+17,C.TEXT_DIM,12,'CENTER');
+    dr(GW/2-80,GH/2+52,160,40,C.ACCENT,6);
+    tx('PLAY AGAIN',GW/2,GH/2+77,C.TEXT,13,'CENTER');
   }
 
-  // ── Setup / draw ─────────────────────────────────────────────────────────
-  p.setup = function() {
-    p.createCanvas(800,600);
+  // ── Setup / draw ──────────────────────────────────────────────────────────────
+  p.setup = function(){
+    relayout();
+    p.createCanvas(window.innerWidth, window.innerHeight);
     p.textFont('Courier New');
     initState();
   };
 
-  p.draw = function() {
-    if (state.msgTimer>0) state.msgTimer--;
-    switch(state.screen) {
-      case 'title':   drawTitle();   break;
-      case 'combat':  drawCombat();  break;
-      case 'loot':    drawLoot();    break;
-      case 'gameover':drawGameOver();break;
-      case 'victory': drawVictory(); break;
-    }
+  p.windowResized = function(){
+    relayout();
+    p.resizeCanvas(window.innerWidth, window.innerHeight);
   };
 
-  // ── Input ────────────────────────────────────────────────────────────────
-  p.mouseMoved = p.mouseDragged = function() {
-    const mx=p.mouseX, my=p.mouseY;
-    state.hover = null;
-    if (state.screen==='combat') {
-      if (inRect(mx,my,455,345,155,38)) state.hover='reroll';
-      if (inRect(mx,my,620,345,170,38)) state.hover='endturn';
+  p.draw = function(){
+    if(state.msgTimer>0) state.msgTimer--;
+    p.background(C.VOID);
+    p.push();
+    p.translate(ox,oy);
+    p.scale(sc);
+    switch(state.screen){
+      case 'title':    drawTitle();    break;
+      case 'combat':   drawCombat();   break;
+      case 'loot':     drawLoot();     break;
+      case 'gameover': drawGameOver(); break;
+      case 'victory':  drawVictory();  break;
     }
-    if (state.screen==='loot') {
-      const opts=state.lootOptions, cardW=170, gap=20;
-      const totalW=opts.length*(cardW+gap)-gap;
-      const startX=400-totalW/2;
-      opts.forEach((item,i)=>{
-        const cx=startX+i*(cardW+gap);
-        if(inRect(mx,my,cx,160,cardW,230)) state.hover='loot'+i;
-      });
-    }
+    p.pop();
   };
 
-  p.mouseClicked = function() {
-    const mx=p.mouseX, my=p.mouseY;
+  // ── Input ─────────────────────────────────────────────────────────────────────
+  function updateHover(mx,my){
+    state.hover=null;
+    if(state.screen==='combat'){
+      if(portrait){
+        const W=GW-20,bw=(W-10)/2;
+        if(ir(mx,my,10,385,bw,40)) state.hover='reroll';
+        if(ir(mx,my,10+bw+10,385,bw,40)) state.hover='endturn';
+      } else {
+        if(ir(mx,my,455,322,150,44)) state.hover='reroll';
+        if(ir(mx,my,615,322,175,44)) state.hover='endturn';
+      }
+    }
+    if(state.screen==='loot'){
+      const opts=state.lootOptions;
+      if(portrait){
+        opts.forEach((_,i)=>{ if(ir(mx,my,10,80+i*88,GW-20,80)) state.hover='loot'+i; });
+      } else {
+        const cw=170,gap=20,total=opts.length*(cw+gap)-gap,sx=GW/2-total/2;
+        opts.forEach((_,i)=>{ if(ir(mx,my,sx+i*(cw+gap),88,cw,230)) state.hover='loot'+i; });
+      }
+    }
+  }
 
-    if (state.screen==='title') {
-      const firstFloor=FLOORS[0];
-      const enemyId=firstFloor.enemies[Math.floor(Math.random()*firstFloor.enemies.length)];
-      startCombat(ENEMIES.find(e=>e.id===enemyId));
-      state.screen='combat';
+  function click(rawX,rawY){
+    const mx=gx(rawX),my=gy(rawY);
+    updateHover(mx,my);
+
+    if(state.screen==='title'){
+      const ff=FLOORS[0];
+      startCombat(ENEMIES.find(e=>e.id===ff.enemies[Math.floor(Math.random()*ff.enemies.length)]));
+      state.screen='combat'; return;
+    }
+    if(state.screen==='gameover'||state.screen==='victory'){
+      if(ir(mx,my,GW/2-80,GH/2+52,160,40)) initState();
       return;
     }
-
-    if (state.screen==='gameover'||state.screen==='victory') {
-      if(inRect(mx,my,320,360,160,42)) initState();
+    if(state.screen==='loot'){
+      const opts=state.lootOptions;
+      if(portrait){
+        opts.forEach((_,i)=>{ if(ir(mx,my,10,80+i*88,GW-20,80)) pickLoot(i); });
+      } else {
+        const cw=170,gap=20,total=opts.length*(cw+gap)-gap,sx=GW/2-total/2;
+        opts.forEach((_,i)=>{ if(ir(mx,my,sx+i*(cw+gap),88,cw,230)) pickLoot(i); });
+      }
       return;
     }
-
-    if (state.screen==='loot') {
-      const opts=state.lootOptions, cardW=170, gap=20;
-      const totalW=opts.length*(cardW+gap)-gap;
-      const startX=400-totalW/2;
-      opts.forEach((item,i)=>{
-        const cx=startX+i*(cardW+gap);
-        if(inRect(mx,my,cx+25,160+185,cardW-50,34)) pickLoot(i);
-      });
-      return;
-    }
-
-    if (state.screen==='combat') {
-      const {combat,player} = state;
-      const {dice} = combat;
+    if(state.screen==='combat'){
+      const {combat,player}=state;
 
       // buttons
-      if(inRect(mx,my,455,345,155,38)) {
-        if(combat.rerolls>0){rerollFree();combat.rerolls--;}
-        else showMsg('No rerolls left!');
-        return;
+      if(portrait){
+        const W=GW-20,bw=(W-10)/2;
+        if(ir(mx,my,10,385,bw,40)){
+          if(combat.rerolls>0){doReroll();combat.rerolls--;} else showMsg('No rerolls left!'); return;
+        }
+        if(ir(mx,my,10+bw+10,385,bw,40)){ endTurn(); return; }
+      } else {
+        if(ir(mx,my,455,322,150,44)){
+          if(combat.rerolls>0){doReroll();combat.rerolls--;} else showMsg('No rerolls left!'); return;
+        }
+        if(ir(mx,my,615,322,175,44)){ endTurn(); return; }
       }
-      if(inRect(mx,my,620,345,170,38)) { endTurn(); return; }
 
       // dice
-      for(let i=0;i<dice.length;i++) {
-        const dx=20+i*58, dy=112;
-        if(inRect(mx,my,dx,dy,48,48)&&dice[i]!=='used') {
-          state.selDie = state.selDie===i ? null : i;
-          return;
+      const dw=48,dgap=portrait?6:8;
+      const dtotal=combat.dice.length*(dw+dgap)-dgap;
+      const dx0=portrait?(GW-dtotal)/2:20;
+      const dy=portrait?327:136;
+      for(let i=0;i<combat.dice.length;i++){
+        if(ir(mx,my,dx0+i*(dw+dgap),dy,dw,dw)&&combat.dice[i]!=='used'){
+          state.selDie=state.selDie===i?null:i; return;
         }
       }
 
-      // item slots (click slot to place selected die, or unslot)
-      for(let itemIdx=0;itemIdx<player.items.length;itemIdx++) {
-        const item=player.items[itemIdx];
-        const iy=182+itemIdx*80;
-        for(let s=0;s<item.slots;s++) {
-          const sx=62+s*46, sy=iy+46;
-          if(inRect(mx,my,sx,sy,40,22)) {
-            if(state.selDie!==null) {
-              slotDie(state.selDie,itemIdx,s);
-            } else {
-              unslotDie(itemIdx,s);
-            }
+      // item slots then card body
+      const ch=portrait?64:66, cg=portrait?72:74;
+      const cy0=portrait?443:205, cx0=portrait?10:20, cw=portrait?GW-20:422;
+      for(let idx=0;idx<player.items.length;idx++){
+        const item=player.items[idx],iy=cy0+idx*cg;
+        for(let s=0;s<item.slots;s++){
+          const sx=cx0+38+s*44,sy=iy+ch-24;
+          if(ir(mx,my,sx,sy,38,18)){
+            if(state.selDie!==null) slotDie(state.selDie,idx,s);
+            else unslotDie(idx,s);
             return;
           }
         }
-        // click card body to activate
-        if(inRect(mx,my,20,iy,420,72)) {
-          activateItem(itemIdx);
-          return;
-        }
+        if(ir(mx,my,cx0,iy,cw,ch)){ activateItem(idx); return; }
       }
-
-      // deselect
       state.selDie=null;
     }
+  }
+
+  p.mouseMoved = p.mouseDragged = function(){ updateHover(gx(p.mouseX),gy(p.mouseY)); };
+  p.mouseClicked = function(){ click(p.mouseX,p.mouseY); };
+  p.touchStarted = function(){
+    if(p.touches.length>0) click(p.touches[0].x,p.touches[0].y);
+    return false;
   };
 });
