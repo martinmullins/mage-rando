@@ -1,4 +1,4 @@
-// SIGIL RITES — Eldritch Polyomino Roguelike
+// SIGIL RITES — Eldritch Hexomino Roguelike
 
 const C = {
   VOID:'#0a0a0f', DEEP:'#12121e', PANEL:'#1a1a2e', PANEL_ALT:'#16213e',
@@ -9,23 +9,33 @@ const C = {
   EN_FG:'#dc2626', EN_BG:'#1f1515'
 };
 
-const GRID_COLS = 6, GRID_ROWS = 7;
+const GRID_COLS = 7, GRID_ROWS = 8;
 
+// All hexominoes: exactly 6 cells each
 const SIGILS = [
-  {id:'reach',    name:'Reaching Arm',     color:'#7c3aed', glyph:'⊢', cells:[[0,0],[1,0],[2,0],[3,0]]},
-  {id:'bind',     name:'Binding Square',   color:'#a855f7', glyph:'⊞', cells:[[0,0],[0,1],[1,0],[1,1]]},
-  {id:'converge', name:'Convergence',      color:'#6d28d9', glyph:'⊤', cells:[[0,0],[0,1],[0,2],[1,1]]},
-  {id:'slither',  name:'The Slither',      color:'#9333ea', glyph:'⊠', cells:[[0,1],[0,2],[1,0],[1,1]]},
-  {id:'claw',     name:'Beckoning Claw',   color:'#7e22ce', glyph:'⊣', cells:[[0,0],[1,0],[2,0],[2,1]]},
-  {id:'crooked',  name:'Crooked Path',     color:'#8b5cf6', glyph:'⊥', cells:[[0,1],[1,1],[2,0],[2,1]]},
-  {id:'star',     name:'Star of Unmaking', color:'#c084fc', glyph:'⊕', cells:[[0,1],[1,0],[1,1],[1,2],[2,1]]}
+  {id:'spine',    name:'The Spine',        color:'#7c3aed', glyph:'⊢',
+   cells:[[0,0],[1,0],[2,0],[3,0],[4,0],[5,0]]},           // I-6: straight line
+  {id:'block',    name:'Void Block',        color:'#a855f7', glyph:'⊞',
+   cells:[[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]]},           // 2×3 rectangle
+  {id:'claw',     name:'Beckoning Claw',    color:'#6d28d9', glyph:'⊣',
+   cells:[[0,0],[1,0],[2,0],[3,0],[4,0],[4,1]]},           // L-6
+  {id:'stair',    name:'The Staircase',     color:'#9333ea', glyph:'⊠',
+   cells:[[0,0],[0,1],[1,1],[1,2],[2,2],[2,3]]},           // 3-step diagonal
+  {id:'cross',    name:'Star of Unmaking',  color:'#c084fc', glyph:'⊕',
+   cells:[[0,1],[1,0],[1,1],[1,2],[2,1],[3,1]]},           // + with extra arm
+  {id:'hook',     name:'The Hook',          color:'#7e22ce', glyph:'⊥',
+   cells:[[0,0],[1,0],[2,0],[2,1],[2,2],[1,2]]},           // C/bracket shape
+  {id:'wedge',    name:'The Wedge',         color:'#8b5cf6', glyph:'⊤',
+   cells:[[0,0],[0,1],[0,2],[1,0],[1,1],[2,0]]},           // triangular stack
+  {id:'snake',    name:'The Serpent',       color:'#e879f9', glyph:'⧫',
+   cells:[[0,0],[0,1],[1,1],[1,2],[2,2],[3,2]]},           // S-snake
 ];
 
 const ENEMIES = [
-  {id:'herald',  name:'Herald of the Void',      hp:28,  atk:5,  glyph:'◈', color:'#6d28d9'},
-  {id:'watcher', name:'Watcher Between Seconds',  hp:42,  atk:7,  glyph:'⊗', color:'#9333ea'},
-  {id:'choir',   name:'Choir of Unmaking',        hp:65,  atk:9,  glyph:'⊛', color:'#7e22ce'},
-  {id:'sleeper', name:'Sleeper Beneath All',      hp:110, atk:13, glyph:'⊜', color:'#4c1d95', boss:true}
+  {id:'herald',  name:'Herald of the Void',      hp:45,  atk:6,  glyph:'◈', color:'#6d28d9'},
+  {id:'watcher', name:'Watcher Between Seconds',  hp:70,  atk:9,  glyph:'⊗', color:'#9333ea'},
+  {id:'choir',   name:'Choir of Unmaking',        hp:100, atk:12, glyph:'⊛', color:'#7e22ce'},
+  {id:'sleeper', name:'Sleeper Beneath All',      hp:160, atk:16, glyph:'⊜', color:'#4c1d95', boss:true}
 ];
 
 const FLOORS = [
@@ -35,11 +45,11 @@ const FLOORS = [
 ];
 
 const LOOT_POOL = [
-  {id:'extra-hp',    name:'Void Vitality',     glyph:'♥', desc:'+10 max HP and restore 10.',    color:'#22c55e'},
-  {id:'heal',        name:'Ritual Mending',     glyph:'⊕', desc:'Restore 15 HP.',                color:'#34d399'},
+  {id:'extra-hp',    name:'Void Vitality',     glyph:'♥', desc:'+12 max HP and restore 12.',    color:'#22c55e'},
+  {id:'heal',        name:'Ritual Mending',     glyph:'⊕', desc:'Restore 18 HP.',                color:'#34d399'},
   {id:'power-sigil', name:'Sigil of Power',     glyph:'⊛', desc:'+2 bonus damage per placement.',color:'#f59e0b'},
-  {id:'clear-boon',  name:'Dissolution Rite',   glyph:'⊠', desc:'+4 damage per line cleared.',   color:'#a855f7'},
-  {id:'bigger-hand', name:'Many-Handed Ritual', glyph:'⊞', desc:'Draw 4 pieces per turn.',       color:'#7c3aed'}
+  {id:'clear-boon',  name:'Dissolution Rite',   glyph:'⊠', desc:'+5 damage per line cleared.',   color:'#a855f7'},
+  {id:'bigger-hand', name:'Many-Handed Ritual', glyph:'⊞', desc:'Draw 4 sigils per turn.',       color:'#7c3aed'}
 ];
 
 // ── Piece rotation ─────────────────────────────────────────────────────────────
@@ -63,7 +73,7 @@ let state;
 function initState() {
   state = {
     screen: 'title', floor: 1,
-    player: {hp:30, maxHp:30, bonusDmg:0, handSize:3, clearBonus:4},
+    player: {hp:30, maxHp:30, bonusDmg:0, handSize:3, clearBonus:5},
     combat: null, lootOptions: [],
     msg: null, msgTimer: 0
   };
@@ -124,7 +134,7 @@ function placePiece(hIdx, ar, ac) {
   const cleared = checkClears(combat.grid);
   dmg += cleared * player.clearBonus;
   if (cleared > 0) showMsg(`${cleared} line${cleared > 1 ? 's' : ''} cleared! +${dmg} dmg`);
-  else showMsg(`Placed ${sigil.name} (+${dmg} dmg)`);
+  else showMsg(`${sigil.name} placed (+${dmg} dmg)`);
   combat.power += dmg;
   combat.hand.splice(hIdx, 1);
   combat.selected = null; combat.hoverCell = null;
@@ -155,10 +165,10 @@ function transitionToLoot() {
 function pickLoot(i) {
   const item = state.lootOptions[i]; if (!item) return;
   const p = state.player;
-  if (item.id === 'extra-hp')    { p.maxHp += 10; p.hp = Math.min(p.maxHp, p.hp + 10); }
-  else if (item.id === 'heal')        { p.hp = Math.min(p.maxHp, p.hp + 15); }
+  if (item.id === 'extra-hp')    { p.maxHp += 12; p.hp = Math.min(p.maxHp, p.hp + 12); }
+  else if (item.id === 'heal')        { p.hp = Math.min(p.maxHp, p.hp + 18); }
   else if (item.id === 'power-sigil') { p.bonusDmg += 2; }
-  else if (item.id === 'clear-boon')  { p.clearBonus += 4; }
+  else if (item.id === 'clear-boon')  { p.clearBonus += 5; }
   else if (item.id === 'bigger-hand') { p.handSize = Math.min(5, p.handSize + 1); }
   const next = FLOORS.find(f => f.id === state.floor + 1);
   if (next) {
@@ -187,11 +197,11 @@ new p5(function(p) {
     sc = Math.min(VW / GW, VH / GH);
     ox = (VW - GW * sc) / 2; oy = (VH - GH * sc) / 2;
     if (portrait) {
-      CELL_SZ = 40;
+      CELL_SZ = 36;                                        // 7*36=252 fits in 390
       GRID_X0 = Math.floor((GW - GRID_COLS * CELL_SZ) / 2);
-      GRID_Y0 = 180;
+      GRID_Y0 = 176;
     } else {
-      CELL_SZ = 52;
+      CELL_SZ = 46;                                        // 8*46=368 fits in 600
       GRID_X0 = 20;
       GRID_Y0 = Math.floor((GH - GRID_ROWS * CELL_SZ) / 2);
     }
@@ -260,31 +270,15 @@ new p5(function(p) {
     return null;
   }
 
-  // ── Screens ──────────────────────────────────────────────────────────────────
-  function drawTitle() {
-    const cx = GW/2, cy = GH/2;
-    p.noFill();
-    for (let i = 1; i <= 6; i++) { p.stroke(C.BORDER); p.strokeWeight(0.5); p.ellipse(cx, cy, i*55, i*55); }
-    p.noStroke();
-    const dg = makeGrid();
-    [[1,1],[1,2],[2,1],[2,2],[3,0],[0,2],[4,1],[3,4],[0,4],[2,4]].forEach(([r,c]) => {
-      if (r < GRID_ROWS && c < GRID_COLS) dg[r][c] = {color: C.ACCENT+'44', id:'dec'};
-    });
-    const csz = 20, dgx = cx - GRID_COLS*csz/2, dgy = cy - GRID_ROWS*csz/2 - 20;
-    drawGrid(dgx, dgy, csz, dg, null, false);
-    tx('SIGIL RITES', cx, cy+70, C.ACCENT2, portrait?28:36, 'CENTER');
-    tx('ELDRITCH POLYOMINO ROGUELIKE', cx, cy+90, C.TEXT_DIM, portrait?9:11, 'CENTER');
-    tx('— tap to begin the ritual —', cx, cy+124, C.ACCENT, 10, 'CENTER');
-  }
-
+  // ── Layout helpers ────────────────────────────────────────────────────────────
   function handLayout() {
     if (portrait) {
-      const hY = GRID_Y0 + GRID_ROWS * CELL_SZ + 14;
-      return {hY, cardW:88, cardH:82, gap:8};
+      const hY = GRID_Y0 + GRID_ROWS * CELL_SZ + 12;
+      return {hY, cardW:88, cardH:80, gap:8};
     } else {
       const RX = GRID_X0 + GRID_COLS * CELL_SZ + 20;
       const RW = GW - RX - 10;
-      return {hY:296, cardW: Math.floor(RW/3)-4, cardH:90, gap:4, RX, RW};
+      return {hY:296, cardW: Math.floor(RW/3)-4, cardH:88, gap:4, RX, RW};
     }
   }
 
@@ -310,88 +304,109 @@ new p5(function(p) {
       const sigil = SIGILS.find(s => s.id === piece.id);
       dr(cx, hY, cardW, cardH, sel ? C.PANEL_ALT : C.PANEL, 8);
       dro(cx, hY, cardW, cardH, sel ? C.ACCENT : C.BORDER, sel ? 2 : 1, 8);
-      drawMiniPiece(piece.id, piece.rotation, cx + cardW/2, hY + cardH*0.42, 11, sel);
+      drawMiniPiece(piece.id, piece.rotation, cx + cardW/2, hY + cardH*0.40, 9, sel);
       tx(sigil.name, cx + cardW/2, hY + cardH - 18, sel ? C.ACCENT2 : C.TEXT_DIM, 7, 'CENTER');
-      tx(sel ? '⟳ tap to rotate' : 'tap to select', cx + cardW/2, hY + cardH - 8, C.TEXT_MUT, 7, 'CENTER');
+      tx(sel ? '⟳ rotate' : 'select', cx + cardW/2, hY + cardH - 8, C.TEXT_MUT, 7, 'CENTER');
     });
-    if (!n) tx('No pieces — end your turn.', portrait ? GW/2 : hl.RX + hl.RW/2, hY + 30, C.TEXT_DIM, 10, 'CENTER');
+    if (!n) {
+      const lbl = portrait ? GW/2 : hl.RX + hl.RW/2;
+      tx('No sigils — end your turn.', lbl, hY + 30, C.TEXT_DIM, 10, 'CENTER');
+    }
+  }
+
+  // ── Screens ──────────────────────────────────────────────────────────────────
+  function drawTitle() {
+    const cx = GW/2, cy = GH/2;
+    p.noFill();
+    for (let i = 1; i <= 6; i++) { p.stroke(C.BORDER); p.strokeWeight(0.5); p.ellipse(cx, cy, i*55, i*55); }
+    p.noStroke();
+    const dg = makeGrid();
+    [[1,1],[1,2],[2,1],[2,2],[3,0],[0,2],[4,1],[3,4],[0,4],[2,4],[1,5],[3,2]].forEach(([r,c]) => {
+      if (r < GRID_ROWS && c < GRID_COLS) dg[r][c] = {color: C.ACCENT+'44', id:'dec'};
+    });
+    const csz = 18, dgx = cx - GRID_COLS*csz/2, dgy = cy - GRID_ROWS*csz/2 - 20;
+    drawGrid(dgx, dgy, csz, dg, null, false);
+    tx('SIGIL RITES', cx, cy+72, C.ACCENT2, portrait?28:36, 'CENTER');
+    tx('HEXOMINO SPELLWEAVING ROGUELIKE', cx, cy+91, C.TEXT_DIM, portrait?8:10, 'CENTER');
+    tx('— tap to begin the ritual —', cx, cy+126, C.ACCENT, 10, 'CENTER');
+  }
+
+  function ghostPreview(combat) {
+    const {hand, selected, hoverCell, grid} = combat;
+    if (selected === null || !hoverCell) return {ghostCells: null, ghostOk: false};
+    const cells = getCells(hand[selected].id, hand[selected].rotation);
+    return {
+      ghostCells: cells.map(([nr, nc]) => [hoverCell[0]+nr, hoverCell[1]+nc]),
+      ghostOk: canPlace(grid, cells, hoverCell[0], hoverCell[1])
+    };
   }
 
   function drawCombatPort() {
     const {combat, player, floor} = state;
-    const {enemy, grid, hand, selected, hoverCell, power} = combat;
+    const {enemy, grid, hand, selected, power} = combat;
     const fd = FLOORS.find(f => f.id === floor);
     const W = GW - 20;
 
-    dr(10, 8, W, 66, C.DEEP, 8);
-    tx('FLOOR ' + floor + ' — ' + (fd ? fd.name : ''), 15, 22, C.TEXT_DIM, 9);
-    bar(15, 26, W/2 - 10, 16, player.hp, player.maxHp, C.HP_FG, C.HP_BG, 'HP');
-    tx(enemy.name, GW/2 + 5, 22, C.TEXT, 9);
-    bar(GW/2 + 5, 26, W/2 - 10, 16, enemy.curHp, enemy.hp, C.EN_FG, C.EN_BG, 'ENEMY');
-    tx('Attacks ' + enemy.atk + '/turn', GW/2 + 5, 56, C.DANGER, 9);
-    tx('PENDING DMG: +' + power, 15, 56, power > 0 ? C.GOLD : C.TEXT_DIM, 10);
+    // Top bar
+    dr(10, 8, W, 64, C.DEEP, 8);
+    tx('FLOOR '+floor+' — '+(fd ? fd.name : ''), 15, 22, C.TEXT_DIM, 9);
+    bar(15, 26, W/2-10, 16, player.hp, player.maxHp, C.HP_FG, C.HP_BG, 'HP');
+    tx(enemy.name, GW/2+5, 22, C.TEXT, 9);
+    bar(GW/2+5, 26, W/2-10, 16, enemy.curHp, enemy.hp, C.EN_FG, C.EN_BG, 'ENEMY');
+    tx('Atk '+enemy.atk+'/turn', GW/2+5, 55, C.DANGER, 9);
+    tx('PENDING: +'+power, 15, 55, power > 0 ? C.GOLD : C.TEXT_DIM, 10);
 
-    dr(10, 80, W, 88, C.DEEP, 8);
-    tx(enemy.glyph, GW/2, 148, enemy.color, 58, 'CENTER');
-    if (enemy.boss) tx('⚠ BOSS', GW - 18, 96, C.DANGER, 9, 'RIGHT');
+    // Enemy glyph
+    dr(10, 78, W, 86, C.DEEP, 8);
+    tx(enemy.glyph, GW/2, 144, enemy.color, 56, 'CENTER');
+    if (enemy.boss) tx('⚠ BOSS', GW-18, 94, C.DANGER, 9, 'RIGHT');
 
-    let ghostCells = null, ghostOk = false;
-    if (selected !== null && hoverCell) {
-      const cells = getCells(hand[selected].id, hand[selected].rotation);
-      ghostCells = cells.map(([nr, nc]) => [hoverCell[0] + nr, hoverCell[1] + nc]);
-      ghostOk = canPlace(grid, cells, hoverCell[0], hoverCell[1]);
-    }
+    // Grid
+    const {ghostCells, ghostOk} = ghostPreview(combat);
     drawGrid(GRID_X0, GRID_Y0, CELL_SZ, grid, ghostCells, ghostOk);
 
     drawHandCards(hand, selected);
 
     const btn = endTurnBtnRect();
-    const bh = state.hover === 'endturn';
-    dr(btn.x, btn.y, btn.w, btn.h, bh ? '#b91c1c' : C.DANGER, 8);
-    tx('END TURN  ▶', btn.x + btn.w/2, btn.y + btn.h*0.66, C.TEXT, 14, 'CENTER');
-    if (selected !== null) tx('tap grid to place  ·  tap card again to rotate', GW/2, btn.y + btn.h + 14, C.ACCENT, 8, 'CENTER');
-    if (state.msg && state.msgTimer > 0) tx(state.msg, GW/2, btn.y + btn.h + 28, C.GOLD, 10, 'CENTER');
+    dr(btn.x, btn.y, btn.w, btn.h, state.hover==='endturn' ? '#b91c1c' : C.DANGER, 8);
+    tx('END TURN  ▶', btn.x+btn.w/2, btn.y+btn.h*0.66, C.TEXT, 14, 'CENTER');
+    if (selected !== null) tx('tap grid to place  ·  tap again to rotate', GW/2, btn.y+btn.h+14, C.ACCENT, 8, 'CENTER');
+    if (state.msg && state.msgTimer > 0) tx(state.msg, GW/2, btn.y+btn.h+28, C.GOLD, 10, 'CENTER');
   }
 
   function drawCombatLand() {
     const {combat, player, floor} = state;
-    const {enemy, grid, hand, selected, hoverCell, power} = combat;
+    const {enemy, grid, hand, selected, power} = combat;
     const fd = FLOORS.find(f => f.id === floor);
     const hl = handLayout();
     const {hY, cardH, RX, RW} = hl;
 
-    let ghostCells = null, ghostOk = false;
-    if (selected !== null && hoverCell) {
-      const cells = getCells(hand[selected].id, hand[selected].rotation);
-      ghostCells = cells.map(([nr, nc]) => [hoverCell[0] + nr, hoverCell[1] + nc]);
-      ghostOk = canPlace(grid, cells, hoverCell[0], hoverCell[1]);
-    }
-    tx('SIGIL BOARD', GRID_X0, GRID_Y0 - 12, C.TEXT_DIM, 9);
+    tx('SIGIL BOARD', GRID_X0, GRID_Y0-12, C.TEXT_DIM, 9);
+    const {ghostCells, ghostOk} = ghostPreview(combat);
     drawGrid(GRID_X0, GRID_Y0, CELL_SZ, grid, ghostCells, ghostOk);
 
     dr(RX, 10, RW, 68, C.DEEP, 8);
-    tx('FLOOR ' + floor, RX + 8, 26, C.TEXT_DIM, 10);
-    tx(fd ? fd.name : '', RX + 8, 40, C.TEXT, 11);
-    bar(RX + 8, 44, RW - 16, 18, player.hp, player.maxHp, C.HP_FG, C.HP_BG, 'HP');
+    tx('FLOOR '+floor, RX+8, 26, C.TEXT_DIM, 10);
+    tx(fd ? fd.name : '', RX+8, 40, C.TEXT, 11);
+    bar(RX+8, 44, RW-16, 18, player.hp, player.maxHp, C.HP_FG, C.HP_BG, 'HP');
 
     dr(RX, 86, RW, 130, C.DEEP, 8);
-    tx(enemy.name, RX + 8, 102, C.TEXT, 11);
-    if (enemy.boss) tx('⚠ BOSS', RX + RW - 10, 102, C.DANGER, 10, 'RIGHT');
-    tx(enemy.glyph, RX + RW/2, 180, enemy.color, 56, 'CENTER');
-    bar(RX + 8, 222, RW - 16, 16, enemy.curHp, enemy.hp, C.EN_FG, C.EN_BG, 'ENEMY HP');
-    tx('Attacks for ' + enemy.atk + ' per turn', RX + 8, 252, C.DANGER, 10);
+    tx(enemy.name, RX+8, 102, C.TEXT, 11);
+    if (enemy.boss) tx('⚠ BOSS', RX+RW-10, 102, C.DANGER, 10, 'RIGHT');
+    tx(enemy.glyph, RX+RW/2, 178, enemy.color, 54, 'CENTER');
+    bar(RX+8, 220, RW-16, 16, enemy.curHp, enemy.hp, C.EN_FG, C.EN_BG, 'ENEMY HP');
+    tx('Attacks for '+enemy.atk+' per turn', RX+8, 250, C.DANGER, 10);
 
     dr(RX, 258, RW, 28, C.PANEL, 6);
-    tx('PENDING DAMAGE: +' + power, RX + RW/2, 276, power > 0 ? C.GOLD : C.TEXT_DIM, 12, 'CENTER');
+    tx('PENDING DAMAGE: +'+power, RX+RW/2, 276, power > 0 ? C.GOLD : C.TEXT_DIM, 12, 'CENTER');
 
     drawHandCards(hand, selected);
 
     const btn = endTurnBtnRect();
-    const bh = state.hover === 'endturn';
-    dr(btn.x, btn.y, btn.w, btn.h, bh ? '#b91c1c' : C.DANGER, 8);
-    tx('END TURN  ▶', btn.x + btn.w/2, btn.y + btn.h*0.66, C.TEXT, 15, 'CENTER');
-    if (selected !== null) tx('tap grid to place  ·  tap card again to rotate', btn.x + btn.w/2, btn.y + btn.h + 14, C.ACCENT, 8, 'CENTER');
-    if (state.msg && state.msgTimer > 0) tx(state.msg, btn.x + btn.w/2, btn.y + btn.h + 28, C.GOLD, 10, 'CENTER');
+    dr(btn.x, btn.y, btn.w, btn.h, state.hover==='endturn' ? '#b91c1c' : C.DANGER, 8);
+    tx('END TURN  ▶', btn.x+btn.w/2, btn.y+btn.h*0.66, C.TEXT, 15, 'CENTER');
+    if (selected !== null) tx('tap grid to place  ·  tap again to rotate', btn.x+btn.w/2, btn.y+btn.h+14, C.ACCENT, 8, 'CENTER');
+    if (state.msg && state.msgTimer > 0) tx(state.msg, btn.x+btn.w/2, btn.y+btn.h+28, C.GOLD, 10, 'CENTER');
   }
 
   function drawLoot() {
@@ -400,45 +415,45 @@ new p5(function(p) {
     tx('Choose one boon:', GW/2, 58, C.TEXT_DIM, 11, 'CENTER');
     if (portrait) {
       opts.forEach((item, i) => {
-        const y = 70 + i * 88, W = GW - 20, hov = state.hover === ('loot'+i);
+        const y = 70+i*88, W = GW-20, hov = state.hover === ('loot'+i);
         dr(10, y, W, 80, hov ? C.PANEL_ALT : C.PANEL, 10);
         dro(10, y, W, 80, hov ? C.ACCENT : C.BORDER, hov ? 2 : 1, 10);
-        tx(item.glyph, 32, y + 48, item.color, 22, 'CENTER');
-        tx(item.name, 52, y + 22, C.TEXT, 13);
+        tx(item.glyph, 32, y+48, item.color, 22, 'CENTER');
+        tx(item.name, 52, y+22, C.TEXT, 13);
         p.fill(C.TEXT_DIM); p.noStroke(); p.textSize(10); p.textAlign(p.LEFT);
-        p.text(item.desc, 52, y + 36, W - 62, 36);
-        tx('TAP TO CLAIM ▶', GW - 15, y + 72, hov ? C.ACCENT : C.TEXT_DIM, 9, 'RIGHT');
+        p.text(item.desc, 52, y+36, W-62, 36);
+        tx('TAP TO CLAIM ▶', GW-15, y+72, hov ? C.ACCENT : C.TEXT_DIM, 9, 'RIGHT');
       });
     } else {
-      const cw = 190, gap = 18, total = opts.length*(cw+gap)-gap, sx = GW/2 - total/2;
+      const cw=190, gap=18, total=opts.length*(cw+gap)-gap, sx=GW/2-total/2;
       opts.forEach((item, i) => {
-        const cx = sx + i*(cw+gap), cy = 78, hov = state.hover === ('loot'+i);
+        const cx = sx+i*(cw+gap), cy = 78, hov = state.hover === ('loot'+i);
         dr(cx, cy, cw, 220, hov ? C.PANEL_ALT : C.PANEL, 12);
         dro(cx, cy, cw, 220, hov ? C.ACCENT : C.BORDER, hov ? 2 : 1, 12);
-        tx(item.glyph, cx + cw/2, cy + 68, item.color, 32, 'CENTER');
-        tx(item.name, cx + cw/2, cy + 94, C.TEXT, 13, 'CENTER');
+        tx(item.glyph, cx+cw/2, cy+68, item.color, 32, 'CENTER');
+        tx(item.name, cx+cw/2, cy+94, C.TEXT, 13, 'CENTER');
         p.fill(C.TEXT_DIM); p.noStroke(); p.textSize(10); p.textAlign(p.CENTER);
-        p.text(item.desc, cx + 12, cy + 112, cw - 24, 52);
-        dr(cx + 20, cy + 175, cw - 40, 32, hov ? C.ACCENT : C.ACCENT, 6);
-        tx('CLAIM', cx + cw/2, cy + 196, C.TEXT, 12, 'CENTER');
+        p.text(item.desc, cx+12, cy+112, cw-24, 52);
+        dr(cx+20, cy+175, cw-40, 32, hov ? C.ACCENT : C.ACCENT, 6);
+        tx('CLAIM', cx+cw/2, cy+196, C.TEXT, 12, 'CENTER');
       });
     }
   }
 
   function drawGameOver() {
-    tx('⊗', GW/2, GH/2 - 58, C.DANGER, 52, 'CENTER');
-    tx('YOU HAVE BEEN UNMADE', GW/2, GH/2 - 8, C.DANGER, portrait ? 18 : 26, 'CENTER');
-    tx('The sigils could not hold. The void consumes.', GW/2, GH/2 + 16, C.TEXT_DIM, 11, 'CENTER');
-    dr(GW/2 - 80, GH/2 + 50, 160, 40, C.ACCENT, 6);
-    tx('TRY AGAIN', GW/2, GH/2 + 76, C.TEXT, 13, 'CENTER');
+    tx('⊗', GW/2, GH/2-58, C.DANGER, 52, 'CENTER');
+    tx('YOU HAVE BEEN UNMADE', GW/2, GH/2-8, C.DANGER, portrait ? 18 : 26, 'CENTER');
+    tx('The sigils could not hold. The void consumes.', GW/2, GH/2+16, C.TEXT_DIM, 11, 'CENTER');
+    dr(GW/2-80, GH/2+50, 160, 40, C.ACCENT, 6);
+    tx('TRY AGAIN', GW/2, GH/2+76, C.TEXT, 13, 'CENTER');
   }
 
   function drawVictory() {
-    tx('⊕', GW/2, GH/2 - 58, C.GOLD, 52, 'CENTER');
-    tx('THE RITUAL IS COMPLETE', GW/2, GH/2 - 8, C.GOLD, portrait ? 18 : 26, 'CENTER');
-    tx('The Sleeper stirs. The sigils hold — for now.', GW/2, GH/2 + 16, C.TEXT_DIM, 11, 'CENTER');
-    dr(GW/2 - 80, GH/2 + 50, 160, 40, C.ACCENT, 6);
-    tx('PLAY AGAIN', GW/2, GH/2 + 76, C.TEXT, 13, 'CENTER');
+    tx('⊕', GW/2, GH/2-58, C.GOLD, 52, 'CENTER');
+    tx('THE RITUAL IS COMPLETE', GW/2, GH/2-8, C.GOLD, portrait ? 18 : 26, 'CENTER');
+    tx('The Sleeper stirs. The sigils hold — for now.', GW/2, GH/2+16, C.TEXT_DIM, 11, 'CENTER');
+    dr(GW/2-80, GH/2+50, 160, 40, C.ACCENT, 6);
+    tx('PLAY AGAIN', GW/2, GH/2+76, C.TEXT, 13, 'CENTER');
   }
 
   // ── Input ─────────────────────────────────────────────────────────────────────
@@ -492,7 +507,7 @@ new p5(function(p) {
       const totalW = n * (cardW + gap) - gap;
       const sx = portrait ? (GW - totalW) / 2 : hl.RX;
       for (let i = 0; i < n; i++) {
-        if (ir(mx, my, sx + i*(cardW+gap), hY, cardW, cardH)) {
+        if (ir(mx, my, sx+i*(cardW+gap), hY, cardW, cardH)) {
           if (combat.selected === i) {
             combat.hand[i].rotation = (combat.hand[i].rotation + 1) % 4;
             combat.hoverCell = null;
@@ -504,10 +519,7 @@ new p5(function(p) {
       }
 
       const cell = gridCell(mx, my);
-      if (cell && combat.selected !== null) {
-        placePiece(combat.selected, cell[0], cell[1]);
-        return;
-      }
+      if (cell && combat.selected !== null) { placePiece(combat.selected, cell[0], cell[1]); return; }
       if (!cell) combat.selected = null;
     }
   }
