@@ -12,9 +12,9 @@ const C = {
 const TSIGILS = [
   {id:'void',  sym:'⊕', color:'#7c3aed', fx:'heal',   fxLabel:'HEAL/combo'},
   {id:'blood', sym:'⊗', color:'#dc2626', fx:'bonus',  fxLabel:'+3 dmg'},
-  {id:'star',  sym:'⊛', color:'#f59e0b', fx:'double', fxLabel:'x2 on \xd74'},
-  {id:'bone',  sym:'◈', color:'#6b7280', fx:'lone',   fxLabel:'\xd72 if alone'},
-  {id:'dream', sym:'⊜', color:'#0ea5e9', fx:'stun',   fxLabel:'stun on \xd73+'},
+  {id:'star',  sym:'⊛', color:'#f59e0b', fx:'double', fxLabel:'x2 on x4'},
+  {id:'bone',  sym:'◈', color:'#6b7280', fx:'lone',   fxLabel:'x2 if alone'},
+  {id:'dream', sym:'⊜', color:'#0ea5e9', fx:'stun',   fxLabel:'stun on x3+'},
   {id:'rift',  sym:'◆', color:'#22c55e', fx:'draw',   fxLabel:'+1 card'},
 ];
 
@@ -196,17 +196,14 @@ function placePiece(hIdx, r, c) {
   combat.power+=dmg;
   combat.hand.splice(hIdx,1);
   combat.selected=null; combat.hoverCell=null;
-  // Streak tracking
   if (effectiveMult>=2) { combat.streak++; } else { combat.streak=0; }
-  // Flash overlay on high combo
   if (effectiveMult>=4) { combat.flash={r,c,timer:40,color:C.GOLD}; }
   else if (effectiveMult>=3) { combat.flash={r,c,timer:25,color:C.ACCENT2}; }
-  // Floating damage particle stored in grid coords
   const ptColor=effectiveMult>=4?C.GOLD:effectiveMult>=3?C.ACCENT2:effectiveMult>=2?C.TEXT:C.TEXT_DIM;
   combat.particles.push({r,c,yOff:0,life:80,maxLife:80,text:`+${dmg}`,color:ptColor,big:effectiveMult>=3});
   const fxMsg=applyEffect(piece.sigilId,effectiveMult,r,c);
   const tier=effectiveMult>=4?'RESONANCE! ':effectiveMult>=3?'ECHO! ':effectiveMult>=2?'LINK! ':'';
-  const streakStr=combat.streak>=3?` (CHAIN x${combat.streak})`:combat.streak>=2?' (chain!):'';
+  const streakStr=combat.streak>=3?` (CHAIN x${combat.streak})`:combat.streak>=2?` (chain!)`:`'`;
   showMsg(`${tier}x${effectiveMult}  +${dmg}dmg${fxMsg?' · '+fxMsg:''}${streakStr}`);
 }
 
@@ -245,12 +242,11 @@ function endTurn() {
     addVoidCells(combat);
     msg=`Dealt ${combat.power}dmg. Enemy strikes ${combat.enemy.atk}!`;
   }
-  // Board saturation: if corruption has blocked all placements, purge it
   if (combat.board.size>0) {
     const playable=getPlayableCells(combat.board,combat.voided);
     if (playable.size===0) {
       combat.voided.clear();
-      msg+=` Void overflow — purged!`;
+      msg+=` Void overflow — corruption purged!`;
     }
   }
   showMsg(msg);
@@ -387,13 +383,12 @@ new p5(function(p) {
 
     if (selected!==null) drawHints(board,voided);
 
-    // Placed pieces
     board.forEach((cell,key)=>{
       const [r,c]=key.split(',').map(Number);
       drawTri(triVerts(BX,BY,r,c,TRI_S),cell.corners,cell.sigilId,255);
     });
 
-    // Flash overlay on high-combo placements
+    // Flash overlay for high-combo placements
     if (flash&&flash.timer>0) {
       const {r,c,color}=flash;
       const [v0,v1,v2]=triVerts(BX,BY,r,c,TRI_S);
@@ -404,7 +399,6 @@ new p5(function(p) {
       flash.timer--;
     }
 
-    // Voided cells (enemy corruption)
     voided.forEach(key=>{
       const [r,c]=key.split(',').map(Number);
       const [v0,v1,v2]=triVerts(BX,BY,r,c,TRI_S);
@@ -416,7 +410,6 @@ new p5(function(p) {
       p.line(cx-s,cy-s,cx+s,cy+s); p.line(cx+s,cy-s,cx-s,cy+s); p.noStroke();
     });
 
-    // Ghost preview
     if(selected!==null&&hoverCell){
       const [r,c]=hoverCell;
       const key=`${r},${c}`;
@@ -437,7 +430,7 @@ new p5(function(p) {
       }
     }
 
-    // Floating damage particles (grid-coord anchored)
+    // Floating damage particles
     for (let i=particles.length-1;i>=0;i--) {
       const pt=particles[i];
       pt.yOff-=1.2; pt.life--;
@@ -526,7 +519,7 @@ new p5(function(p) {
     tx('ATK '+player.baseDmg+(player.comboBonus>0?'+'+player.comboBonus+' cmb':''),15,56,C.TEXT_DIM,8);
     tx(enemy.name,GW/2+5,22,C.TEXT,9);
     bar(GW/2+5,26,W/2-10,16,enemy.curHp,enemy.hp,C.EN_FG,C.EN_BG,'ENEMY');
-    tx((stunned?'STUNNED':'Atk '+enemy.atk),GW/2+5,56,stunned?C.GOLD:C.DANGER,8);
+    tx(stunned?'STUNNED':'Atk '+enemy.atk,GW/2+5,56,stunned?C.GOLD:C.DANGER,8);
     tx('PWR +'+power+(streak>=2?' CHAIN x'+streak:''),GW-12,56,power>0?C.GOLD:C.TEXT_DIM,8,'RIGHT');
     dr(10,76,W,88,C.DEEP,8);
     tx(enemy.glyph,GW/2,147,enemy.color,50,'CENTER');
@@ -553,13 +546,13 @@ new p5(function(p) {
     dr(RX,10,RW,68,C.DEEP,8);
     tx('FLOOR '+floor,RX+8,26,C.TEXT_DIM,10);tx(fd?fd.name:'',RX+8,40,C.TEXT,11);
     bar(RX+8,44,RW-16,18,player.hp,player.maxHp,C.HP_FG,C.HP_BG,'HP');
-    tx('ATK '+player.baseDmg+(player.comboBonus>0?'+'+player.comboBonus:'')+(state.player.voidWard>0?' WRD'+state.player.voidWard:''),RX+RW-8,26,C.TEXT_DIM,9,'RIGHT');
+    tx('ATK '+player.baseDmg+(player.comboBonus>0?'+'+player.comboBonus:'')+(player.voidWard>0?' WRD'+player.voidWard:''),RX+RW-8,26,C.TEXT_DIM,9,'RIGHT');
     dr(RX,86,RW,125,C.DEEP,8);
     tx(enemy.name,RX+8,102,C.TEXT,11);
     if(enemy.boss) tx('BOSS',RX+RW-10,102,C.DANGER,10,'RIGHT');
     tx(enemy.glyph,RX+RW/2,170,enemy.color,50,'CENTER');
     bar(RX+8,216,RW-16,16,enemy.curHp,enemy.hp,C.EN_FG,C.EN_BG,'ENEMY HP');
-    tx((stunned?'STUNNED — skips!':'Attacks '+enemy.atk+'/turn'),RX+8,246,stunned?C.GOLD:C.DANGER,10);
+    tx(stunned?'STUNNED — skips!':'Attacks '+enemy.atk+'/turn',RX+8,246,stunned?C.GOLD:C.DANGER,10);
     dr(RX,252,RW,28,C.PANEL,6);
     tx('PENDING: +'+power+(streak>=2?'  CHAIN x'+streak:''),RX+RW/2,270,power>0?C.GOLD:C.TEXT_DIM,12,'CENTER');
     drawHandCards(hand,selected);
@@ -632,7 +625,7 @@ new p5(function(p) {
       if(state.combat) state.combat.hoverCell=nearestCell(mx,my,BX,BY,TRI_S);
     }
     if(state.screen==='loot'){
-      if(portrait){state.lootOptions.forEach((_,i)=>{if(ir(mx,my,10,70+i*90,GW-20,82)) state.hover='loot'+i;}); }
+      if(portrait){state.lootOptions.forEach((_,i)=>{if(ir(mx,my,10,70+i*90,GW-20,82)) state.hover='loot'+i;});}
       else{const cw=190,gap=18,total=state.lootOptions.length*(cw+gap)-gap,sx=GW/2-total/2;
         state.lootOptions.forEach((_,i)=>{if(ir(mx,my,sx+i*(cw+gap),78,cw,220)) state.hover='loot'+i;});}
     }
