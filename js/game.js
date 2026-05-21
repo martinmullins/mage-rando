@@ -39,7 +39,6 @@ const LOOT_POOL = [
   {id:'ward',      name:'Void Ward',       glyph:'⊜', desc:'Enemy voids one fewer cell.', color:'#0ea5e9'},
 ];
 
-// ── Triangle grid math ─────────────────────────────────────────────────────
 const BOARD_COLS = 13, BOARD_ROWS = 8;
 
 function isUp(r, c) { return (r + c) % 2 === 0; }
@@ -87,14 +86,14 @@ function getPlayableCells(board, voided) {
   const cells = new Set();
   if (board.size === 0) {
     for (let r=0; r<BOARD_ROWS; r++) for (let c=0; c<BOARD_COLS; c++) {
-      const k=`${r},${c}`;
+      const k=r+','+c;
       if (!voided.has(k)) cells.add(k);
     }
   } else {
     board.forEach((_,key) => {
       const [r,c]=key.split(',').map(Number);
       for (const {nr,nc} of triNeighbors(r,c)) {
-        const nk=`${nr},${nc}`;
+        const nk=nr+','+nc;
         if (!board.has(nk)&&!voided.has(nk)&&nr>=0&&nr<BOARD_ROWS&&nc>=0&&nc<BOARD_COLS)
           cells.add(nk);
       }
@@ -103,7 +102,6 @@ function getPlayableCells(board, voided) {
   return cells;
 }
 
-// ── Piece helpers ─────────────────────────────────────────────────────────
 function randomPiece() {
   const sig = TSIGILS[Math.floor(Math.random()*TSIGILS.length)];
   return {sigilId:sig.id, corners:[1+Math.floor(Math.random()*5),1+Math.floor(Math.random()*5),1+Math.floor(Math.random()*5)], rotation:0};
@@ -116,7 +114,6 @@ function rotatedCorners(piece) {
   return [...c];
 }
 
-// ── State ──────────────────────────────────────────────────────────────────────
 let state;
 function initState(handSize) {
   state = {
@@ -144,7 +141,7 @@ function showMsg(m) { state.msg=m; state.msgTimer=230; }
 function bestEdgeSum(board, r, c, corners) {
   let best=Infinity;
   for (const {nr,nc,my,th} of triNeighbors(r,c)) {
-    const nb=board.get(`${nr},${nc}`);
+    const nb=board.get(nr+','+nc);
     if (!nb) continue;
     const s=corners[my[0]]+nb.corners[th[0]]+corners[my[1]]+nb.corners[th[1]];
     if (s<best) best=s;
@@ -153,7 +150,7 @@ function bestEdgeSum(board, r, c, corners) {
 }
 
 function hasNeighbor(board, r, c) {
-  return triNeighbors(r,c).some(({nr,nc})=>board.has(`${nr},${nc}`));
+  return triNeighbors(r,c).some(({nr,nc})=>board.has(nr+','+nc));
 }
 
 function multiplier(edgeSum, comboBonus) {
@@ -169,7 +166,7 @@ function applyEffect(sigilId, multi, r, c) {
   const sigil = TSIGILS.find(s=>s.id===sigilId);
   switch(sigil.fx) {
     case 'heal':
-      if (multi>=2) { const h=multi-1; player.hp=Math.min(player.maxHp,player.hp+h); return `+${h}HP`; }
+      if (multi>=2) { const h=multi-1; player.hp=Math.min(player.maxHp,player.hp+h); return '+'+h+'HP'; }
       break;
     case 'bonus':  combat.power+=3; return '+3!';
     case 'double': if (multi>=4) { combat.power+=player.baseDmg*multi; return 'DOUBLE HIT!'; } break;
@@ -183,7 +180,7 @@ function applyEffect(sigilId, multi, r, c) {
 function placePiece(hIdx, r, c) {
   const {combat,player}=state;
   const piece=combat.hand[hIdx]; if(!piece) return;
-  const key=`${r},${c}`;
+  const key=r+','+c;
   if (combat.board.has(key)||combat.voided.has(key)){showMsg('Occupied!');return;}
   const corners=rotatedCorners(piece);
   const sigil=TSIGILS.find(s=>s.id===piece.sigilId);
@@ -200,11 +197,11 @@ function placePiece(hIdx, r, c) {
   if (effectiveMult>=4) { combat.flash={r,c,timer:40,color:C.GOLD}; }
   else if (effectiveMult>=3) { combat.flash={r,c,timer:25,color:C.ACCENT2}; }
   const ptColor=effectiveMult>=4?C.GOLD:effectiveMult>=3?C.ACCENT2:effectiveMult>=2?C.TEXT:C.TEXT_DIM;
-  combat.particles.push({r,c,yOff:0,life:80,maxLife:80,text:`+${dmg}`,color:ptColor,big:effectiveMult>=3});
+  combat.particles.push({r,c,yOff:0,life:80,maxLife:80,text:'+'+dmg,color:ptColor,big:effectiveMult>=3});
   const fxMsg=applyEffect(piece.sigilId,effectiveMult,r,c);
   const tier=effectiveMult>=4?'RESONANCE! ':effectiveMult>=3?'ECHO! ':effectiveMult>=2?'LINK! ':'';
-  const streakStr=combat.streak>=3?` (CHAIN x${combat.streak})`:combat.streak>=2?` (chain!)`:`'`;
-  showMsg(`${tier}x${effectiveMult}  +${dmg}dmg${fxMsg?' · '+fxMsg:''}${streakStr}`);
+  const streakStr=combat.streak>=3?' (CHAIN x'+combat.streak+')':combat.streak>=2?' (chain!)':'';
+  showMsg(tier+'x'+effectiveMult+'  +'+dmg+'dmg'+(fxMsg?' · '+fxMsg:'')+streakStr);
 }
 
 function addVoidCells(combat) {
@@ -214,7 +211,7 @@ function addVoidCells(combat) {
   combat.board.forEach((_,key)=>{
     const [r,c]=key.split(',').map(Number);
     for (const {nr,nc} of triNeighbors(r,c)) {
-      const nk=`${nr},${nc}`;
+      const nk=nr+','+nc;
       if (!combat.board.has(nk)&&!combat.voided.has(nk)&&nr>=0&&nr<BOARD_ROWS&&nc>=0&&nc<BOARD_COLS)
         candidates.push(nk);
     }
@@ -228,25 +225,25 @@ function endTurn() {
   if (combat.power>0) {
     combat.enemy.curHp=Math.max(0,combat.enemy.curHp-combat.power);
     if (combat.enemy.curHp<=0){
-      showMsg(`${combat.enemy.name} annihilated! (${combat.power}dmg)`);
+      showMsg(combat.enemy.name+' annihilated! ('+combat.power+'dmg)');
       setTimeout(()=>transitionToLoot(),700);
       return;
     }
   }
   let msg;
   if (combat.stunned) {
-    msg=`Dealt ${combat.power}dmg. Enemy STUNNED — skips attack!`;
+    msg='Dealt '+combat.power+'dmg. Enemy STUNNED — skips attack!';
   } else {
     player.hp=Math.max(0,player.hp-combat.enemy.atk);
     if (player.hp<=0){state.screen='gameover';return;}
     addVoidCells(combat);
-    msg=`Dealt ${combat.power}dmg. Enemy strikes ${combat.enemy.atk}!`;
+    msg='Dealt '+combat.power+'dmg. Enemy strikes '+combat.enemy.atk+'!';
   }
   if (combat.board.size>0) {
     const playable=getPlayableCells(combat.board,combat.voided);
     if (playable.size===0) {
       combat.voided.clear();
-      msg+=` Void overflow — corruption purged!`;
+      msg+=' Void overflow — corruption purged!';
     }
   }
   showMsg(msg);
@@ -273,7 +270,6 @@ function pickLoot(i) {
   else state.screen='victory';
 }
 
-// ── p5 sketch ──────────────────────────────────────────────────────────────────
 new p5(function(p) {
 
   let GW,GH,sc,portrait,ox,oy,VW,VH;
@@ -299,10 +295,9 @@ new p5(function(p) {
 
   function toGX(x){return(x-ox)/sc;} function toGY(y){return(y-oy)/sc;}
 
-  // ── Drawing helpers ─────────────────────────────────────────────────────
   function dr(x,y,w,h,col,r=0){p.fill(col);p.noStroke();r?p.rect(x,y,w,h,r):p.rect(x,y,w,h);}
   function dro(x,y,w,h,col,sw,r=0){p.noFill();p.stroke(col);p.strokeWeight(sw);r?p.rect(x,y,w,h,r):p.rect(x,y,w,h);p.noStroke();}
-  function tx(s,x,y,col,sz,al='LEFT'){p.fill(col);p.noStroke();p.textSize(sz);p.textAlign(p[al]);p.text(s,x,y);}
+  function tx(s,x,y,col,sz,al){p.fill(col);p.noStroke();p.textSize(sz);p.textAlign(al||p.LEFT);p.text(s,x,y);}
   function ir(mx,my,x,y,w,h){return mx>=x&&mx<=x+w&&my>=y&&my<=y+h;}
   function bar(x,y,w,h,cur,max,fg,bg,lbl){
     dr(x,y,w,h,bg);dr(x,y,Math.round(w*Math.max(0,cur)/Math.max(1,max)),h,fg);
@@ -354,7 +349,7 @@ new p5(function(p) {
     board.forEach((_,key)=>{
       const [r,c]=key.split(',').map(Number);
       for (const {nr,nc} of triNeighbors(r,c)){
-        const nk=`${nr},${nc}`;
+        const nk=nr+','+nc;
         if(board.has(nk)||voided.has(nk)||shown.has(nk)||nr<0||nc<0||nr>=BOARD_ROWS||nc>=BOARD_COLS) continue;
         const [v0,v1,v2]=triVerts(BX,BY,nr,nc,TRI_S);
         p.noFill(); p.stroke(C.ACCENT+'55'); p.strokeWeight(1);
@@ -388,7 +383,6 @@ new p5(function(p) {
       drawTri(triVerts(BX,BY,r,c,TRI_S),cell.corners,cell.sigilId,255);
     });
 
-    // Flash overlay for high-combo placements
     if (flash&&flash.timer>0) {
       const {r,c,color}=flash;
       const [v0,v1,v2]=triVerts(BX,BY,r,c,TRI_S);
@@ -412,12 +406,11 @@ new p5(function(p) {
 
     if(selected!==null&&hoverCell){
       const [r,c]=hoverCell;
-      const key=`${r},${c}`;
+      const key=r+','+c;
       if(!board.has(key)&&!voided.has(key)){
         const piece=hand[selected];
         const corners=rotatedCorners(piece);
-        const verts=triVerts(BX,BY,r,c,TRI_S);
-        drawTri(verts,corners,piece.sigilId,120);
+        drawTri(triVerts(BX,BY,r,c,TRI_S),corners,piece.sigilId,120);
         const es=bestEdgeSum(board,r,c,corners);
         const multi=multiplier(es,state.player.comboBonus);
         if(multi>1){
@@ -430,7 +423,6 @@ new p5(function(p) {
       }
     }
 
-    // Floating damage particles
     for (let i=particles.length-1;i>=0;i--) {
       const pt=particles[i];
       pt.yOff-=1.2; pt.life--;
@@ -444,7 +436,6 @@ new p5(function(p) {
     }
   }
 
-  // ── Layout helpers ─────────────────────────────────────────────────────────
   function handLayout(){
     if(portrait){
       const hY=boardBottom()+12;
@@ -472,13 +463,12 @@ new p5(function(p) {
       dr(cx,hY,cardW,cardH,sel?C.PANEL_ALT:C.PANEL,8);
       dro(cx,hY,cardW,cardH,sel?sigil.color:C.BORDER,sel?2:1,8);
       drawMiniTri(piece.sigilId,piece.corners,piece.rotation,cx+cardW/2,hY+cardH*0.40,cardW*0.52);
-      tx(sigil.fxLabel,cx+cardW/2,hY+cardH-18,sel?sigil.color:C.TEXT_MUT,7,'CENTER');
-      tx(sel?'rotate':'tap',cx+cardW/2,hY+cardH-8,C.TEXT_MUT,7,'CENTER');
+      tx(sigil.fxLabel,cx+cardW/2,hY+cardH-18,sel?sigil.color:C.TEXT_MUT,7,p.CENTER);
+      tx(sel?'rotate':'tap',cx+cardW/2,hY+cardH-8,C.TEXT_MUT,7,p.CENTER);
     });
-    if(!hand.length) tx('No sigils — end turn.',portrait?GW/2:hl.RX+hl.RW/2,hY+30,C.TEXT_DIM,10,'CENTER');
+    if(!hand.length) tx('No sigils — end turn.',portrait?GW/2:hl.RX+hl.RW/2,hY+30,C.TEXT_DIM,10,p.CENTER);
   }
 
-  // ── Screens ──────────────────────────────────────────────────────────────────
   function drawTitle(){
     const cx=GW/2, cy=GH/2;
     TSIGILS.forEach((sig,i)=>{
@@ -487,9 +477,9 @@ new p5(function(p) {
       const col=p.color(sig.color); col.setAlpha(60); p.fill(col); p.noStroke();
       p.triangle(tx2,ty2-20,tx2-17,ty2+10,tx2+17,ty2+10);
     });
-    tx('SIGIL RITES',cx,cy-42,C.ACCENT2,portrait?28:36,'CENTER');
-    tx('TRIANGLES  CORNER MATCHING  COMBO MULTIPLIERS',cx,cy-22,C.TEXT_DIM,portrait?7:9,'CENTER');
-    tx('HOW MANY SIGILS PER TURN?',cx,cy+12,C.TEXT,11,'CENTER');
+    tx('SIGIL RITES',cx,cy-42,C.ACCENT2,portrait?28:36,p.CENTER);
+    tx('TRIANGLES  CORNER MATCHING  COMBO MULTIPLIERS',cx,cy-22,C.TEXT_DIM,portrait?7:9,p.CENTER);
+    tx('HOW MANY SIGILS PER TURN?',cx,cy+12,C.TEXT,11,p.CENTER);
     const modes=[['1','hardest','1'],['3','recommended','3'],['5','easiest','5']];
     const bw=86,bh=46,gap=10,totalW=3*(bw+gap)-gap,bsx=cx-totalW/2;
     modes.forEach(([lbl,sub,n],i)=>{
@@ -497,10 +487,10 @@ new p5(function(p) {
       const hov=state.hover===('mode'+n);
       dr(bx,by,bw,bh,hov?C.ACCENT:C.PANEL,8);
       dro(bx,by,bw,bh,hov?C.ACCENT2:C.BORDER,hov?2:1,8);
-      tx(lbl,bx+bw/2,by+22,C.TEXT,18,'CENTER');
-      tx(sub,bx+bw/2,by+38,C.TEXT_DIM,8,'CENTER');
+      tx(lbl,bx+bw/2,by+22,C.TEXT,18,p.CENTER);
+      tx(sub,bx+bw/2,by+38,C.TEXT_DIM,8,p.CENTER);
     });
-    tx('SIGIL EFFECTS:',cx,cy+88,C.TEXT_DIM,9,'CENTER');
+    tx('SIGIL EFFECTS:',cx,cy+88,C.TEXT_DIM,9,p.CENTER);
     TSIGILS.forEach((sig,i)=>{
       const row=Math.floor(i/3), col2=i%3;
       const lx=cx-130+col2*90, ly=cy+104+row*16;
@@ -520,19 +510,19 @@ new p5(function(p) {
     tx(enemy.name,GW/2+5,22,C.TEXT,9);
     bar(GW/2+5,26,W/2-10,16,enemy.curHp,enemy.hp,C.EN_FG,C.EN_BG,'ENEMY');
     tx(stunned?'STUNNED':'Atk '+enemy.atk,GW/2+5,56,stunned?C.GOLD:C.DANGER,8);
-    tx('PWR +'+power+(streak>=2?' CHAIN x'+streak:''),GW-12,56,power>0?C.GOLD:C.TEXT_DIM,8,'RIGHT');
+    tx('PWR +'+power+(streak>=2?' CHAIN x'+streak:''),GW-12,56,power>0?C.GOLD:C.TEXT_DIM,8,p.RIGHT);
     dr(10,76,W,88,C.DEEP,8);
-    tx(enemy.glyph,GW/2,147,enemy.color,50,'CENTER');
-    if(enemy.boss) tx('BOSS',GW-18,92,C.DANGER,9,'RIGHT');
+    tx(enemy.glyph,GW/2,147,enemy.color,50,p.CENTER);
+    if(enemy.boss) tx('BOSS',GW-18,92,C.DANGER,9,p.RIGHT);
     drawBoard(combat);
     drawHandCards(hand,selected);
     const btn=btnRect();
     dr(btn.x,btn.y,btn.w,btn.h,state.hover==='endturn'?'#b91c1c':C.DANGER,8);
-    tx('END TURN',btn.x+btn.w/2,btn.y+btn.h*0.66,C.TEXT,14,'CENTER');
-    if(selected!==null) tx('tap board to place  tap card again to rotate',GW/2,btn.y+btn.h+14,C.ACCENT,8,'CENTER');
+    tx('END TURN',btn.x+btn.w/2,btn.y+btn.h*0.66,C.TEXT,14,p.CENTER);
+    if(selected!==null) tx('tap board to place  tap card again to rotate',GW/2,btn.y+btn.h+14,C.ACCENT,8,p.CENTER);
     if(state.msg&&state.msgTimer>0){
       const big=state.msg.includes('RESONANCE')||state.msg.includes('ECHO')||state.msg.includes('DOUBLE');
-      tx(state.msg,GW/2,btn.y+btn.h+28,big?C.GOLD:C.TEXT,big?11:10,'CENTER');
+      tx(state.msg,GW/2,btn.y+btn.h+28,big?C.GOLD:C.TEXT,big?11:10,p.CENTER);
     }
   }
 
@@ -546,40 +536,40 @@ new p5(function(p) {
     dr(RX,10,RW,68,C.DEEP,8);
     tx('FLOOR '+floor,RX+8,26,C.TEXT_DIM,10);tx(fd?fd.name:'',RX+8,40,C.TEXT,11);
     bar(RX+8,44,RW-16,18,player.hp,player.maxHp,C.HP_FG,C.HP_BG,'HP');
-    tx('ATK '+player.baseDmg+(player.comboBonus>0?'+'+player.comboBonus:'')+(player.voidWard>0?' WRD'+player.voidWard:''),RX+RW-8,26,C.TEXT_DIM,9,'RIGHT');
+    tx('ATK '+player.baseDmg+(player.comboBonus>0?'+'+player.comboBonus:'')+(player.voidWard>0?' WRD'+player.voidWard:''),RX+RW-8,26,C.TEXT_DIM,9,p.RIGHT);
     dr(RX,86,RW,125,C.DEEP,8);
     tx(enemy.name,RX+8,102,C.TEXT,11);
-    if(enemy.boss) tx('BOSS',RX+RW-10,102,C.DANGER,10,'RIGHT');
-    tx(enemy.glyph,RX+RW/2,170,enemy.color,50,'CENTER');
+    if(enemy.boss) tx('BOSS',RX+RW-10,102,C.DANGER,10,p.RIGHT);
+    tx(enemy.glyph,RX+RW/2,170,enemy.color,50,p.CENTER);
     bar(RX+8,216,RW-16,16,enemy.curHp,enemy.hp,C.EN_FG,C.EN_BG,'ENEMY HP');
     tx(stunned?'STUNNED — skips!':'Attacks '+enemy.atk+'/turn',RX+8,246,stunned?C.GOLD:C.DANGER,10);
     dr(RX,252,RW,28,C.PANEL,6);
-    tx('PENDING: +'+power+(streak>=2?'  CHAIN x'+streak:''),RX+RW/2,270,power>0?C.GOLD:C.TEXT_DIM,12,'CENTER');
+    tx('PENDING: +'+power+(streak>=2?'  CHAIN x'+streak:''),RX+RW/2,270,power>0?C.GOLD:C.TEXT_DIM,12,p.CENTER);
     drawHandCards(hand,selected);
     const btn=btnRect();
     dr(btn.x,btn.y,btn.w,btn.h,state.hover==='endturn'?'#b91c1c':C.DANGER,8);
-    tx('END TURN',btn.x+btn.w/2,btn.y+btn.h*0.66,C.TEXT,15,'CENTER');
-    if(selected!==null) tx('tap board to place  tap card to rotate',btn.x+btn.w/2,btn.y+btn.h+14,C.ACCENT,8,'CENTER');
+    tx('END TURN',btn.x+btn.w/2,btn.y+btn.h*0.66,C.TEXT,15,p.CENTER);
+    if(selected!==null) tx('tap board to place  tap card to rotate',btn.x+btn.w/2,btn.y+btn.h+14,C.ACCENT,8,p.CENTER);
     if(state.msg&&state.msgTimer>0){
       const big=state.msg.includes('RESONANCE')||state.msg.includes('ECHO')||state.msg.includes('DOUBLE');
-      tx(state.msg,btn.x+btn.w/2,btn.y+btn.h+28,big?C.GOLD:C.TEXT,big?11:10,'CENTER');
+      tx(state.msg,btn.x+btn.w/2,btn.y+btn.h+28,big?C.GOLD:C.TEXT,big?11:10,p.CENTER);
     }
   }
 
   function drawLoot(){
     const opts=state.lootOptions;
-    tx('THE VOID OFFERS TRIBUTE',GW/2,40,C.ACCENT2,portrait?16:20,'CENTER');
-    tx('Choose one boon:',GW/2,58,C.TEXT_DIM,11,'CENTER');
+    tx('THE VOID OFFERS TRIBUTE',GW/2,40,C.ACCENT2,portrait?16:20,p.CENTER);
+    tx('Choose one boon:',GW/2,58,C.TEXT_DIM,11,p.CENTER);
     if(portrait){
       opts.forEach((item,i)=>{
         const y=70+i*90,W=GW-20,hov=state.hover===('loot'+i);
         dr(10,y,W,82,hov?C.PANEL_ALT:C.PANEL,10);
         dro(10,y,W,82,hov?C.ACCENT:C.BORDER,hov?2:1,10);
-        tx(item.glyph,32,y+48,item.color,22,'CENTER');
+        tx(item.glyph,32,y+48,item.color,22,p.CENTER);
         tx(item.name,52,y+22,C.TEXT,13);
         p.fill(C.TEXT_DIM);p.noStroke();p.textSize(10);p.textAlign(p.LEFT);
         p.text(item.desc,52,y+36,W-62,38);
-        tx('TAP TO CLAIM',GW-15,y+74,hov?C.ACCENT:C.TEXT_DIM,9,'RIGHT');
+        tx('TAP TO CLAIM',GW-15,y+74,hov?C.ACCENT:C.TEXT_DIM,9,p.RIGHT);
       });
     }else{
       const cw=190,gap=18,total=opts.length*(cw+gap)-gap,sx=GW/2-total/2;
@@ -587,30 +577,31 @@ new p5(function(p) {
         const cx=sx+i*(cw+gap),cy=78,hov=state.hover===('loot'+i);
         dr(cx,cy,cw,220,hov?C.PANEL_ALT:C.PANEL,12);
         dro(cx,cy,cw,220,hov?C.ACCENT:C.BORDER,hov?2:1,12);
-        tx(item.glyph,cx+cw/2,cy+68,item.color,32,'CENTER');
-        tx(item.name,cx+cw/2,cy+94,C.TEXT,13,'CENTER');
+        tx(item.glyph,cx+cw/2,cy+68,item.color,32,p.CENTER);
+        tx(item.name,cx+cw/2,cy+94,C.TEXT,13,p.CENTER);
         p.fill(C.TEXT_DIM);p.noStroke();p.textSize(10);p.textAlign(p.CENTER);
         p.text(item.desc,cx+12,cy+112,cw-24,52);
-        dr(cx+20,cy+175,cw-40,32,hov?C.ACCENT:C.ACCENT,6);
-        tx('CLAIM',cx+cw/2,cy+196,C.TEXT,12,'CENTER');
+        dr(cx+20,cy+175,cw-40,32,C.ACCENT,6);
+        tx('CLAIM',cx+cw/2,cy+196,C.TEXT,12,p.CENTER);
       });
     }
   }
 
   function drawGameOver(){
-    tx('⊗',GW/2,GH/2-58,C.DANGER,52,'CENTER');
-    tx('YOU HAVE BEEN UNMADE',GW/2,GH/2-8,C.DANGER,portrait?18:26,'CENTER');
-    tx('The sigils could not hold.',GW/2,GH/2+16,C.TEXT_DIM,11,'CENTER');
-    dr(GW/2-80,GH/2+50,160,40,C.ACCENT,6);tx('TRY AGAIN',GW/2,GH/2+76,C.TEXT,13,'CENTER');
+    tx('⊗',GW/2,GH/2-58,C.DANGER,52,p.CENTER);
+    tx('YOU HAVE BEEN UNMADE',GW/2,GH/2-8,C.DANGER,portrait?18:26,p.CENTER);
+    tx('The sigils could not hold.',GW/2,GH/2+16,C.TEXT_DIM,11,p.CENTER);
+    dr(GW/2-80,GH/2+50,160,40,C.ACCENT,6);
+    tx('TRY AGAIN',GW/2,GH/2+76,C.TEXT,13,p.CENTER);
   }
   function drawVictory(){
-    tx('⊕',GW/2,GH/2-58,C.GOLD,52,'CENTER');
-    tx('THE RITUAL IS COMPLETE',GW/2,GH/2-8,C.GOLD,portrait?18:26,'CENTER');
-    tx('The Sleeper stirs. The sigils hold.',GW/2,GH/2+16,C.TEXT_DIM,11,'CENTER');
-    dr(GW/2-80,GH/2+50,160,40,C.ACCENT,6);tx('PLAY AGAIN',GW/2,GH/2+76,C.TEXT,13,'CENTER');
+    tx('⊕',GW/2,GH/2-58,C.GOLD,52,p.CENTER);
+    tx('THE RITUAL IS COMPLETE',GW/2,GH/2-8,C.GOLD,portrait?18:26,p.CENTER);
+    tx('The Sleeper stirs. The sigils hold.',GW/2,GH/2+16,C.TEXT_DIM,11,p.CENTER);
+    dr(GW/2-80,GH/2+50,160,40,C.ACCENT,6);
+    tx('PLAY AGAIN',GW/2,GH/2+76,C.TEXT,13,p.CENTER);
   }
 
-  // ── Input ─────────────────────────────────────────────────────────────────────
   function updateHover(mx,my){
     state.hover=null;
     if(state.screen==='title'){
