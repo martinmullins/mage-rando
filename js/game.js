@@ -9,13 +9,12 @@ const C = {
   EN_FG:'#dc2626', EN_BG:'#1f1515'
 };
 
-// Each sigil type: symbol, colour, passive effect, short label
 const TSIGILS = [
   {id:'void',  sym:'⊕', color:'#7c3aed', fx:'heal',   fxLabel:'HEAL/combo'},
   {id:'blood', sym:'⊗', color:'#dc2626', fx:'bonus',  fxLabel:'+3 dmg'},
-  {id:'star',  sym:'⊛', color:'#f59e0b', fx:'double', fxLabel:'x2 on ×4'},
-  {id:'bone',  sym:'◈', color:'#6b7280', fx:'lone',   fxLabel:'×2 if alone'},
-  {id:'dream', sym:'⊜', color:'#0ea5e9', fx:'stun',   fxLabel:'stun on ×3+'},
+  {id:'star',  sym:'⊛', color:'#f59e0b', fx:'double', fxLabel:'x2 on \xd74'},
+  {id:'bone',  sym:'◈', color:'#6b7280', fx:'lone',   fxLabel:'\xd72 if alone'},
+  {id:'dream', sym:'⊜', color:'#0ea5e9', fx:'stun',   fxLabel:'stun on \xd73+'},
   {id:'rift',  sym:'◆', color:'#22c55e', fx:'draw',   fxLabel:'+1 card'},
 ];
 
@@ -84,6 +83,26 @@ function nearestCell(mx, my, BX, BY, S) {
   return best;
 }
 
+function getPlayableCells(board, voided) {
+  const cells = new Set();
+  if (board.size === 0) {
+    for (let r=0; r<BOARD_ROWS; r++) for (let c=0; c<BOARD_COLS; c++) {
+      const k=`${r},${c}`;
+      if (!voided.has(k)) cells.add(k);
+    }
+  } else {
+    board.forEach((_,key) => {
+      const [r,c]=key.split(',').map(Number);
+      for (const {nr,nc} of triNeighbors(r,c)) {
+        const nk=`${nr},${nc}`;
+        if (!board.has(nk)&&!voided.has(nk)&&nr>=0&&nr<BOARD_ROWS&&nc>=0&&nc<BOARD_COLS)
+          cells.add(nk);
+      }
+    });
+  }
+  return cells;
+}
+
 // ── Piece helpers ─────────────────────────────────────────────────────────
 function randomPiece() {
   const sig = TSIGILS[Math.floor(Math.random()*TSIGILS.length)];
@@ -115,7 +134,8 @@ function startCombat(def) {
     enemy:{...def, curHp:def.hp},
     board:new Map(), voided:new Set(),
     hand:makeHand(state.player.handSize),
-    selected:null, hoverCell:null, power:0, stunned:false
+    selected:null, hoverCell:null, power:0, stunned:false,
+    particles:[], streak:0, flash:null
   };
 }
 
@@ -148,23 +168,14 @@ function applyEffect(sigilId, multi, r, c) {
   const {combat, player} = state;
   const sigil = TSIGILS.find(s=>s.id===sigilId);
   switch(sigil.fx) {
-    case 'heal':   // void: heal 1 HP per combo tier
+    case 'heal':
       if (multi>=2) { const h=multi-1; player.hp=Math.min(player.maxHp,player.hp+h); return `+${h}HP`; }
       break;
-    case 'bonus':  // blood: flat +3 damage
-      combat.power+=3; return '+3!';
-    case 'double': // star: double damage on RESONANCE
-      if (multi>=4) { combat.power+=player.baseDmg*multi; return 'DOUBLE HIT!'; }
-      break;
-    case 'lone':   // bone: ×2 when isolated
-      if (!hasNeighbor(combat.board, r, c)) { combat.power+=player.baseDmg; return 'LONE ×2!'; }
-      break;
-    case 'stun':   // dream: stun on ×3+
-      if (multi>=3) { combat.stunned=true; return 'STUNNED!'; }
-      break;
-    case 'draw':   // rift: extra card
-      if (combat.hand.length<7) { combat.hand.push(randomPiece()); return '+1 card!'; }
-      break;
+    case 'bonus':  combat.power+=3; return '+3!';
+    case 'double': if (multi>=4) { combat.power+=player.baseDmg*multi; return 'DOUBLE HIT!'; } break;
+    case 'lone':   if (!hasNeighbor(combat.board, r, c)) { combat.power+=player.baseDmg; return 'LONE x2!'; } break;
+    case 'stun':   if (multi>=3) { combat.stunned=true; return 'STUNNED!'; } break;
+    case 'draw':   if (combat.hand.length<7) { combat.hand.push(randomPiece()); return '+1 card!'; } break;
   }
   return null;
 }
@@ -179,22 +190,29 @@ function placePiece(hIdx, r, c) {
   const isolated=!hasNeighbor(combat.board,r,c);
   const es=bestEdgeSum(combat.board,r,c,corners);
   const multi=multiplier(es,player.comboBonus);
-  // bone: lone multiplier
   const effectiveMult = (sigil.fx==='lone'&&isolated) ? Math.max(multi,2) : multi;
   const dmg=player.baseDmg*effectiveMult;
   combat.board.set(key,{corners,sigilId:piece.sigilId,color:sigil.color});
   combat.power+=dmg;
   combat.hand.splice(hIdx,1);
   combat.selected=null; combat.hoverCell=null;
+  // Streak tracking
+  if (effectiveMult>=2) { combat.streak++; } else { combat.streak=0; }
+  // Flash overlay on high combo
+  if (effectiveMult>=4) { combat.flash={r,c,timer:40,color:C.GOLD}; }
+  else if (effectiveMult>=3) { combat.flash={r,c,timer:25,color:C.ACCENT2}; }
+  // Floating damage particle stored in grid coords
+  const ptColor=effectiveMult>=4?C.GOLD:effectiveMult>=3?C.ACCENT2:effectiveMult>=2?C.TEXT:C.TEXT_DIM;
+  combat.particles.push({r,c,yOff:0,life:80,maxLife:80,text:`+${dmg}`,color:ptColor,big:effectiveMult>=3});
   const fxMsg=applyEffect(piece.sigilId,effectiveMult,r,c);
   const tier=effectiveMult>=4?'RESONANCE! ':effectiveMult>=3?'ECHO! ':effectiveMult>=2?'LINK! ':'';
-  showMsg(`${tier}×${effectiveMult}  +${dmg}dmg${fxMsg?' · '+fxMsg:''}`);
+  const streakStr=combat.streak>=3?` (CHAIN x${combat.streak})`:combat.streak>=2?' (chain!):'';
+  showMsg(`${tier}x${effectiveMult}  +${dmg}dmg${fxMsg?' · '+fxMsg:''}${streakStr}`);
 }
 
 function addVoidCells(combat) {
   const voids=Math.max(0,(combat.enemy.voids||1)-state.player.voidWard);
   if (voids<=0) return;
-  // Prefer cells adjacent to player pieces to disrupt combos
   const candidates=[];
   combat.board.forEach((_,key)=>{
     const [r,c]=key.split(',').map(Number);
@@ -204,7 +222,6 @@ function addVoidCells(combat) {
         candidates.push(nk);
     }
   });
-  // Shuffle and pick
   for (let i=candidates.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[candidates[i],candidates[j]]=[candidates[j],candidates[i]];}
   candidates.slice(0,voids).forEach(k=>combat.voided.add(k));
 }
@@ -213,18 +230,33 @@ function endTurn() {
   const {combat,player}=state;
   if (combat.power>0) {
     combat.enemy.curHp=Math.max(0,combat.enemy.curHp-combat.power);
-    if (combat.enemy.curHp<=0){showMsg(`${combat.enemy.name} annihilated! (${combat.power}dmg)`);setTimeout(()=>transitionToLoot(),700);return;}
+    if (combat.enemy.curHp<=0){
+      showMsg(`${combat.enemy.name} annihilated! (${combat.power}dmg)`);
+      setTimeout(()=>transitionToLoot(),700);
+      return;
+    }
   }
+  let msg;
   if (combat.stunned) {
-    showMsg(`Dealt ${combat.power}dmg. Enemy STUNNED — no attack!`);
+    msg=`Dealt ${combat.power}dmg. Enemy STUNNED — skips attack!`;
   } else {
     player.hp=Math.max(0,player.hp-combat.enemy.atk);
     if (player.hp<=0){state.screen='gameover';return;}
     addVoidCells(combat);
-    showMsg(`Dealt ${combat.power}dmg. Enemy strikes ${combat.enemy.atk} + corrupts board!`);
+    msg=`Dealt ${combat.power}dmg. Enemy strikes ${combat.enemy.atk}!`;
   }
+  // Board saturation: if corruption has blocked all placements, purge it
+  if (combat.board.size>0) {
+    const playable=getPlayableCells(combat.board,combat.voided);
+    if (playable.size===0) {
+      combat.voided.clear();
+      msg+=` Void overflow — purged!`;
+    }
+  }
+  showMsg(msg);
   combat.hand=makeHand(player.handSize);
   combat.power=0; combat.stunned=false; combat.selected=null; combat.hoverCell=null;
+  combat.streak=0; combat.particles=[];
 }
 
 function transitionToLoot() {
@@ -321,22 +353,19 @@ new p5(function(p) {
 
   function boardBottom(){return BY+BOARD_ROWS*TRI_S*Math.sqrt(3)/2;}
 
-  // Draw hints: faint outlines where pieces can connect
-  function drawHints(board){
-    const H=TRI_S*Math.sqrt(3)/2;
+  function drawHints(board,voided){
     const shown=new Set();
     board.forEach((_,key)=>{
       const [r,c]=key.split(',').map(Number);
       for (const {nr,nc} of triNeighbors(r,c)){
         const nk=`${nr},${nc}`;
-        if(board.has(nk)||shown.has(nk)||nr<0||nc<0||nr>=BOARD_ROWS||nc>=BOARD_COLS) continue;
+        if(board.has(nk)||voided.has(nk)||shown.has(nk)||nr<0||nc<0||nr>=BOARD_ROWS||nc>=BOARD_COLS) continue;
         const [v0,v1,v2]=triVerts(BX,BY,nr,nc,TRI_S);
         p.noFill(); p.stroke(C.ACCENT+'55'); p.strokeWeight(1);
         p.triangle(v0[0],v0[1],v1[0],v1[1],v2[0],v2[1]); p.noStroke();
         shown.add(nk);
       }
     });
-    // Empty board: show center zone
     if(board.size===0){
       const cr=Math.floor(BOARD_ROWS/2), cc=Math.floor(BOARD_COLS/2);
       for(let dr=-1;dr<=1;dr++) for(let dc=-2;dc<=2;dc++){
@@ -350,29 +379,38 @@ new p5(function(p) {
   }
 
   function drawBoard(combat){
-    const {board,voided,hand,selected,hoverCell}=combat;
+    const {board,voided,hand,selected,hoverCell,particles,flash}=combat;
     const H=TRI_S*Math.sqrt(3)/2;
     const boardW=BOARD_COLS*TRI_S/2+TRI_S, boardH=BOARD_ROWS*H;
     dr(BX-4,BY-4,boardW+8,boardH+8,C.DEEP,6);
     dro(BX-4,BY-4,boardW+8,boardH+8,C.BORDER,1,6);
 
-    // Draw placement hints when a piece is selected
-    if (selected!==null) drawHints(board);
+    if (selected!==null) drawHints(board,voided);
 
-    // Draw placed pieces
+    // Placed pieces
     board.forEach((cell,key)=>{
       const [r,c]=key.split(',').map(Number);
       drawTri(triVerts(BX,BY,r,c,TRI_S),cell.corners,cell.sigilId,255);
     });
 
-    // Draw voided cells (enemy corruption)
+    // Flash overlay on high-combo placements
+    if (flash&&flash.timer>0) {
+      const {r,c,color}=flash;
+      const [v0,v1,v2]=triVerts(BX,BY,r,c,TRI_S);
+      const a=(flash.timer/40)*170;
+      const fc=p.color(color); fc.setAlpha(a);
+      p.fill(fc); p.noStroke();
+      p.triangle(v0[0],v0[1],v1[0],v1[1],v2[0],v2[1]);
+      flash.timer--;
+    }
+
+    // Voided cells (enemy corruption)
     voided.forEach(key=>{
       const [r,c]=key.split(',').map(Number);
       const [v0,v1,v2]=triVerts(BX,BY,r,c,TRI_S);
       const cx=(v0[0]+v1[0]+v2[0])/3, cy=(v0[1]+v1[1]+v2[1])/3;
       p.fill(C.DANGER+'22'); p.stroke(C.DANGER+'77'); p.strokeWeight(1);
       p.triangle(v0[0],v0[1],v1[0],v1[1],v2[0],v2[1]); p.noStroke();
-      // Draw X
       p.stroke(C.DANGER+'aa'); p.strokeWeight(1.5);
       const s=TRI_S*0.15;
       p.line(cx-s,cy-s,cx+s,cy+s); p.line(cx+s,cy-s,cx-s,cy+s); p.noStroke();
@@ -394,9 +432,22 @@ new p5(function(p) {
           const col=multi>=4?C.GOLD:multi>=3?C.ACCENT2:C.TEXT;
           const pulse=0.7+0.3*Math.sin(p.frameCount*0.18);
           p.textSize(11*pulse); p.fill(col); p.noStroke(); p.textAlign(p.CENTER,p.CENTER);
-          p.text('×'+multi,gcx,gcy-H*0.55);
+          p.text('x'+multi,gcx,gcy-H*0.55);
         }
       }
+    }
+
+    // Floating damage particles (grid-coord anchored)
+    for (let i=particles.length-1;i>=0;i--) {
+      const pt=particles[i];
+      pt.yOff-=1.2; pt.life--;
+      if (pt.life<=0) { particles.splice(i,1); continue; }
+      const [pcx,pcy]=triCenter(BX,BY,pt.r,pt.c,TRI_S);
+      const a=(pt.life/pt.maxLife)*255;
+      const col=p.color(pt.color); col.setAlpha(a);
+      p.fill(col); p.noStroke();
+      p.textSize(pt.big?14:10); p.textAlign(p.CENTER,p.CENTER);
+      p.text(pt.text,pcx,pcy+pt.yOff);
     }
   }
 
@@ -429,7 +480,7 @@ new p5(function(p) {
       dro(cx,hY,cardW,cardH,sel?sigil.color:C.BORDER,sel?2:1,8);
       drawMiniTri(piece.sigilId,piece.corners,piece.rotation,cx+cardW/2,hY+cardH*0.40,cardW*0.52);
       tx(sigil.fxLabel,cx+cardW/2,hY+cardH-18,sel?sigil.color:C.TEXT_MUT,7,'CENTER');
-      tx(sel?'⟳ rotate':'tap',cx+cardW/2,hY+cardH-8,C.TEXT_MUT,7,'CENTER');
+      tx(sel?'rotate':'tap',cx+cardW/2,hY+cardH-8,C.TEXT_MUT,7,'CENTER');
     });
     if(!hand.length) tx('No sigils — end turn.',portrait?GW/2:hl.RX+hl.RW/2,hY+30,C.TEXT_DIM,10,'CENTER');
   }
@@ -438,13 +489,13 @@ new p5(function(p) {
   function drawTitle(){
     const cx=GW/2, cy=GH/2;
     TSIGILS.forEach((sig,i)=>{
-      const a=i/TSIGILS.length*Math.PI*2, r=90;
+      const a=i/TSIGILS.length*Math.PI*2+p.frameCount*0.005, r=90;
       const tx2=cx+Math.cos(a)*r, ty2=cy+Math.sin(a)*r;
       const col=p.color(sig.color); col.setAlpha(60); p.fill(col); p.noStroke();
       p.triangle(tx2,ty2-20,tx2-17,ty2+10,tx2+17,ty2+10);
     });
     tx('SIGIL RITES',cx,cy-42,C.ACCENT2,portrait?28:36,'CENTER');
-    tx('TRIANGLES · CORNER MATCHING · COMBO MULTIPLIERS',cx,cy-22,C.TEXT_DIM,portrait?7:9,'CENTER');
+    tx('TRIANGLES  CORNER MATCHING  COMBO MULTIPLIERS',cx,cy-22,C.TEXT_DIM,portrait?7:9,'CENTER');
     tx('HOW MANY SIGILS PER TURN?',cx,cy+12,C.TEXT,11,'CENTER');
     const modes=[['1','hardest','1'],['3','recommended','3'],['5','easiest','5']];
     const bw=86,bh=46,gap=10,totalW=3*(bw+gap)-gap,bsx=cx-totalW/2;
@@ -456,7 +507,6 @@ new p5(function(p) {
       tx(lbl,bx+bw/2,by+22,C.TEXT,18,'CENTER');
       tx(sub,bx+bw/2,by+38,C.TEXT_DIM,8,'CENTER');
     });
-    // Sigil legend
     tx('SIGIL EFFECTS:',cx,cy+88,C.TEXT_DIM,9,'CENTER');
     TSIGILS.forEach((sig,i)=>{
       const row=Math.floor(i/3), col2=i%3;
@@ -468,24 +518,25 @@ new p5(function(p) {
 
   function drawCombatPort(){
     const{combat,player,floor}=state;
-    const{enemy,hand,selected,power,stunned}=combat;
+    const{enemy,hand,selected,power,stunned,streak}=combat;
     const fd=FLOORS.find(f=>f.id===floor),W=GW-20;
-    dr(10,8,W,60,C.DEEP,8);
+    dr(10,8,W,62,C.DEEP,8);
     tx('FLOOR '+floor+' — '+(fd?fd.name:''),15,22,C.TEXT_DIM,9);
     bar(15,26,W/2-10,16,player.hp,player.maxHp,C.HP_FG,C.HP_BG,'HP');
+    tx('ATK '+player.baseDmg+(player.comboBonus>0?'+'+player.comboBonus+' cmb':''),15,56,C.TEXT_DIM,8);
     tx(enemy.name,GW/2+5,22,C.TEXT,9);
     bar(GW/2+5,26,W/2-10,16,enemy.curHp,enemy.hp,C.EN_FG,C.EN_BG,'ENEMY');
-    tx((stunned?'★ STUNNED':'Atk '+enemy.atk+'/turn'),GW/2+5,54,stunned?C.GOLD:C.DANGER,9);
-    tx('PENDING: +'+power,15,54,power>0?C.GOLD:C.TEXT_DIM,10);
-    dr(10,74,W,90,C.DEEP,8);
-    tx(enemy.glyph,GW/2,146,enemy.color,52,'CENTER');
-    if(enemy.boss) tx('⚠ BOSS',GW-18,90,C.DANGER,9,'RIGHT');
+    tx((stunned?'STUNNED':'Atk '+enemy.atk),GW/2+5,56,stunned?C.GOLD:C.DANGER,8);
+    tx('PWR +'+power+(streak>=2?' CHAIN x'+streak:''),GW-12,56,power>0?C.GOLD:C.TEXT_DIM,8,'RIGHT');
+    dr(10,76,W,88,C.DEEP,8);
+    tx(enemy.glyph,GW/2,147,enemy.color,50,'CENTER');
+    if(enemy.boss) tx('BOSS',GW-18,92,C.DANGER,9,'RIGHT');
     drawBoard(combat);
     drawHandCards(hand,selected);
     const btn=btnRect();
     dr(btn.x,btn.y,btn.w,btn.h,state.hover==='endturn'?'#b91c1c':C.DANGER,8);
-    tx('END TURN  ▶',btn.x+btn.w/2,btn.y+btn.h*0.66,C.TEXT,14,'CENTER');
-    if(selected!==null) tx('tap board to place  ·  tap card again to rotate',GW/2,btn.y+btn.h+14,C.ACCENT,8,'CENTER');
+    tx('END TURN',btn.x+btn.w/2,btn.y+btn.h*0.66,C.TEXT,14,'CENTER');
+    if(selected!==null) tx('tap board to place  tap card again to rotate',GW/2,btn.y+btn.h+14,C.ACCENT,8,'CENTER');
     if(state.msg&&state.msgTimer>0){
       const big=state.msg.includes('RESONANCE')||state.msg.includes('ECHO')||state.msg.includes('DOUBLE');
       tx(state.msg,GW/2,btn.y+btn.h+28,big?C.GOLD:C.TEXT,big?11:10,'CENTER');
@@ -494,7 +545,7 @@ new p5(function(p) {
 
   function drawCombatLand(){
     const{combat,player,floor}=state;
-    const{enemy,hand,selected,power,stunned}=combat;
+    const{enemy,hand,selected,power,stunned,streak}=combat;
     const fd=FLOORS.find(f=>f.id===floor);
     const hl=handLayout();const{RX,RW}=hl;
     tx('SIGIL BOARD',BX,BY-12,C.TEXT_DIM,9);
@@ -502,19 +553,20 @@ new p5(function(p) {
     dr(RX,10,RW,68,C.DEEP,8);
     tx('FLOOR '+floor,RX+8,26,C.TEXT_DIM,10);tx(fd?fd.name:'',RX+8,40,C.TEXT,11);
     bar(RX+8,44,RW-16,18,player.hp,player.maxHp,C.HP_FG,C.HP_BG,'HP');
+    tx('ATK '+player.baseDmg+(player.comboBonus>0?'+'+player.comboBonus:'')+(state.player.voidWard>0?' WRD'+state.player.voidWard:''),RX+RW-8,26,C.TEXT_DIM,9,'RIGHT');
     dr(RX,86,RW,125,C.DEEP,8);
     tx(enemy.name,RX+8,102,C.TEXT,11);
-    if(enemy.boss) tx('⚠ BOSS',RX+RW-10,102,C.DANGER,10,'RIGHT');
+    if(enemy.boss) tx('BOSS',RX+RW-10,102,C.DANGER,10,'RIGHT');
     tx(enemy.glyph,RX+RW/2,170,enemy.color,50,'CENTER');
     bar(RX+8,216,RW-16,16,enemy.curHp,enemy.hp,C.EN_FG,C.EN_BG,'ENEMY HP');
-    tx((stunned?'★ STUNNED':'Attacks '+enemy.atk+'/turn'),RX+8,246,stunned?C.GOLD:C.DANGER,10);
+    tx((stunned?'STUNNED — skips!':'Attacks '+enemy.atk+'/turn'),RX+8,246,stunned?C.GOLD:C.DANGER,10);
     dr(RX,252,RW,28,C.PANEL,6);
-    tx('PENDING: +'+power,RX+RW/2,270,power>0?C.GOLD:C.TEXT_DIM,12,'CENTER');
+    tx('PENDING: +'+power+(streak>=2?'  CHAIN x'+streak:''),RX+RW/2,270,power>0?C.GOLD:C.TEXT_DIM,12,'CENTER');
     drawHandCards(hand,selected);
     const btn=btnRect();
     dr(btn.x,btn.y,btn.w,btn.h,state.hover==='endturn'?'#b91c1c':C.DANGER,8);
-    tx('END TURN  ▶',btn.x+btn.w/2,btn.y+btn.h*0.66,C.TEXT,15,'CENTER');
-    if(selected!==null) tx('tap board to place  ·  tap card to rotate',btn.x+btn.w/2,btn.y+btn.h+14,C.ACCENT,8,'CENTER');
+    tx('END TURN',btn.x+btn.w/2,btn.y+btn.h*0.66,C.TEXT,15,'CENTER');
+    if(selected!==null) tx('tap board to place  tap card to rotate',btn.x+btn.w/2,btn.y+btn.h+14,C.ACCENT,8,'CENTER');
     if(state.msg&&state.msgTimer>0){
       const big=state.msg.includes('RESONANCE')||state.msg.includes('ECHO')||state.msg.includes('DOUBLE');
       tx(state.msg,btn.x+btn.w/2,btn.y+btn.h+28,big?C.GOLD:C.TEXT,big?11:10,'CENTER');
@@ -534,7 +586,7 @@ new p5(function(p) {
         tx(item.name,52,y+22,C.TEXT,13);
         p.fill(C.TEXT_DIM);p.noStroke();p.textSize(10);p.textAlign(p.LEFT);
         p.text(item.desc,52,y+36,W-62,38);
-        tx('TAP TO CLAIM ▶',GW-15,y+74,hov?C.ACCENT:C.TEXT_DIM,9,'RIGHT');
+        tx('TAP TO CLAIM',GW-15,y+74,hov?C.ACCENT:C.TEXT_DIM,9,'RIGHT');
       });
     }else{
       const cw=190,gap=18,total=opts.length*(cw+gap)-gap,sx=GW/2-total/2;
@@ -580,7 +632,7 @@ new p5(function(p) {
       if(state.combat) state.combat.hoverCell=nearestCell(mx,my,BX,BY,TRI_S);
     }
     if(state.screen==='loot'){
-      if(portrait){state.lootOptions.forEach((_,i)=>{if(ir(mx,my,10,70+i*90,GW-20,82)) state.hover='loot'+i;});}
+      if(portrait){state.lootOptions.forEach((_,i)=>{if(ir(mx,my,10,70+i*90,GW-20,82)) state.hover='loot'+i;}); }
       else{const cw=190,gap=18,total=state.lootOptions.length*(cw+gap)-gap,sx=GW/2-total/2;
         state.lootOptions.forEach((_,i)=>{if(ir(mx,my,sx+i*(cw+gap),78,cw,220)) state.hover='loot'+i;});}
     }
