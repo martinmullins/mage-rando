@@ -1,24 +1,24 @@
 // SIGIL RITES
 
 const C = {
-  VOID:'#0a0a0f', DEEP:'#12121e', PANEL:'#1a1a2e', PANEL_ALT:'#16213e',
-  BORDER:'#2d2d5e', ACCENT:'#7c3aed', ACCENT2:'#a855f7',
-  DANGER:'#dc2626', GOLD:'#f59e0b', TEXT:'#e5e7eb',
-  TEXT_DIM:'#6b7280', TEXT_MUT:'#374151',
-  HP_FG:'#22c55e', HP_BG:'#14241a', EN_FG:'#dc2626', EN_BG:'#1f1515'
+  VOID:'#f7f2ea', DEEP:'#e8e2d4', PANEL:'#fdfbf8', PANEL_ALT:'#f0e9db',
+  BORDER:'#c8bca6', ACCENT:'#6d28d9', ACCENT2:'#7c3aed',
+  DANGER:'#c41c1c', GOLD:'#d97706', TEXT:'#1c1917',
+  TEXT_DIM:'#57534e', TEXT_MUT:'#a8a29e',
+  HP_FG:'#15803d', HP_BG:'#dcfce7', EN_FG:'#c41c1c', EN_BG:'#fee2e2'
 };
 
 const TSIGILS = [
   {id:'void',  sym:'⊕', color:'#7c3aed', fx:'heal',   fxLabel:'HEAL/combo'},
   {id:'blood', sym:'⊗', color:'#dc2626', fx:'bonus',  fxLabel:'+3 dmg'},
-  {id:'star',  sym:'⊛', color:'#f59e0b', fx:'double', fxLabel:'x2 on x4+'},
-  {id:'bone',  sym:'◈', color:'#6b7280', fx:'lone',   fxLabel:'x2 if alone'},
-  {id:'dream', sym:'⊜', color:'#0ea5e9', fx:'stun',   fxLabel:'stun on x3+'},
-  {id:'rift',  sym:'✶', color:'#22c55e', fx:'draw',   fxLabel:'+1 card'},
+  {id:'star',  sym:'⊛', color:'#d97706', fx:'double', fxLabel:'x2 on x4+'},
+  {id:'bone',  sym:'◈', color:'#78716c', fx:'lone',   fxLabel:'x2 if alone'},
+  {id:'dream', sym:'⊜', color:'#0284c7', fx:'stun',   fxLabel:'stun on x3+'},
+  {id:'rift',  sym:'✶', color:'#15803d', fx:'draw',   fxLabel:'+1 card'},
 ];
 
 const EDGE_SYMS = ['▲','●','■','★'];
-const EDGE_COLS = ['#ef4444','#60a5fa','#a855f7','#fbbf24'];
+const EDGE_COLS = ['#ef4444','#3b82f6','#9333ea','#f59e0b'];
 
 const ENEMIES = [
   {id:'herald',  name:'Herald of the Void',     hp:40,  atk:6,  voids:1, glyph:'◈', color:'#6d28d9'},
@@ -34,14 +34,13 @@ const FLOORS = [
 ];
 
 const LOOT_POOL = [
-  {id:'extra-hp',  name:'Void Vitality',   glyph:'♥', desc:'+10 max HP, restore 10.',      color:'#22c55e'},
-  {id:'heal',      name:'Ritual Mending',  glyph:'⊕', desc:'Restore 15 HP.',               color:'#34d399'},
-  {id:'power',     name:'Sigil of Power',  glyph:'⊛', desc:'+1 base damage per piece.',    color:'#f59e0b'},
-  {id:'combo-amp', name:'Echo Resonance',  glyph:'◆', desc:'+1 to all combo multipliers.',  color:'#a855f7'},
-  {id:'ward',      name:'Void Ward',       glyph:'⊜', desc:'Enemy voids one fewer cell.',   color:'#0ea5e9'},
+  {id:'extra-hp',  name:'Void Vitality',   glyph:'♥', desc:'+10 max HP, restore 10.',      color:'#15803d'},
+  {id:'heal',      name:'Ritual Mending',  glyph:'⊕', desc:'Restore 15 HP.',               color:'#16a34a'},
+  {id:'power',     name:'Sigil of Power',  glyph:'⊛', desc:'+1 base damage per piece.',    color:'#d97706'},
+  {id:'combo-amp', name:'Echo Resonance',  glyph:'◆', desc:'+1 to all combo multipliers.',  color:'#7c3aed'},
+  {id:'ward',      name:'Void Ward',       glyph:'⊜', desc:'Enemy voids one fewer cell.',   color:'#0284c7'},
 ];
 
-// Grid math
 const BOARD_COLS = 13, BOARD_ROWS = 8;
 
 function isUp(r,c){return(r+c)%2===0;}
@@ -102,7 +101,6 @@ function getPlayableCells(board,voided){
   return cells;
 }
 
-// Pieces
 function randomPiece(){
   const sig=TSIGILS[Math.floor(Math.random()*TSIGILS.length)];
   return{sigilId:sig.id,edges:[Math.floor(Math.random()*4),Math.floor(Math.random()*4),Math.floor(Math.random()*4)],rotation:0};
@@ -115,7 +113,6 @@ function rotatedEdges(piece){
   return[...e];
 }
 
-// State
 let state;
 function initState(handSize){
   state={
@@ -197,7 +194,7 @@ function placePiece(hIdx,r,c){
   if(effectiveMult>=2){combat.streak++;}else{combat.streak=0;}
   if(effectiveMult>=4){combat.flash={r,c,timer:40,color:C.GOLD};}
   else if(effectiveMult>=3){combat.flash={r,c,timer:25,color:C.ACCENT2};}
-  const ptColor=effectiveMult>=4?C.GOLD:effectiveMult>=3?C.ACCENT2:effectiveMult>=2?C.TEXT:C.TEXT_DIM;
+  const ptColor=effectiveMult>=4?C.GOLD:effectiveMult>=3?C.ACCENT2:effectiveMult>=2?C.ACCENT:C.TEXT_DIM;
   combat.particles.push({r,c,yOff:0,life:80,maxLife:80,text:'+'+dmg,color:ptColor,big:effectiveMult>=3});
   const fxMsg=applyEffect(piece.sigilId,effectiveMult,r,c);
   const tier=effectiveMult>=4?'RESONANCE! ':effectiveMult>=3?'ECHO! ':effectiveMult>=2?'LINK! ':'';
@@ -311,7 +308,6 @@ function pickLoot(i){
   else state.screen='victory';
 }
 
-// p5 sketch
 new p5(function(p){
 
   let GW,GH,sc,portrait,ox,oy,VW,VH,TRI_S,BX,BY;
@@ -321,12 +317,12 @@ new p5(function(p){
 
   function relayout(){
     VW=vw();VH=vh();portrait=VH>VW;
-    GW=portrait?390:800;GH=portrait?750:600;
+    GW=portrait?390:800;GH=portrait?760:600;
     sc=Math.min(VW/GW,VH/GH);ox=(VW-GW*sc)/2;oy=(VH-GH*sc)/2;
     if(portrait){
-      TRI_S=44;
+      TRI_S=50;
       const bw=BOARD_COLS*TRI_S/2+TRI_S;
-      BX=Math.floor((GW-bw)/2);BY=168;
+      BX=Math.floor((GW-bw)/2);BY=170;
     } else {
       TRI_S=50;
       BX=8;BY=Math.floor((GH-BOARD_ROWS*TRI_S*Math.sqrt(3)/2)/2);
@@ -349,13 +345,13 @@ new p5(function(p){
     const sig=TSIGILS.find(s=>s.id===sigilId);
     const[v0,v1,v2]=verts;
     const cx=(v0[0]+v1[0]+v2[0])/3, cy=(v0[1]+v1[1]+v2[1])/3;
-    const fill=p.color(sig.color); fill.setAlpha(alpha*0.55);
+    const fill=p.color(sig.color); fill.setAlpha(alpha*0.45);
     p.fill(fill);
     const strkHex=owner==='enemy'?C.DANGER:sig.color;
     const strk=p.color(strkHex); strk.setAlpha(alpha);
     p.stroke(strk); p.strokeWeight(owner==='enemy'?2.8:1.8);
     p.triangle(v0[0],v0[1],v1[0],v1[1],v2[0],v2[1]); p.noStroke();
-    const symCol=p.color(255,255,255); symCol.setAlpha(alpha);
+    const symCol=p.color(sig.color); symCol.setAlpha(alpha);
     p.fill(symCol); p.textSize(TRI_S*0.28); p.textAlign(p.CENTER,p.CENTER);
     p.text(sig.sym,cx,cy);
     if(owner==='enemy'){
@@ -369,8 +365,8 @@ new p5(function(p){
       const ex=(ea[0]+eb[0])/2*0.7+cx*0.3;
       const ey=(ea[1]+eb[1])/2*0.7+cy*0.3;
       const icol=p.color(EDGE_COLS[edges[i]]); icol.setAlpha(alpha);
-      const ibg=p.color(C.DEEP); ibg.setAlpha(alpha*0.9);
-      p.fill(ibg); p.stroke(icol); p.strokeWeight(1.2);
+      const ibg=p.color(C.PANEL); ibg.setAlpha(alpha*0.92);
+      p.fill(ibg); p.stroke(icol); p.strokeWeight(1.4);
       p.circle(ex,ey,TRI_S*0.36); p.noStroke();
       p.fill(icol); p.textSize(TRI_S*0.22); p.textAlign(p.CENTER,p.CENTER);
       p.text(EDGE_SYMS[edges[i]],ex,ey);
@@ -383,16 +379,16 @@ new p5(function(p){
     const sig=TSIGILS.find(s=>s.id===sigilId);
     const h=size*Math.sqrt(3)/2;
     const v=[[cx,cy-h*0.6],[cx-size/2,cy+h*0.4],[cx+size/2,cy+h*0.4]];
-    p.fill(sig.color+'99'); p.stroke(sig.color); p.strokeWeight(1.5);
+    p.fill(sig.color+'66'); p.stroke(sig.color); p.strokeWeight(1.8);
     p.triangle(v[0][0],v[0][1],v[1][0],v[1][1],v[2][0],v[2][1]); p.noStroke();
-    p.fill(C.TEXT); p.textSize(size*0.26); p.textAlign(p.CENTER,p.CENTER);
+    p.fill(sig.color); p.textSize(size*0.26); p.textAlign(p.CENTER,p.CENTER);
     p.text(sig.sym,cx,cy+h*0.05);
     const ep=[[v[0],v[1]],[v[1],v[2]],[v[2],v[0]]];
     ep.forEach(function(pair,i){
       const ea=pair[0],eb=pair[1];
       const ex=(ea[0]+eb[0])/2*0.72+cx*0.28;
       const ey=(ea[1]+eb[1])/2*0.72+cy*0.28;
-      p.fill(C.DEEP+'ee'); p.stroke(EDGE_COLS[re[i]]); p.strokeWeight(1);
+      p.fill(C.PANEL+'ee'); p.stroke(EDGE_COLS[re[i]]); p.strokeWeight(1.2);
       p.circle(ex,ey,size*0.34); p.noStroke();
       p.fill(EDGE_COLS[re[i]]); p.textSize(size*0.2); p.textAlign(p.CENTER,p.CENTER);
       p.text(EDGE_SYMS[re[i]],ex,ey);
@@ -404,12 +400,12 @@ new p5(function(p){
     p.push();
     p.translate(cx,cy);
     if(id==='herald'){
-      p.noStroke(); p.fill(color+'18'); p.ellipse(0,0,62,66);
-      p.fill(color+'44'); p.stroke(color+'bb'); p.strokeWeight(1.5);
+      p.noStroke(); p.fill(color+'22'); p.ellipse(0,0,62,66);
+      p.fill(color+'55'); p.stroke(color+'cc'); p.strokeWeight(1.5);
       p.triangle(0,-5,-21,26,21,26);
-      p.fill(color+'70');
+      p.fill(color+'88');
       p.quad(0,-37,14,-19,0,-5,-14,-19);
-      p.fill(color+'ee'); p.noStroke();
+      p.fill(color); p.noStroke();
       p.ellipse(-6,-25,5,7); p.ellipse(6,-25,5,7);
       const pu=Math.sin(t*0.05)*2;
       p.stroke(color); p.strokeWeight(1.5); p.noFill();
@@ -423,20 +419,20 @@ new p5(function(p){
       for(let i=0;i<12;i++){
         const a=i/12*Math.PI*2-Math.PI/2;
         const r1=32,r2=i%3===0?38:35;
-        p.stroke(color+'66'); p.strokeWeight(1); p.noFill();
+        p.stroke(color+'77'); p.strokeWeight(1); p.noFill();
         p.line(Math.cos(a)*r1,Math.sin(a)*r1*0.58,Math.cos(a)*r2,Math.sin(a)*r2*0.58);
       }
       const ha=t*0.03;
       p.stroke(color+'cc'); p.strokeWeight(1.5); p.noFill();
       p.line(0,0,Math.cos(ha)*23,Math.sin(ha)*13);
-      p.fill(color+'22'); p.stroke(color); p.strokeWeight(1.5);
+      p.fill(color+'28'); p.stroke(color); p.strokeWeight(1.8);
       p.ellipse(0,0,62,32);
-      p.fill(color+'90'); p.noStroke();
+      p.fill(color+'99'); p.noStroke();
       p.ellipse(0,0,30,30);
       const px3=Math.sin(t*0.02)*5, py3=Math.cos(t*0.015)*3;
-      p.fill(C.VOID);
+      p.fill(15,8,30);
       p.ellipse(px3,py3,16,16);
-      p.fill(255,255,255,160);
+      p.fill(255,255,255,180);
       p.ellipse(px3-3,py3-3,5,5);
       p.stroke(color); p.strokeWeight(1.2); p.noFill();
       [-20,-10,0,10,20].forEach(function(lx,li){
@@ -451,13 +447,13 @@ new p5(function(p){
         const fx=fp[0], fy=fp[1];
         const ph=t*0.035+idx*Math.PI*2/3;
         const br=Math.sin(ph)*2;
-        p.fill(color+'50'); p.stroke(color+'bb'); p.strokeWeight(1.2);
+        p.fill(color+'60'); p.stroke(color+'cc'); p.strokeWeight(1.2);
         p.ellipse(fx,fy+br,25,29);
-        p.fill(color+'ee'); p.noStroke();
+        p.fill(color); p.noStroke();
         p.ellipse(fx-5,fy-3+br,4,6);
         p.ellipse(fx+5,fy-3+br,4,6);
         const mo=8+Math.abs(Math.sin(ph))*5;
-        p.fill(C.VOID); p.stroke(color+'88'); p.strokeWeight(0.8);
+        p.fill(30,15,45); p.stroke(color+'88'); p.strokeWeight(0.8);
         p.ellipse(fx,fy+8+br,7,mo);
       });
     } else if(id==='sleeper'){
@@ -467,16 +463,16 @@ new p5(function(p){
       tents.forEach(function(tp,i){
         const tx3=tp[0], ty3=tp[1];
         const sw=Math.sin(t*0.025+i*0.8)*5;
-        p.stroke(color+'77');
+        p.stroke(color+'88');
         p.line(tx3*0.3,15,tx3*0.6,ty3*0.55+sw);
-        p.stroke(color+'44');
+        p.stroke(color+'55');
         p.line(tx3*0.6,ty3*0.55+sw,tx3,ty3+sw*1.5);
       });
-      p.fill(color+'44'); p.stroke(color); p.strokeWeight(2);
+      p.fill(color+'55'); p.stroke(color); p.strokeWeight(2);
       p.ellipse(0,3,76,48+pu);
-      p.fill(C.DEEP); p.noStroke();
+      p.fill(25,12,45); p.noStroke();
       p.ellipse(-21,-3,21,13); p.ellipse(21,-3,21,13);
-      p.fill(color+'cc');
+      p.fill(color+'dd');
       p.ellipse(-21,2.5,9,8); p.ellipse(21,2.5,9,8);
       p.fill(15,8,25);
       p.ellipse(-21,3.5,4,3.5); p.ellipse(21,3.5,4,3.5);
@@ -485,7 +481,7 @@ new p5(function(p){
       p.line(10,-10,32,-8);
       p.strokeWeight(1.5); p.stroke(color+'99');
       p.line(-11,15,11,15);
-      p.fill(C.GOLD+'cc'); p.noStroke();
+      p.fill(C.GOLD); p.noStroke();
       p.textSize(9); p.textAlign(p.CENTER,p.CENTER);
       p.text('⊜',0,-28);
     }
@@ -502,7 +498,7 @@ new p5(function(p){
         const nk=nr+','+nc;
         if(board.has(nk)||voided.has(nk)||shown.has(nk)||nr<0||nc<0||nr>=BOARD_ROWS||nc>=BOARD_COLS) continue;
         const[v0,v1,v2]=triVerts(BX,BY,nr,nc,TRI_S);
-        p.noFill();p.stroke(C.ACCENT+'44');p.strokeWeight(1);
+        p.noFill();p.stroke(C.ACCENT+'55');p.strokeWeight(1.2);
         p.triangle(v0[0],v0[1],v1[0],v1[1],v2[0],v2[1]);p.noStroke();
         shown.add(nk);
       }
@@ -513,7 +509,7 @@ new p5(function(p){
         const r=cr+dr,c=cc+dc;
         if(r<0||c<0||r>=BOARD_ROWS||c>=BOARD_COLS) continue;
         const[v0,v1,v2]=triVerts(BX,BY,r,c,TRI_S);
-        p.noFill();p.stroke(C.ACCENT+'28');p.strokeWeight(0.8);
+        p.noFill();p.stroke(C.ACCENT+'33');p.strokeWeight(1);
         p.triangle(v0[0],v0[1],v1[0],v1[1],v2[0],v2[1]);p.noStroke();
       }
     }
@@ -536,7 +532,7 @@ new p5(function(p){
     if(flash&&flash.timer>0){
       const{r,c,color}=flash;
       const[v0,v1,v2]=triVerts(BX,BY,r,c,TRI_S);
-      const fc=p.color(color); fc.setAlpha((flash.timer/40)*160);
+      const fc=p.color(color); fc.setAlpha((flash.timer/40)*180);
       p.fill(fc);p.noStroke();
       p.triangle(v0[0],v0[1],v1[0],v1[1],v2[0],v2[1]);
       flash.timer--;
@@ -546,14 +542,13 @@ new p5(function(p){
       const[r,c]=key.split(',').map(Number);
       const[v0,v1,v2]=triVerts(BX,BY,r,c,TRI_S);
       const cx2=(v0[0]+v1[0]+v2[0])/3,cy2=(v0[1]+v1[1]+v2[1])/3;
-      p.fill(C.DANGER+'1a');p.stroke(C.DANGER+'66');p.strokeWeight(1);
+      p.fill(C.DANGER+'22');p.stroke(C.DANGER+'77');p.strokeWeight(1);
       p.triangle(v0[0],v0[1],v1[0],v1[1],v2[0],v2[1]);p.noStroke();
-      p.stroke(C.DANGER+'99');p.strokeWeight(1.5);
+      p.stroke(C.DANGER+'aa');p.strokeWeight(1.5);
       const s=TRI_S*0.14;
       p.line(cx2-s,cy2-s,cx2+s,cy2+s);p.line(cx2+s,cy2-s,cx2-s,cy2+s);p.noStroke();
     });
 
-    // Ghost preview: only during player turn, only on valid (adjacent) cells
     if(phase==='player'&&selected!==null&&hoverCell){
       const[r,c]=hoverCell, key=r+','+c;
       const valid=!board.has(key)&&!voided.has(key)&&(board.size===0||hasNeighbor(board,r,c));
@@ -561,7 +556,7 @@ new p5(function(p){
         const piece=hand[selected];
         const edges=rotatedEdges(piece);
         const verts=triVerts(BX,BY,r,c,TRI_S);
-        drawTri(verts,edges,piece.sigilId,100,'player');
+        drawTri(verts,edges,piece.sigilId,110,'player');
         const[v0,v1,v2]=verts;
         const ep=[[v0,v1],[v1,v2],[v2,v0]];
         for(const{nr,nc,myEdge,thEdge}of triNeighbors(r,c)){
@@ -569,16 +564,16 @@ new p5(function(p){
           if(!nb) continue;
           const match=edges[myEdge]===nb.edges[thEdge];
           const[ea,eb]=ep[myEdge];
-          p.stroke(match?C.HP_FG:C.DANGER);p.strokeWeight(3);
+          p.stroke(match?C.HP_FG:C.DANGER);p.strokeWeight(3.5);
           p.line(ea[0],ea[1],eb[0],eb[1]);p.noStroke();
         }
         const matches=countMatches(board,r,c,edges);
         const multi=multiplier(matches,state.player.comboBonus);
         if(multi>1){
           const[gcx,gcy]=triCenter(BX,BY,r,c,TRI_S);
-          const col=multi>=4?C.GOLD:multi>=3?C.ACCENT2:C.TEXT;
+          const col=multi>=4?C.GOLD:multi>=3?C.ACCENT2:C.ACCENT;
           const pulse=0.7+0.3*Math.sin(p.frameCount*0.18);
-          p.fill(col);p.noStroke();p.textSize(12*pulse);p.textAlign(p.CENTER,p.CENTER);
+          p.fill(col);p.noStroke();p.textSize(13*pulse);p.textAlign(p.CENTER,p.CENTER);
           p.text('x'+multi,gcx,gcy-H*0.55);
         }
       }
@@ -589,19 +584,19 @@ new p5(function(p){
       pt.yOff-=1.2;pt.life--;
       if(pt.life<=0){particles.splice(i,1);continue;}
       const[pcx,pcy]=triCenter(BX,BY,pt.r,pt.c,TRI_S);
-      const ac=p.color(pt.color); ac.setAlpha((pt.life/pt.maxLife)*255);
+      const ac=p.color(pt.color); ac.setAlpha((pt.life/pt.maxLife)*220);
       p.fill(ac);p.noStroke();
-      p.textSize(pt.big?15:11);p.textAlign(p.CENTER,p.CENTER);
+      p.textSize(pt.big?16:12);p.textAlign(p.CENTER,p.CENTER);
       p.text(pt.text,pcx,pcy+pt.yOff);
     }
   }
 
   function handLayout(){
     if(portrait){
-      const hY=boardBottom()+10;
+      const hY=boardBottom()+12;
       const n=state.combat?Math.max(state.combat.hand.length,1):state.player.handSize;
       const cardW=Math.min(110,Math.floor((GW-16)/n)-6);
-      return{hY,cardW,cardH:96,gap:6,sx:(GW-(n*(cardW+6)-6))/2};
+      return{hY,cardW,cardH:100,gap:6,sx:(GW-(n*(cardW+6)-6))/2};
     } else {
       const RX=BX+(BOARD_COLS*TRI_S/2+TRI_S)+14, RW=GW-RX-10;
       return{hY:290,cardW:Math.floor(RW/3)-4,cardH:100,gap:4,RX,RW};
@@ -609,8 +604,8 @@ new p5(function(p){
   }
 
   function btnRect(){
-    if(portrait){const{hY,cardH}=handLayout();return{x:GW/2-90,y:hY+cardH+10,w:180,h:42};}
-    const{hY,cardH,RX,RW}=handLayout();return{x:RX,y:hY+cardH+10,w:RW,h:42};
+    if(portrait){const{hY,cardH}=handLayout();return{x:GW/2-90,y:hY+cardH+10,w:180,h:44};}
+    const{hY,cardH,RX,RW}=handLayout();return{x:RX,y:hY+cardH+10,w:RW,h:44};
   }
 
   function drawHandCards(hand,selected){
@@ -620,9 +615,9 @@ new p5(function(p){
       const cx=sx+i*(cardW+gap), sel=selected===i;
       const sig=TSIGILS.find(s=>s.id===piece.sigilId);
       dr(cx,hY,cardW,cardH,sel?C.PANEL_ALT:C.PANEL,10);
-      dro(cx,hY,cardW,cardH,sel?sig.color:C.BORDER,sel?2.5:1,10);
+      dro(cx,hY,cardW,cardH,sel?sig.color:C.BORDER,sel?2.5:1.5,10);
       drawMiniTri(piece.sigilId,piece.edges,piece.rotation,cx+cardW/2,hY+cardH*0.42,cardW*0.58);
-      tx(sig.fxLabel,cx+cardW/2,hY+cardH-20,sel?sig.color:C.TEXT_MUT,8,p.CENTER);
+      tx(sig.fxLabel,cx+cardW/2,hY+cardH-20,sel?sig.color:C.TEXT_DIM,8,p.CENTER);
       tx(sel?'tap: rotate':'tap to select',cx+cardW/2,hY+cardH-9,C.TEXT_MUT,7,p.CENTER);
     });
     if(!hand.length) tx('No sigils — end turn.',portrait?GW/2:hl.RX+hl.RW/2,hY+36,C.TEXT_DIM,10,p.CENTER);
@@ -636,10 +631,10 @@ new p5(function(p){
       tx('ENEMY PLACING:',lx,hY-12,C.DANGER,9,p.CENTER);
       queue.forEach(function(piece,i){
         const cx=sx+i*(cardW+gap);
-        dr(cx,hY,cardW,cardH,C.DEEP,10);
+        dr(cx,hY,cardW,cardH,C.PANEL,10);
         dro(cx,hY,cardW,cardH,C.DANGER+'88',1.5,10);
         drawMiniTri(piece.sigilId,piece.edges,0,cx+cardW/2,hY+cardH*0.42,cardW*0.58);
-        tx('INCOMING',cx+cardW/2,hY+cardH-9,C.DANGER+'aa',7,p.CENTER);
+        tx('INCOMING',cx+cardW/2,hY+cardH-9,C.DANGER+'bb',7,p.CENTER);
       });
     } else {
       tx('ENEMY RESOLVING...',lx,hY+36,C.DANGER,10,p.CENTER);
@@ -651,16 +646,16 @@ new p5(function(p){
     TSIGILS.forEach((sig,i)=>{
       const a=i/TSIGILS.length*Math.PI*2+p.frameCount*0.005, r=88;
       const tx2=cx+Math.cos(a)*r, ty2=cy+Math.sin(a)*r;
-      const col=p.color(sig.color); col.setAlpha(55); p.fill(col); p.noStroke();
+      const col=p.color(sig.color); col.setAlpha(90); p.fill(col); p.noStroke();
       p.triangle(tx2,ty2-20,tx2-17,ty2+10,tx2+17,ty2+10);
     });
-    tx('SIGIL RITES',cx,cy-42,C.ACCENT2,portrait?28:36,p.CENTER);
+    tx('SIGIL RITES',cx,cy-42,C.ACCENT,portrait?28:36,p.CENTER);
     tx('MATCH EDGE ICONS  BUILD COMBOS  SLAY HORRORS',cx,cy-22,C.TEXT_DIM,portrait?7.5:9,p.CENTER);
     tx('EDGE ICONS:',cx,cy+2,C.TEXT_DIM,9,p.CENTER);
     EDGE_SYMS.forEach((sym,i)=>{
       const lx=cx-54+i*36, ly=cy+16;
-      p.fill(C.DEEP);p.stroke(EDGE_COLS[i]);p.strokeWeight(1.2);p.circle(lx,ly,22);p.noStroke();
-      p.fill(EDGE_COLS[i]);p.textSize(11);p.textAlign(p.CENTER,p.CENTER);p.text(sym,lx,ly);
+      p.fill(C.PANEL);p.stroke(EDGE_COLS[i]);p.strokeWeight(1.4);p.circle(lx,ly,24);p.noStroke();
+      p.fill(EDGE_COLS[i]);p.textSize(12);p.textAlign(p.CENTER,p.CENTER);p.text(sym,lx,ly);
     });
     tx('Match icons on touching edges for LINK x2 / ECHO x3 / RESONANCE x4',cx,cy+36,C.TEXT_DIM,portrait?7:8,p.CENTER);
     tx('HOW MANY SIGILS PER TURN?',cx,cy+56,C.TEXT,11,p.CENTER);
@@ -670,9 +665,9 @@ new p5(function(p){
       const bx=bsx+i*(bw+gap), by=cy+70;
       const hov=state.hover===('mode'+(i===0?1:i===1?3:5));
       dr(bx,by,bw,bh,hov?C.ACCENT:C.PANEL,8);
-      dro(bx,by,bw,bh,hov?C.ACCENT2:C.BORDER,hov?2:1,8);
-      tx(lbl,bx+bw/2,by+24,C.TEXT,20,p.CENTER);
-      tx(sub,bx+bw/2,by+40,C.TEXT_DIM,8,p.CENTER);
+      dro(bx,by,bw,bh,hov?C.ACCENT2:C.BORDER,hov?2:1.5,8);
+      tx(lbl,bx+bw/2,by+24,hov?'#ffffff':C.TEXT,20,p.CENTER);
+      tx(sub,bx+bw/2,by+40,hov?'#ffffffaa':C.TEXT_DIM,8,p.CENTER);
     });
     tx('SIGIL EFFECTS:',cx,cy+130,C.TEXT_DIM,9,p.CENTER);
     TSIGILS.forEach((sig,i)=>{
@@ -687,15 +682,14 @@ new p5(function(p){
     const{combat,player,floor}=state;
     const{enemy,hand,selected,power,stunned,streak,phase,enemyQueue}=combat;
     const fd=FLOORS.find(f=>f.id===floor), W=GW-20;
-    // Top HUD
-    dr(10,8,W,60,C.DEEP,8);
+    dr(10,8,W,60,C.PANEL,8);
+    dro(10,8,W,60,C.BORDER,1,8);
     tx('FLOOR '+floor+' — '+(fd?fd.name:''),15,22,C.TEXT_DIM,9);
     bar(15,26,W/2-10,16,player.hp,player.maxHp,C.HP_FG,C.HP_BG,'HP');
     tx('ATK '+player.baseDmg+(player.comboBonus>0?'+'+player.comboBonus+' cmb':''),15,56,C.TEXT_DIM,8);
     tx(enemy.name,GW/2+5,22,C.TEXT,9);
     bar(GW/2+5,26,W/2-10,16,enemy.curHp,enemy.hp,C.EN_FG,C.EN_BG,'ENEMY');
     tx(stunned?'STUNNED':'Atk '+enemy.atk,GW/2+5,56,stunned?C.GOLD:C.DANGER,8);
-    // Turn indicator (right of HUD)
     if(phase==='player'){
       tx('PWR +'+power+(streak>=2?' CHAIN x'+streak:''),GW-12,56,power>0?C.GOLD:C.TEXT_DIM,8,p.RIGHT);
     } else {
@@ -704,22 +698,20 @@ new p5(function(p){
       p.fill(ic); p.noStroke(); p.textSize(9); p.textAlign(p.RIGHT);
       p.text('ENEMY TURN',GW-12,56);
     }
-    // Enemy portrait panel
-    dr(10,74,W,86,C.DEEP,8);
+    dr(10,74,W,88,C.PANEL,8);
+    dro(10,74,W,88,C.BORDER,1,8);
     if(enemy.boss) tx('BOSS',GW/2,87,C.DANGER,8,p.CENTER);
     drawEnemyPortrait(enemy.id,enemy.color,GW/2,125);
     drawBoard(combat);
-    // Hand area
     if(phase==='player'){
       drawHandCards(hand,selected);
     } else {
       drawEnemyQueue(enemyQueue);
     }
-    // END TURN / ENEMY TURN button
     const btn=btnRect();
     const btnActive=phase==='player';
-    dr(btn.x,btn.y,btn.w,btn.h,btnActive?(state.hover==='endturn'?'#b91c1c':C.DANGER):C.TEXT_MUT,8);
-    tx(btnActive?'END TURN':'ENEMY TURN',btn.x+btn.w/2,btn.y+btn.h*0.65,C.TEXT,15,p.CENTER);
+    dr(btn.x,btn.y,btn.w,btn.h,btnActive?(state.hover==='endturn'?'#991b1b':C.DANGER):C.BORDER,8);
+    tx(btnActive?'END TURN':'ENEMY TURN',btn.x+btn.w/2,btn.y+btn.h*0.65,btnActive?'#ffffff':C.TEXT_DIM,15,p.CENTER);
     if(btnActive&&selected!==null) tx('tap board to place  |  tap card to rotate',GW/2,btn.y+btn.h+14,C.ACCENT,8,p.CENTER);
     if(state.msg&&state.msgTimer>0){
       const big=state.msg.includes('RESONANCE')||state.msg.includes('ECHO')||state.msg.includes('DOUBLE');
@@ -735,12 +727,11 @@ new p5(function(p){
     const hl=handLayout(),{RX,RW}=hl;
     tx('SIGIL BOARD',BX,BY-12,C.TEXT_DIM,9);
     drawBoard(combat);
-    // Top-right HUD
-    dr(RX,10,RW,68,C.DEEP,8);
+    dr(RX,10,RW,68,C.PANEL,8);
+    dro(RX,10,RW,68,C.BORDER,1,8);
     tx('FLOOR '+floor,RX+8,26,C.TEXT_DIM,10);
     tx(fd?fd.name:'',RX+8,40,C.TEXT,11);
     bar(RX+8,44,RW-16,18,player.hp,player.maxHp,C.HP_FG,C.HP_BG,'HP');
-    // Turn indicator top-right
     if(phase==='player'){
       tx('YOUR TURN',RX+RW-8,26,C.HP_FG,9,p.RIGHT);
       tx('ATK '+player.baseDmg+(player.comboBonus>0?'+'+player.comboBonus:'')+(player.voidWard>0?' WRD'+player.voidWard:''),RX+RW-8,40,C.TEXT_DIM,9,p.RIGHT);
@@ -751,16 +742,16 @@ new p5(function(p){
       p.text('ENEMY TURN',RX+RW-8,26);
       tx('ATK '+player.baseDmg+(player.comboBonus>0?'+'+player.comboBonus:'')+(player.voidWard>0?' WRD'+player.voidWard:''),RX+RW-8,40,C.TEXT_DIM,9,p.RIGHT);
     }
-    // Enemy portrait panel
-    dr(RX,86,RW,125,C.DEEP,8);
+    dr(RX,86,RW,125,C.PANEL,8);
+    dro(RX,86,RW,125,C.BORDER,1,8);
     tx(enemy.name,RX+8,102,C.TEXT,11);
     if(enemy.boss) tx('BOSS',RX+RW-10,102,C.DANGER,10,p.RIGHT);
     drawEnemyPortrait(enemy.id,enemy.color,RX+RW/2,162);
     bar(RX+8,214,RW-16,16,enemy.curHp,enemy.hp,C.EN_FG,C.EN_BG,'ENEMY HP');
     tx(stunned?'STUNNED — skips!':'Attacks '+enemy.atk+'/turn',RX+8,244,stunned?C.GOLD:C.DANGER,10);
-    dr(RX,250,RW,28,C.PANEL,6);
+    dr(RX,250,RW,28,C.DEEP,6);
+    dro(RX,250,RW,28,C.BORDER,1,6);
     tx('PENDING: +'+power+(streak>=2?'  CHAIN x'+streak:''),RX+RW/2,268,power>0?C.GOLD:C.TEXT_DIM,12,p.CENTER);
-    // Hand area
     if(phase==='player'){
       drawHandCards(hand,selected);
     } else {
@@ -768,8 +759,8 @@ new p5(function(p){
     }
     const btn=btnRect();
     const btnActive=phase==='player';
-    dr(btn.x,btn.y,btn.w,btn.h,btnActive?(state.hover==='endturn'?'#b91c1c':C.DANGER):C.TEXT_MUT,8);
-    tx(btnActive?'END TURN':'ENEMY TURN',btn.x+btn.w/2,btn.y+btn.h*0.65,C.TEXT,15,p.CENTER);
+    dr(btn.x,btn.y,btn.w,btn.h,btnActive?(state.hover==='endturn'?'#991b1b':C.DANGER):C.BORDER,8);
+    tx(btnActive?'END TURN':'ENEMY TURN',btn.x+btn.w/2,btn.y+btn.h*0.65,btnActive?'#ffffff':C.TEXT_DIM,15,p.CENTER);
     if(btnActive&&selected!==null) tx('tap board to place  |  tap card to rotate',btn.x+btn.w/2,btn.y+btn.h+14,C.ACCENT,8,p.CENTER);
     if(state.msg&&state.msgTimer>0){
       const big=state.msg.includes('RESONANCE')||state.msg.includes('ECHO')||state.msg.includes('DOUBLE');
@@ -780,31 +771,31 @@ new p5(function(p){
 
   function drawLoot(){
     const opts=state.lootOptions;
-    tx('THE VOID OFFERS TRIBUTE',GW/2,40,C.ACCENT2,portrait?16:20,p.CENTER);
+    tx('THE VOID OFFERS TRIBUTE',GW/2,40,C.ACCENT,portrait?16:20,p.CENTER);
     tx('Choose one boon:',GW/2,58,C.TEXT_DIM,11,p.CENTER);
     if(portrait){
       opts.forEach((item,i)=>{
         const y=70+i*92, W2=GW-20, hov=state.hover===('loot'+i);
-        dr(10,y,W2,84,hov?C.PANEL_ALT:C.PANEL,10);
-        dro(10,y,W2,84,hov?C.ACCENT:C.BORDER,hov?2:1,10);
+        dr(10,y,W2,84,C.PANEL,10);
+        dro(10,y,W2,84,hov?C.ACCENT:C.BORDER,hov?2:1.5,10);
         tx(item.glyph,34,y+50,item.color,24,p.CENTER);
         tx(item.name,54,y+24,C.TEXT,13);
         p.fill(C.TEXT_DIM);p.noStroke();p.textSize(10);p.textAlign(p.LEFT);
         p.text(item.desc,54,y+38,W2-64,38);
-        tx('TAP TO CLAIM',GW-16,y+76,hov?C.ACCENT:C.TEXT_DIM,9,p.RIGHT);
+        tx('TAP TO CLAIM',GW-16,y+76,hov?C.ACCENT:C.TEXT_MUT,9,p.RIGHT);
       });
     } else {
       const cw=190,gap=18,tot=opts.length*(cw+gap)-gap,sx=GW/2-tot/2;
       opts.forEach((item,i)=>{
         const cx=sx+i*(cw+gap),cy=78,hov=state.hover===('loot'+i);
-        dr(cx,cy,cw,220,hov?C.PANEL_ALT:C.PANEL,12);
-        dro(cx,cy,cw,220,hov?C.ACCENT:C.BORDER,hov?2:1,12);
+        dr(cx,cy,cw,220,C.PANEL,12);
+        dro(cx,cy,cw,220,hov?C.ACCENT:C.BORDER,hov?2:1.5,12);
         tx(item.glyph,cx+cw/2,cy+68,item.color,32,p.CENTER);
         tx(item.name,cx+cw/2,cy+92,C.TEXT,13,p.CENTER);
         p.fill(C.TEXT_DIM);p.noStroke();p.textSize(10);p.textAlign(p.CENTER);
         p.text(item.desc,cx+12,cy+110,cw-24,52);
         dr(cx+20,cy+174,cw-40,32,C.ACCENT,6);
-        tx('CLAIM',cx+cw/2,cy+195,C.TEXT,12,p.CENTER);
+        tx('CLAIM',cx+cw/2,cy+195,'#ffffff',12,p.CENTER);
       });
     }
   }
@@ -814,14 +805,14 @@ new p5(function(p){
     tx('YOU HAVE BEEN UNMADE',GW/2,GH/2-8,C.DANGER,portrait?18:26,p.CENTER);
     tx('The sigils could not hold.',GW/2,GH/2+16,C.TEXT_DIM,11,p.CENTER);
     dr(GW/2-80,GH/2+50,160,40,C.ACCENT,6);
-    tx('TRY AGAIN',GW/2,GH/2+76,C.TEXT,13,p.CENTER);
+    tx('TRY AGAIN',GW/2,GH/2+76,'#ffffff',13,p.CENTER);
   }
   function drawVictory(){
     tx('⊕',GW/2,GH/2-58,C.GOLD,52,p.CENTER);
     tx('THE RITUAL IS COMPLETE',GW/2,GH/2-8,C.GOLD,portrait?18:26,p.CENTER);
     tx('The Sleeper stirs. The sigils hold.',GW/2,GH/2+16,C.TEXT_DIM,11,p.CENTER);
     dr(GW/2-80,GH/2+50,160,40,C.ACCENT,6);
-    tx('PLAY AGAIN',GW/2,GH/2+76,C.TEXT,13,p.CENTER);
+    tx('PLAY AGAIN',GW/2,GH/2+76,'#ffffff',13,p.CENTER);
   }
 
   function modeN(i){return i===0?1:i===1?3:5;}
