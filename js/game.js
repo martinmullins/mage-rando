@@ -43,7 +43,7 @@ const LOOT_POOL = [
   {id:'ward',      name:'Void Ward',       glyph:'⊜', desc:'Enemy voids one fewer cell.',  color:'#0ea5e9'},
 ];
 
-// ── Grid math ──────────────────────────────────────────────────────────────────
+// ── Grid math ──────────────────────────────────────────────────────────────────────────────
 const BOARD_COLS = 13, BOARD_ROWS = 8;
 
 function isUp(r,c){return(r+c)%2===0;}
@@ -105,7 +105,7 @@ function getPlayableCells(board,voided){
   return cells;
 }
 
-// ── Pieces ─────────────────────────────────────────────────────────────────────
+// ── Pieces ─────────────────────────────────────────────────────────────────────────────────
 function randomPiece(){
   const sig=TSIGILS[Math.floor(Math.random()*TSIGILS.length)];
   return{sigilId:sig.id, edges:[Math.floor(Math.random()*4),Math.floor(Math.random()*4),Math.floor(Math.random()*4)], rotation:0};
@@ -118,7 +118,7 @@ function rotatedEdges(piece){
   return[...e];
 }
 
-// ── State ──────────────────────────────────────────────────────────────────────
+// ── State ──────────────────────────────────────────────────────────────────────────────────
 let state;
 function initState(handSize){
   state={
@@ -260,7 +260,7 @@ function pickLoot(i){
   else state.screen='victory';
 }
 
-// ── p5 sketch ──────────────────────────────────────────────────────────────────
+// ── p5 sketch ──────────────────────────────────────────────────────────────────────────────
 new p5(function(p){
 
   let GW,GH,sc,portrait,ox,oy,VW,VH,TRI_S,BX,BY;
@@ -285,7 +285,7 @@ new p5(function(p){
   function toGX(x){return(x-ox)/sc;}
   function toGY(y){return(y-oy)/sc;}
 
-  // ── Draw helpers ────────────────────────────────────────────────────────────
+  // ── Draw helpers ─────────────────────────────────────────────────────────────────────
   function dr(x,y,w,h,col,r){p.fill(col);p.noStroke();r?p.rect(x,y,w,h,r):p.rect(x,y,w,h);}
   function dro(x,y,w,h,col,sw,r){p.noFill();p.stroke(col);p.strokeWeight(sw);r?p.rect(x,y,w,h,r):p.rect(x,y,w,h);p.noStroke();}
   function tx(s,x,y,col,sz,al){p.fill(col);p.noStroke();p.textSize(sz);p.textAlign(al||p.LEFT);p.text(s,x,y);}
@@ -346,6 +346,127 @@ new p5(function(p){
       p.fill(EDGE_COLS[re[i]]); p.textSize(size*0.2); p.textAlign(p.CENTER,p.CENTER);
       p.text(EDGE_SYMS[re[i]],ex,ey);
     });
+  }
+
+  // Procedural enemy portrait drawn with p5 shapes
+  function drawEnemyPortrait(id,color,cx,cy){
+    const t=p.frameCount;
+    p.push();
+    p.translate(cx,cy);
+
+    if(id==='herald'){
+      // Ambient aura
+      p.noStroke(); p.fill(color+'18'); p.ellipse(0,0,62,66);
+      // Body robe
+      p.fill(color+'44'); p.stroke(color+'bb'); p.strokeWeight(1.5);
+      p.triangle(0,-5,-21,26,21,26);
+      // Diamond head
+      p.fill(color+'70');
+      p.quad(0,-37,14,-19,0,-5,-14,-19);
+      // Eyes
+      p.fill(color+'ee'); p.noStroke();
+      p.ellipse(-6,-25,5,7); p.ellipse(6,-25,5,7);
+      // Crown spikes (animated float)
+      const pu=Math.sin(t*0.05)*2;
+      p.stroke(color); p.strokeWeight(1.5); p.noFill();
+      p.line(-11,-33,-16,-44-pu);
+      p.line(0,-37,0,-50-pu);
+      p.line(11,-33,16,-44-pu);
+      // Glyph in chest area
+      p.fill(color); p.noStroke();
+      p.textSize(10); p.textAlign(p.CENTER,p.CENTER);
+      p.text('◈',0,13);
+
+    } else if(id==='watcher'){
+      // Clock tick ring
+      for(let i=0;i<12;i++){
+        const a=i/12*Math.PI*2-Math.PI/2;
+        const r1=32,r2=i%3===0?38:35;
+        p.stroke(color+'66'); p.strokeWeight(1); p.noFill();
+        p.line(Math.cos(a)*r1,Math.sin(a)*r1*0.58,Math.cos(a)*r2,Math.sin(a)*r2*0.58);
+      }
+      // Rotating clock hand
+      const ha=t*0.03;
+      p.stroke(color+'cc'); p.strokeWeight(1.5); p.noFill();
+      p.line(0,0,Math.cos(ha)*23,Math.sin(ha)*13);
+      // Eye whites
+      p.fill(color+'22'); p.stroke(color); p.strokeWeight(1.5);
+      p.ellipse(0,0,62,32);
+      // Iris
+      p.fill(color+'90'); p.noStroke();
+      p.ellipse(0,0,30,30);
+      // Pupil (slowly tracking)
+      const px3=Math.sin(t*0.02)*5, py3=Math.cos(t*0.015)*3;
+      p.fill(C.VOID);
+      p.ellipse(px3,py3,16,16);
+      // Glint
+      p.fill(255,255,255,160);
+      p.ellipse(px3-3,py3-3,5,5);
+      // Eyelashes along top of eye
+      p.stroke(color); p.strokeWeight(1.2); p.noFill();
+      [-20,-10,0,10,20].forEach(function(lx,li){
+        const frac=lx/31;
+        const ly=-15.5*Math.sqrt(Math.max(0,1-frac*frac));
+        const da=Math.PI*(-0.75+li*0.375);
+        p.line(lx,ly,lx+Math.cos(da)*6,ly+Math.sin(da)*6);
+      });
+
+    } else if(id==='choir'){
+      // Three ghosts in triangle formation
+      const pos=[[-1,-21],[18,10],[-20,10]];
+      pos.forEach(function(fp,idx){
+        const fx=fp[0], fy=fp[1];
+        const ph=t*0.035+idx*Math.PI*2/3;
+        const br=Math.sin(ph)*2;
+        p.fill(color+'50'); p.stroke(color+'bb'); p.strokeWeight(1.2);
+        p.ellipse(fx,fy+br,25,29);
+        p.fill(color+'ee'); p.noStroke();
+        p.ellipse(fx-5,fy-3+br,4,6);
+        p.ellipse(fx+5,fy-3+br,4,6);
+        const mo=8+Math.abs(Math.sin(ph))*5;
+        p.fill(C.VOID); p.stroke(color+'88'); p.strokeWeight(0.8);
+        p.ellipse(fx,fy+8+br,7,mo);
+      });
+
+    } else if(id==='sleeper'){
+      const pu=Math.sin(t*0.02)*3;
+      // Tentacles (behind body)
+      const tents=[[-33,24],[-17,30],[0,33],[17,30],[33,24]];
+      p.noFill(); p.strokeWeight(1.5);
+      tents.forEach(function(tp,i){
+        const tx3=tp[0], ty3=tp[1];
+        const sw=Math.sin(t*0.025+i*0.8)*5;
+        p.stroke(color+'77');
+        p.line(tx3*0.3,15,tx3*0.6,ty3*0.55+sw);
+        p.stroke(color+'44');
+        p.line(tx3*0.6,ty3*0.55+sw,tx3,ty3+sw*1.5);
+      });
+      // Main body oval
+      p.fill(color+'44'); p.stroke(color); p.strokeWeight(2);
+      p.ellipse(0,3,76,48+pu);
+      // Eye sockets
+      p.fill(C.DEEP); p.noStroke();
+      p.ellipse(-21,-3,21,13); p.ellipse(21,-3,21,13);
+      // Irises (positioned low = drowsy)
+      p.fill(color+'cc');
+      p.ellipse(-21,2.5,9,8); p.ellipse(21,2.5,9,8);
+      // Pupils
+      p.fill(15,8,25);
+      p.ellipse(-21,3.5,4,3.5); p.ellipse(21,3.5,4,3.5);
+      // Heavy brow lines
+      p.noFill(); p.stroke(color); p.strokeWeight(2.5);
+      p.line(-32,-8,-10,-10);
+      p.line(10,-10,32,-8);
+      // Closed mouth crease
+      p.strokeWeight(1.5); p.stroke(color+'99');
+      p.line(-11,15,11,15);
+      // Boss glyph
+      p.fill(C.GOLD+'cc'); p.noStroke();
+      p.textSize(9); p.textAlign(p.CENTER,p.CENTER);
+      p.text('⊜',0,-28);
+    }
+
+    p.pop();
   }
 
   function boardBottom(){return BY+BOARD_ROWS*TRI_S*Math.sqrt(3)/2;}
@@ -457,7 +578,7 @@ new p5(function(p){
     }
   }
 
-  // ── Layout ──────────────────────────────────────────────────────────────────
+  // ── Layout ──────────────────────────────────────────────────────────────────────
   function handLayout(){
     if(portrait){
       const hY=boardBottom()+10;
@@ -490,7 +611,7 @@ new p5(function(p){
     if(!hand.length) tx('No sigils — end turn.',portrait?GW/2:hl.RX+hl.RW/2,hY+36,C.TEXT_DIM,10,p.CENTER);
   }
 
-  // ── Screens ──────────────────────────────────────────────────────────────────
+  // ── Screens ──────────────────────────────────────────────────────────────────────────
   function drawTitle(){
     const cx=GW/2, cy=GH/2;
     TSIGILS.forEach((sig,i)=>{
@@ -541,9 +662,10 @@ new p5(function(p){
     bar(GW/2+5,26,W/2-10,16,enemy.curHp,enemy.hp,C.EN_FG,C.EN_BG,'ENEMY');
     tx(stunned?'STUNNED':'Atk '+enemy.atk,GW/2+5,56,stunned?C.GOLD:C.DANGER,8);
     tx('PWR +'+power+(streak>=2?' CHAIN x'+streak:''),GW-12,56,power>0?C.GOLD:C.TEXT_DIM,8,p.RIGHT);
+    // Enemy portrait panel
     dr(10,74,W,86,C.DEEP,8);
-    tx(enemy.glyph,GW/2,145,enemy.color,48,p.CENTER);
-    if(enemy.boss) tx('BOSS',GW-18,90,C.DANGER,9,p.RIGHT);
+    if(enemy.boss) tx('BOSS',GW/2,87,C.DANGER,8,p.CENTER);
+    drawEnemyPortrait(enemy.id,enemy.color,GW/2,125);
     drawBoard(combat);
     drawHandCards(hand,selected);
     const btn=btnRect();
@@ -568,10 +690,11 @@ new p5(function(p){
     tx(fd?fd.name:'',RX+8,40,C.TEXT,11);
     bar(RX+8,44,RW-16,18,player.hp,player.maxHp,C.HP_FG,C.HP_BG,'HP');
     tx('ATK '+player.baseDmg+(player.comboBonus>0?'+'+player.comboBonus:'')+(player.voidWard>0?' WRD'+player.voidWard:''),RX+RW-8,26,C.TEXT_DIM,9,p.RIGHT);
+    // Enemy portrait panel
     dr(RX,86,RW,125,C.DEEP,8);
     tx(enemy.name,RX+8,102,C.TEXT,11);
     if(enemy.boss) tx('BOSS',RX+RW-10,102,C.DANGER,10,p.RIGHT);
-    tx(enemy.glyph,RX+RW/2,168,enemy.color,48,p.CENTER);
+    drawEnemyPortrait(enemy.id,enemy.color,RX+RW/2,162);
     bar(RX+8,214,RW-16,16,enemy.curHp,enemy.hp,C.EN_FG,C.EN_BG,'ENEMY HP');
     tx(stunned?'STUNNED — skips!':'Attacks '+enemy.atk+'/turn',RX+8,244,stunned?C.GOLD:C.DANGER,10);
     dr(RX,250,RW,28,C.PANEL,6);
@@ -633,7 +756,7 @@ new p5(function(p){
     tx('PLAY AGAIN',GW/2,GH/2+76,C.TEXT,13,p.CENTER);
   }
 
-  // ── Input ───────────────────────────────────────────────────────────────────
+  // ── Input ───────────────────────────────────────────────────────────────────────────
   function modeN(i){return i===0?1:i===1?3:5;}
   function modeBounds(i){
     const bw=86,bh=48,gap=10,tot=3*(bw+gap)-gap,bsx=GW/2-tot/2;
