@@ -101,16 +101,38 @@ function getPlayableCells(board,voided){
   return cells;
 }
 
-function randomPiece(){
-  const sig=TSIGILS[Math.floor(Math.random()*TSIGILS.length)];
-  return{sigilId:sig.id,edges:[Math.floor(Math.random()*4),Math.floor(Math.random()*4),Math.floor(Math.random()*4)],rotation:0};
+// --- rune dice helpers ---
+
+function rollDice(){
+  return Array.from({length:4},()=>({val:Math.floor(Math.random()*4),used:false}));
 }
 
-function rotatedEdges(piece){
-  const e=piece.edges, rot=piece.rotation%3;
-  if(rot===1) return[e[2],e[0],e[1]];
-  if(rot===2) return[e[1],e[2],e[0]];
-  return[...e];
+// player piece: two slots that need dice assigned, plus one free edge
+function randomPiece(){
+  const sig=TSIGILS[Math.floor(Math.random()*TSIGILS.length)];
+  const freeEdge=Math.floor(Math.random()*4);
+  // slot requirement: -1 = any symbol, 0-3 = specific
+  const s1=Math.random()<0.38?-1:Math.floor(Math.random()*4);
+  const s2=Math.random()<0.38?-1:Math.floor(Math.random()*4);
+  return{sigilId:sig.id,freeEdge,slots:[s1,s2],assigned:[null,null]};
+}
+
+// enemy piece: edges fixed at creation, no slot system
+function randomEnemyPiece(){
+  const sig=TSIGILS[Math.floor(Math.random()*TSIGILS.length)];
+  const r4=()=>Math.floor(Math.random()*4);
+  return{sigilId:sig.id,edges:[r4(),r4(),r4()]};
+}
+
+function makeHand(n){return Array.from({length:n},randomPiece);}
+function makeEnemyHand(n){return Array.from({length:n},randomEnemyPiece);}
+
+// derive the three edges from a player piece (assigned dice + free edge)
+function pieceEdges(piece){
+  return[piece.assigned[0]??0,piece.assigned[1]??0,piece.freeEdge];
+}
+function isReady(piece){
+  return piece.assigned[0]!==null&&piece.assigned[1]!==null;
 }
 
 let state;
@@ -122,8 +144,6 @@ function initState(handSize){
   };
 }
 
-function makeHand(n){return Array.from({length:n},randomPiece);}
-
 function startCombat(def){
   state.combat={
     enemy:{...def,curHp:def.hp},
@@ -131,7 +151,8 @@ function startCombat(def){
     hand:makeHand(state.player.handSize),
     selected:null, hoverCell:null, power:0, stunned:false,
     particles:[], streak:0, flash:null,
-    phase:'player', enemyQueue:[], enemyTimer:0, enemyCombo:0
+    phase:'player', enemyQueue:[], enemyTimer:0, enemyCombo:0,
+    dice:rollDice(), selectedDie:null
   };
 }
 
@@ -174,13 +195,15 @@ function applyEffect(sigilId,multi,r,c){
 function placePiece(hIdx,r,c){
   const{combat,player}=state;
   if(combat.phase!=='player') return;
-  const piece=combat.hand[hIdx]; if(!piece) return;
+  const piece=combat.hand[hIdx];
+  if(!piece) return;
+  if(!isReady(piece)){showMsg('Assign rune dice to this sigil first!');return;}
   const key=r+','+c;
   if(combat.board.has(key)||combat.voided.has(key)){showMsg('Occupied!');return;}
   if(combat.board.size>0&&!hasNeighbor(combat.board,r,c)){
     showMsg('Must place adjacent to existing sigils!');return;
   }
-  const edges=rotatedEdges(piece);
+  const edges=pieceEdges(piece);
   const sig=TSIGILS.find(s=>s.id===piece.sigilId);
   const isolated=!hasNeighbor(combat.board,r,c);
   const matches=countMatches(combat.board,r,c,edges);
@@ -231,12 +254,13 @@ function endTurn(){
     }
   }
   const voids=Math.max(1,(combat.enemy.voids||1)-player.voidWard);
-  combat.enemyQueue=makeHand(voids);
+  combat.enemyQueue=makeEnemyHand(voids);
   combat.enemyTimer=0;
   combat.enemyCombo=0;
   combat.power=0;
   combat.streak=0;
   combat.selected=null;
+  combat.selectedDie=null;
   combat.hoverCell=null;
   combat.particles=[];
   combat.phase='enemy';
@@ -255,9 +279,9 @@ function tickEnemyTurn(){
       const cells=[...playable];
       const key=cells[Math.floor(Math.random()*cells.length)];
       const[r,c]=key.split(',').map(Number);
-      const edges=rotatedEdges(piece);
-      combat.board.set(key,{edges,sigilId:piece.sigilId,owner:'enemy'});
-      const matches=countMatches(combat.board,r,c,edges);
+      // enemy pieces have edges pre-set
+      combat.board.set(key,{edges:piece.edges,sigilId:piece.sigilId,owner:'enemy'});
+      const matches=countMatches(combat.board,r,c,piece.edges);
       if(matches>0){
         combat.enemyCombo+=matches;
         const mc=multiplier(matches,0);
@@ -285,6 +309,8 @@ function tickEnemyTurn(){
     showMsg(msg+' Your turn.');
     combat.phase='player';
     combat.hand=makeHand(player.handSize);
+    combat.dice=rollDice();
+    combat.selectedDie=null;
     combat.stunned=false;
     combat.enemyCombo=0;
   }
@@ -373,9 +399,8 @@ new p5(function(p){
     });
   }
 
-  function drawMiniTri(sigilId,edges,rotation,cx,cy,size){
-    const piece={sigilId,edges,rotation};
-    const re=rotatedEdges(piece);
+  // edges passed directly — no rotation
+  function drawMiniTri(sigilId,edges,cx,cy,size){
     const sig=TSIGILS.find(s=>s.id===sigilId);
     const h=size*Math.sqrt(3)/2;
     const v=[[cx,cy-h*0.6],[cx-size/2,cy+h*0.4],[cx+size/2,cy+h*0.4]];
@@ -388,10 +413,10 @@ new p5(function(p){
       const ea=pair[0],eb=pair[1];
       const ex=(ea[0]+eb[0])/2*0.72+cx*0.28;
       const ey=(ea[1]+eb[1])/2*0.72+cy*0.28;
-      p.fill(C.PANEL+'ee'); p.stroke(EDGE_COLS[re[i]]); p.strokeWeight(1.2);
+      p.fill(C.PANEL+'ee'); p.stroke(EDGE_COLS[edges[i]]); p.strokeWeight(1.2);
       p.circle(ex,ey,size*0.34); p.noStroke();
-      p.fill(EDGE_COLS[re[i]]); p.textSize(size*0.2); p.textAlign(p.CENTER,p.CENTER);
-      p.text(EDGE_SYMS[re[i]],ex,ey);
+      p.fill(EDGE_COLS[edges[i]]); p.textSize(size*0.2); p.textAlign(p.CENTER,p.CENTER);
+      p.text(EDGE_SYMS[edges[i]],ex,ey);
     });
   }
 
@@ -505,8 +530,8 @@ new p5(function(p){
     });
     if(board.size===0){
       const cr=Math.floor(BOARD_ROWS/2),cc=Math.floor(BOARD_COLS/2);
-      for(let dr=-1;dr<=1;dr++) for(let dc=-2;dc<=2;dc++){
-        const r=cr+dr,c=cc+dc;
+      for(let drr=-1;drr<=1;drr++) for(let dcc=-2;dcc<=2;dcc++){
+        const r=cr+drr,c=cc+dcc;
         if(r<0||c<0||r>=BOARD_ROWS||c>=BOARD_COLS) continue;
         const[v0,v1,v2]=triVerts(BX,BY,r,c,TRI_S);
         p.noFill();p.stroke(C.ACCENT+'33');p.strokeWeight(1);
@@ -522,7 +547,9 @@ new p5(function(p){
     dr(BX-4,BY-4,bw+8,bh+8,C.DEEP,6);
     dro(BX-4,BY-4,bw+8,bh+8,C.BORDER,1,6);
 
-    if(phase==='player'&&selected!==null) drawHints(board,voided);
+    // only show placement hints when a ready card is selected
+    const selPiece=selected!==null?hand[selected]:null;
+    if(phase==='player'&&selPiece&&isReady(selPiece)) drawHints(board,voided);
 
     board.forEach(function(cell,key){
       const[r,c]=key.split(',').map(Number);
@@ -549,14 +576,14 @@ new p5(function(p){
       p.line(cx2-s,cy2-s,cx2+s,cy2+s);p.line(cx2+s,cy2-s,cx2-s,cy2+s);p.noStroke();
     });
 
-    if(phase==='player'&&selected!==null&&hoverCell){
+    // ghost preview: only if selected piece is ready
+    if(phase==='player'&&selPiece&&isReady(selPiece)&&hoverCell){
       const[r,c]=hoverCell, key=r+','+c;
       const valid=!board.has(key)&&!voided.has(key)&&(board.size===0||hasNeighbor(board,r,c));
       if(valid){
-        const piece=hand[selected];
-        const edges=rotatedEdges(piece);
+        const edges=pieceEdges(selPiece);
         const verts=triVerts(BX,BY,r,c,TRI_S);
-        drawTri(verts,edges,piece.sigilId,110,'player');
+        drawTri(verts,edges,selPiece.sigilId,110,'player');
         const[v0,v1,v2]=verts;
         const ep=[[v0,v1],[v1,v2],[v2,v0]];
         for(const{nr,nc,myEdge,thEdge}of triNeighbors(r,c)){
@@ -591,15 +618,31 @@ new p5(function(p){
     }
   }
 
+  // dice row geometry constants
+  const DW=52,DH=32,DGAP=7;
+
+  function diceRowY(){
+    if(portrait) return boardBottom()+8;
+    const hl=handLayout();
+    return hl.hY-DH-10;
+  }
+
+  function diceRowX(){
+    const tot=4*(DW+DGAP)-DGAP;
+    if(portrait) return GW/2-tot/2;
+    const hl=handLayout();
+    return hl.RX+(hl.RW-tot)/2;
+  }
+
   function handLayout(){
     if(portrait){
-      const hY=boardBottom()+12;
+      const hY=boardBottom()+8+DH+10;
       const n=state.combat?Math.max(state.combat.hand.length,1):state.player.handSize;
       const cardW=Math.min(110,Math.floor((GW-16)/n)-6);
-      return{hY,cardW,cardH:100,gap:6,sx:(GW-(n*(cardW+6)-6))/2};
+      return{hY,cardW,cardH:88,gap:6,sx:(GW-(n*(cardW+6)-6))/2};
     } else {
       const RX=BX+(BOARD_COLS*TRI_S/2+TRI_S)+14, RW=GW-RX-10;
-      return{hY:290,cardW:Math.floor(RW/3)-4,cardH:100,gap:4,RX,RW};
+      return{hY:320,cardW:Math.floor(RW/3)-4,cardH:100,gap:4,RX,RW};
     }
   }
 
@@ -608,17 +651,82 @@ new p5(function(p){
     const{hY,cardH,RX,RW}=handLayout();return{x:RX,y:hY+cardH+10,w:RW,h:44};
   }
 
+  function drawDice(dice,selectedDie){
+    const tot=4*(DW+DGAP)-DGAP;
+    const x0=diceRowX(), y0=diceRowY();
+    tx('RUNE DICE — tap then tap a sigil card',GW/2,y0-3,C.TEXT_DIM,7.5,p.CENTER);
+    dice.forEach(function(die,i){
+      const x=x0+i*(DW+DGAP);
+      const sel=selectedDie===i, used=die.used;
+      const col=EDGE_COLS[die.val];
+      if(used){
+        dr(x,y0,DW,DH,C.DEEP,6);
+        dro(x,y0,DW,DH,C.BORDER,1,6);
+        p.stroke(C.TEXT_MUT+'99');p.strokeWeight(1.5);p.noFill();
+        p.line(x+9,y0+8,x+DW-9,y0+DH-8);
+        p.line(x+DW-9,y0+8,x+9,y0+DH-8);
+        p.noStroke();
+      } else {
+        dr(x,y0,DW,DH,sel?col+'28':C.PANEL,6);
+        dro(x,y0,DW,DH,sel?col:col+'77',sel?2.5:1.5,6);
+        tx(EDGE_SYMS[die.val],x+DW/2,y0+DH-8,col,17,p.CENTER);
+      }
+    });
+  }
+
   function drawHandCards(hand,selected){
     const hl=handLayout(), {hY,cardW,cardH,gap}=hl;
     const sx=portrait?hl.sx:hl.RX;
-    hand.forEach((piece,i)=>{
+    hand.forEach(function(piece,i){
       const cx=sx+i*(cardW+gap), sel=selected===i;
       const sig=TSIGILS.find(s=>s.id===piece.sigilId);
-      dr(cx,hY,cardW,cardH,sel?C.PANEL_ALT:C.PANEL,10);
-      dro(cx,hY,cardW,cardH,sel?sig.color:C.BORDER,sel?2.5:1.5,10);
-      drawMiniTri(piece.sigilId,piece.edges,piece.rotation,cx+cardW/2,hY+cardH*0.42,cardW*0.58);
-      tx(sig.fxLabel,cx+cardW/2,hY+cardH-20,sel?sig.color:C.TEXT_DIM,8,p.CENTER);
-      tx(sel?'tap: rotate':'tap to select',cx+cardW/2,hY+cardH-9,C.TEXT_MUT,7,p.CENTER);
+      const ready=isReady(piece);
+      dr(cx,hY,cardW,cardH,sel&&ready?C.PANEL_ALT:C.PANEL,10);
+      dro(cx,hY,cardW,cardH,ready?C.GOLD:sel?sig.color:C.BORDER,ready?2.5:sel?2:1.5,10);
+
+      // mini tri using current assigned values (or 0 placeholders)
+      const pe=pieceEdges(piece);
+      drawMiniTri(piece.sigilId,pe,cx+cardW/2,hY+cardH*0.34,cardW*0.46);
+
+      // three edge circles: slot0, slot1, free edge
+      const slotY=hY+cardH*0.72;
+      const R=8, sp=R*2+6;
+      const s0x=cx+cardW/2-sp;
+
+      for(let si=0;si<2;si++){
+        const sx2=s0x+si*sp;
+        const asgn=piece.assigned[si];
+        const req=piece.slots[si];
+        if(asgn!==null){
+          const col=EDGE_COLS[asgn];
+          p.fill(col+'44');p.stroke(col);p.strokeWeight(1.5);
+          p.circle(sx2,slotY,R*2);p.noStroke();
+          p.fill(col);p.textSize(8);p.textAlign(p.CENTER,p.CENTER);
+          p.text(EDGE_SYMS[asgn],sx2,slotY);
+        } else {
+          const col=req>=0?EDGE_COLS[req]:C.TEXT_MUT;
+          p.fill(C.DEEP);p.stroke(col+'aa');p.strokeWeight(1.2);
+          p.circle(sx2,slotY,R*2);p.noStroke();
+          p.fill(col+'cc');p.textSize(req>=0?8:9);p.textAlign(p.CENTER,p.CENTER);
+          p.text(req>=0?EDGE_SYMS[req]:'?',sx2,slotY);
+        }
+      }
+
+      // free edge (fixed, dimmer)
+      const fx=s0x+2*sp;
+      const fc=EDGE_COLS[piece.freeEdge];
+      p.fill(fc+'18');p.stroke(fc+'66');p.strokeWeight(1);
+      p.circle(fx,slotY,R*2);p.noStroke();
+      p.fill(fc+'99');p.textSize(8);p.textAlign(p.CENTER,p.CENTER);
+      p.text(EDGE_SYMS[piece.freeEdge],fx,slotY);
+      p.noStroke();
+
+      // status label
+      if(ready){
+        tx('READY — tap to place',cx+cardW/2,hY+cardH-8,C.GOLD,7,p.CENTER);
+      } else {
+        tx(sig.fxLabel,cx+cardW/2,hY+cardH-8,C.TEXT_DIM,7,p.CENTER);
+      }
     });
     if(!hand.length) tx('No sigils — end turn.',portrait?GW/2:hl.RX+hl.RW/2,hY+36,C.TEXT_DIM,10,p.CENTER);
   }
@@ -633,7 +741,7 @@ new p5(function(p){
         const cx=sx+i*(cardW+gap);
         dr(cx,hY,cardW,cardH,C.PANEL,10);
         dro(cx,hY,cardW,cardH,C.DANGER+'88',1.5,10);
-        drawMiniTri(piece.sigilId,piece.edges,0,cx+cardW/2,hY+cardH*0.42,cardW*0.58);
+        drawMiniTri(piece.sigilId,piece.edges,cx+cardW/2,hY+cardH*0.42,cardW*0.58);
         tx('INCOMING',cx+cardW/2,hY+cardH-9,C.DANGER+'bb',7,p.CENTER);
       });
     } else {
@@ -643,44 +751,39 @@ new p5(function(p){
 
   function drawTitle(){
     const cx=GW/2, cy=GH/2;
-    TSIGILS.forEach((sig,i)=>{
+    TSIGILS.forEach(function(sig,i){
       const a=i/TSIGILS.length*Math.PI*2+p.frameCount*0.005, r=88;
       const tx2=cx+Math.cos(a)*r, ty2=cy+Math.sin(a)*r;
       const col=p.color(sig.color); col.setAlpha(90); p.fill(col); p.noStroke();
       p.triangle(tx2,ty2-20,tx2-17,ty2+10,tx2+17,ty2+10);
     });
     tx('SIGIL RITES',cx,cy-42,C.ACCENT,portrait?28:36,p.CENTER);
-    tx('MATCH EDGE ICONS  BUILD COMBOS  SLAY HORRORS',cx,cy-22,C.TEXT_DIM,portrait?7.5:9,p.CENTER);
+    tx('ROLL RUNES  CHARGE SIGILS  SLAY HORRORS',cx,cy-22,C.TEXT_DIM,portrait?7.5:9,p.CENTER);
     tx('EDGE ICONS:',cx,cy+2,C.TEXT_DIM,9,p.CENTER);
-    EDGE_SYMS.forEach((sym,i)=>{
+    EDGE_SYMS.forEach(function(sym,i){
       const lx=cx-54+i*36, ly=cy+16;
       p.fill(C.PANEL);p.stroke(EDGE_COLS[i]);p.strokeWeight(1.4);p.circle(lx,ly,24);p.noStroke();
       p.fill(EDGE_COLS[i]);p.textSize(12);p.textAlign(p.CENTER,p.CENTER);p.text(sym,lx,ly);
     });
-    tx('Match icons on touching edges for LINK x2 / ECHO x3 / RESONANCE x4',cx,cy+36,C.TEXT_DIM,portrait?7:8,p.CENTER);
-    tx('HOW MANY SIGILS PER TURN?',cx,cy+56,C.TEXT,11,p.CENTER);
+    tx('Roll 4 rune dice each turn. Drop them into sigil card slots to charge the sigil.',cx,cy+36,C.TEXT_DIM,portrait?7:8,p.CENTER);
+    tx('Charged sigils go on the board. Match edge icons to get LINK x2 / ECHO x3 / RESONANCE x4.',cx,cy+50,C.TEXT_DIM,portrait?7:8,p.CENTER);
+    tx('HOW MANY SIGILS PER TURN?',cx,cy+68,C.TEXT,11,p.CENTER);
     const modes=[['1','hardest'],['3','recommended'],['5','easiest']];
     const bw=86,bh=48,gap=10,tot=3*(bw+gap)-gap,bsx=cx-tot/2;
-    modes.forEach(([lbl,sub],i)=>{
-      const bx=bsx+i*(bw+gap), by=cy+70;
+    modes.forEach(function(m,i){
+      const lbl=m[0],sub=m[1];
+      const bx=bsx+i*(bw+gap), by=cy+82;
       const hov=state.hover===('mode'+(i===0?1:i===1?3:5));
       dr(bx,by,bw,bh,hov?C.ACCENT:C.PANEL,8);
       dro(bx,by,bw,bh,hov?C.ACCENT2:C.BORDER,hov?2:1.5,8);
       tx(lbl,bx+bw/2,by+24,hov?'#ffffff':C.TEXT,20,p.CENTER);
       tx(sub,bx+bw/2,by+40,hov?'#ffffffaa':C.TEXT_DIM,8,p.CENTER);
     });
-    tx('SIGIL EFFECTS:',cx,cy+130,C.TEXT_DIM,9,p.CENTER);
-    TSIGILS.forEach((sig,i)=>{
-      const row=Math.floor(i/3),col2=i%3;
-      const lx=cx-130+col2*90, ly=cy+146+row*16;
-      tx(sig.sym+' '+sig.id,lx,ly,sig.color,8);
-      tx(sig.fxLabel,lx+46,ly,C.TEXT_MUT,8);
-    });
   }
 
   function drawCombatPort(){
     const{combat,player,floor}=state;
-    const{enemy,hand,selected,power,stunned,streak,phase,enemyQueue}=combat;
+    const{enemy,hand,selected,power,stunned,streak,phase,enemyQueue,dice,selectedDie}=combat;
     const fd=FLOORS.find(f=>f.id===floor), W=GW-20;
     // header
     dr(10,8,W,60,C.PANEL,8);
@@ -692,7 +795,7 @@ new p5(function(p){
     bar(GW/2+5,26,W/2-10,16,enemy.curHp,enemy.hp,C.EN_FG,C.EN_BG,'ENEMY');
     tx(stunned?'STUNNED':'Atk '+enemy.atk,GW/2+5,56,stunned?C.GOLD:C.DANGER,8);
     tx('PWR +'+power+(streak>=2?' CHAIN x'+streak:''),GW-12,56,power>0?C.GOLD:C.TEXT_DIM,8,p.RIGHT);
-    // enemy portrait panel (taller to fully contain all portrait art)
+    // enemy portrait panel
     dr(10,74,W,96,C.PANEL,8);
     dro(10,74,W,96,C.BORDER,1,8);
     if(enemy.boss) tx('BOSS',GW/2,87,C.DANGER,8,p.CENTER);
@@ -712,6 +815,7 @@ new p5(function(p){
     }
     drawBoard(combat);
     if(phase==='player'){
+      drawDice(dice,selectedDie);
       drawHandCards(hand,selected);
     } else {
       drawEnemyQueue(enemyQueue);
@@ -720,7 +824,6 @@ new p5(function(p){
     const btnActive=phase==='player';
     dr(btn.x,btn.y,btn.w,btn.h,btnActive?(state.hover==='endturn'?'#991b1b':C.DANGER):C.BORDER,8);
     tx(btnActive?'END TURN':'ENEMY TURN',btn.x+btn.w/2,btn.y+btn.h*0.65,btnActive?'#ffffff':C.TEXT_DIM,15,p.CENTER);
-    if(btnActive&&selected!==null) tx('tap board to place  |  tap card to rotate',GW/2,btn.y+btn.h+14,C.ACCENT,8,p.CENTER);
     if(state.msg&&state.msgTimer>0){
       const big=state.msg.includes('RESONANCE')||state.msg.includes('ECHO')||state.msg.includes('DOUBLE');
       const col=big?C.GOLD:state.msg.includes('Enemy')||state.msg.includes('enemy')?C.DANGER:C.TEXT;
@@ -730,7 +833,7 @@ new p5(function(p){
 
   function drawCombatLand(){
     const{combat,player,floor}=state;
-    const{enemy,hand,selected,power,stunned,streak,phase,enemyQueue}=combat;
+    const{enemy,hand,selected,power,stunned,streak,phase,enemyQueue,dice,selectedDie}=combat;
     const fd=FLOORS.find(f=>f.id===floor);
     const hl=handLayout(),{RX,RW}=hl;
     tx('SIGIL BOARD',BX,BY-12,C.TEXT_DIM,9);
@@ -757,10 +860,11 @@ new p5(function(p){
     drawEnemyPortrait(enemy.id,enemy.color,RX+RW/2,162);
     bar(RX+8,214,RW-16,16,enemy.curHp,enemy.hp,C.EN_FG,C.EN_BG,'ENEMY HP');
     tx(stunned?'STUNNED — skips!':'Attacks '+enemy.atk+'/turn',RX+8,244,stunned?C.GOLD:C.DANGER,10);
-    dr(RX,250,RW,28,C.DEEP,6);
-    dro(RX,250,RW,28,C.BORDER,1,6);
-    tx('PENDING: +'+power+(streak>=2?'  CHAIN x'+streak:''),RX+RW/2,268,power>0?C.GOLD:C.TEXT_DIM,12,p.CENTER);
+    dr(RX,252,RW,24,C.DEEP,6);
+    dro(RX,252,RW,24,C.BORDER,1,6);
+    tx('PENDING: +'+power+(streak>=2?'  CHAIN x'+streak:''),RX+RW/2,266,power>0?C.GOLD:C.TEXT_DIM,11,p.CENTER);
     if(phase==='player'){
+      drawDice(dice,selectedDie);
       drawHandCards(hand,selected);
     } else {
       drawEnemyQueue(enemyQueue);
@@ -769,7 +873,6 @@ new p5(function(p){
     const btnActive=phase==='player';
     dr(btn.x,btn.y,btn.w,btn.h,btnActive?(state.hover==='endturn'?'#991b1b':C.DANGER):C.BORDER,8);
     tx(btnActive?'END TURN':'ENEMY TURN',btn.x+btn.w/2,btn.y+btn.h*0.65,btnActive?'#ffffff':C.TEXT_DIM,15,p.CENTER);
-    if(btnActive&&selected!==null) tx('tap board to place  |  tap card to rotate',btn.x+btn.w/2,btn.y+btn.h+14,C.ACCENT,8,p.CENTER);
     if(state.msg&&state.msgTimer>0){
       const big=state.msg.includes('RESONANCE')||state.msg.includes('ECHO')||state.msg.includes('DOUBLE');
       const col=big?C.GOLD:state.msg.includes('Enemy')||state.msg.includes('enemy')?C.DANGER:C.TEXT;
@@ -782,7 +885,7 @@ new p5(function(p){
     tx('THE VOID OFFERS TRIBUTE',GW/2,40,C.ACCENT,portrait?16:20,p.CENTER);
     tx('Choose one boon:',GW/2,58,C.TEXT_DIM,11,p.CENTER);
     if(portrait){
-      opts.forEach((item,i)=>{
+      opts.forEach(function(item,i){
         const y=70+i*92, W2=GW-20, hov=state.hover===('loot'+i);
         dr(10,y,W2,84,C.PANEL,10);
         dro(10,y,W2,84,hov?C.ACCENT:C.BORDER,hov?2:1.5,10);
@@ -794,7 +897,7 @@ new p5(function(p){
       });
     } else {
       const cw=190,gap=18,tot=opts.length*(cw+gap)-gap,sx=GW/2-tot/2;
-      opts.forEach((item,i)=>{
+      opts.forEach(function(item,i){
         const cx=sx+i*(cw+gap),cy=78,hov=state.hover===('loot'+i);
         dr(cx,cy,cw,220,C.PANEL,12);
         dro(cx,cy,cw,220,hov?C.ACCENT:C.BORDER,hov?2:1.5,12);
@@ -826,13 +929,13 @@ new p5(function(p){
   function modeN(i){return i===0?1:i===1?3:5;}
   function modeBounds(i){
     const bw=86,bh=48,gap=10,tot=3*(bw+gap)-gap,bsx=GW/2-tot/2;
-    return{x:bsx+i*(bw+gap),y:GH/2+70,w:bw,h:bh};
+    return{x:bsx+i*(bw+gap),y:GH/2+82,w:bw,h:bh};
   }
 
   function updateHover(mx,my){
     state.hover=null;
     if(state.screen==='title'){
-      [0,1,2].forEach(i=>{
+      [0,1,2].forEach(function(i){
         const b=modeBounds(i);
         if(ir(mx,my,b.x,b.y,b.w,b.h)) state.hover='mode'+modeN(i);
       });
@@ -840,12 +943,19 @@ new p5(function(p){
     if(state.screen==='combat'&&state.combat&&state.combat.phase==='player'){
       const btn=btnRect();
       if(ir(mx,my,btn.x,btn.y,btn.w,btn.h)) state.hover='endturn';
-      state.combat.hoverCell=nearestCell(mx,my,BX,BY,TRI_S);
+      // only track hover cell when a ready card is selected
+      const{combat}=state;
+      const sel=combat.selected;
+      if(sel!==null&&combat.hand[sel]&&isReady(combat.hand[sel])){
+        combat.hoverCell=nearestCell(mx,my,BX,BY,TRI_S);
+      } else {
+        combat.hoverCell=null;
+      }
     }
     if(state.screen==='loot'){
-      if(portrait){state.lootOptions.forEach((_,i)=>{if(ir(mx,my,10,70+i*92,GW-20,84)) state.hover='loot'+i;});}
+      if(portrait){state.lootOptions.forEach(function(_,i){if(ir(mx,my,10,70+i*92,GW-20,84)) state.hover='loot'+i;});}
       else{const cw=190,gap=18,tot=state.lootOptions.length*(cw+gap)-gap,sx=GW/2-tot/2;
-        state.lootOptions.forEach((_,i)=>{if(ir(mx,my,sx+i*(cw+gap),78,cw,220)) state.hover='loot'+i;});}
+        state.lootOptions.forEach(function(_,i){if(ir(mx,my,sx+i*(cw+gap),78,cw,220)) state.hover='loot'+i;});}
     }
   }
 
@@ -853,7 +963,7 @@ new p5(function(p){
     const mx=toGX(rawX),my=toGY(rawY);
     updateHover(mx,my);
     if(state.screen==='title'){
-      [0,1,2].forEach(i=>{
+      [0,1,2].forEach(function(i){
         const b=modeBounds(i);
         if(ir(mx,my,b.x,b.y,b.w,b.h)){
           initState(modeN(i));
@@ -867,33 +977,92 @@ new p5(function(p){
       if(ir(mx,my,GW/2-80,GH/2+50,160,40)) initState(); return;
     }
     if(state.screen==='loot'){
-      if(portrait){state.lootOptions.forEach((_,i)=>{if(ir(mx,my,10,70+i*92,GW-20,84)) pickLoot(i);});}
+      if(portrait){state.lootOptions.forEach(function(_,i){if(ir(mx,my,10,70+i*92,GW-20,84)) pickLoot(i);});}
       else{const cw=190,gap=18,tot=state.lootOptions.length*(cw+gap)-gap,sx=GW/2-tot/2;
-        state.lootOptions.forEach((_,i)=>{if(ir(mx,my,sx+i*(cw+gap),78,cw,220)) pickLoot(i);});}
+        state.lootOptions.forEach(function(_,i){if(ir(mx,my,sx+i*(cw+gap),78,cw,220)) pickLoot(i);});}
       return;
     }
     if(state.screen==='combat'){
       const{combat}=state;
       if(combat.phase!=='player') return;
+
+      // end turn button
       const btn=btnRect();
       if(ir(mx,my,btn.x,btn.y,btn.w,btn.h)){endTurn();return;}
-      const hl=handLayout(),{hY,cardW,cardH,gap}=hl,sx=portrait?hl.sx:hl.RX;
+
+      // dice row: tap to select/deselect a die
+      const tot=4*(DW+DGAP)-DGAP;
+      const x0=diceRowX(), y0=diceRowY();
+      if(ir(mx,my,x0,y0,tot,DH)){
+        for(let i=0;i<combat.dice.length;i++){
+          const x=x0+i*(DW+DGAP);
+          if(ir(mx,my,x,y0,DW,DH)){
+            if(!combat.dice[i].used){
+              combat.selectedDie=combat.selectedDie===i?null:i;
+              if(combat.selectedDie!==null) combat.selected=null;
+            } else {
+              showMsg('That rune is already used.');
+            }
+            return;
+          }
+        }
+      }
+
+      // hand cards
+      const hl=handLayout(),{hY,cardW,cardH,gap}=hl,csx=portrait?hl.sx:hl.RX;
       for(let i=0;i<combat.hand.length;i++){
-        if(ir(mx,my,sx+i*(cardW+gap),hY,cardW,cardH)){
-          if(combat.selected===i){combat.hand[i].rotation=(combat.hand[i].rotation+1)%3;combat.hoverCell=null;}
-          else combat.selected=i;
+        if(ir(mx,my,csx+i*(cardW+gap),hY,cardW,cardH)){
+          const piece=combat.hand[i];
+          if(combat.selectedDie!==null){
+            // try to drop the selected die into this card's first open slot
+            const die=combat.dice[combat.selectedDie];
+            let slotFilled=-1;
+            for(let si=0;si<2;si++){
+              if(piece.assigned[si]!==null) continue;
+              if(piece.slots[si]===-1||piece.slots[si]===die.val){
+                slotFilled=si; break;
+              }
+            }
+            if(slotFilled>=0){
+              piece.assigned[slotFilled]=die.val;
+              die.used=true;
+              combat.selectedDie=null;
+              if(isReady(piece)){
+                combat.selected=i;
+                showMsg('Sigil charged! Tap board to place.');
+              } else {
+                showMsg('Slot filled. One more rune needed.');
+              }
+            } else {
+              const allFull=piece.assigned[0]!==null&&piece.assigned[1]!==null;
+              showMsg(allFull?'Sigil already fully charged!':'Wrong rune — slot needs a different symbol.');
+            }
+          } else {
+            // no die selected: select this card if ready, otherwise show hint
+            if(isReady(piece)){
+              combat.selected=combat.selected===i?null:i;
+            } else {
+              combat.selected=null;
+              showMsg('Assign rune dice to the circles below the sigil.');
+            }
+          }
           return;
         }
       }
+
+      // board tap: place the selected ready card
       const cell=nearestCell(mx,my,BX,BY,TRI_S);
-      if(cell&&combat.selected!==null){placePiece(combat.selected,cell[0],cell[1]);return;}
+      if(cell&&combat.selected!==null){
+        placePiece(combat.selected,cell[0],cell[1]);
+        return;
+      }
       if(!cell) combat.selected=null;
     }
   }
 
   p.setup=function(){
     relayout();p.createCanvas(VW,VH);p.textFont('Courier New');initState();
-    if(window.visualViewport) window.visualViewport.addEventListener('resize',()=>{relayout();p.resizeCanvas(VW,VH);});
+    if(window.visualViewport) window.visualViewport.addEventListener('resize',function(){relayout();p.resizeCanvas(VW,VH);});
   };
   p.windowResized=function(){relayout();p.resizeCanvas(VW,VH);};
   p.draw=function(){
