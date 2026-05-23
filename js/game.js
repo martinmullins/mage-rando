@@ -322,7 +322,7 @@ new p5(function(p){
     if(portrait){
       TRI_S=50;
       const bw=BOARD_COLS*TRI_S/2+TRI_S;
-      BX=Math.floor((GW-bw)/2);BY=170;
+      BX=Math.floor((GW-bw)/2);BY=192;
     } else {
       TRI_S=50;
       BX=8;BY=Math.floor((GH-BOARD_ROWS*TRI_S*Math.sqrt(3)/2)/2);
@@ -682,6 +682,7 @@ new p5(function(p){
     const{combat,player,floor}=state;
     const{enemy,hand,selected,power,stunned,streak,phase,enemyQueue}=combat;
     const fd=FLOORS.find(f=>f.id===floor), W=GW-20;
+    // header
     dr(10,8,W,60,C.PANEL,8);
     dro(10,8,W,60,C.BORDER,1,8);
     tx('FLOOR '+floor+' — '+(fd?fd.name:''),15,22,C.TEXT_DIM,9);
@@ -690,18 +691,25 @@ new p5(function(p){
     tx(enemy.name,GW/2+5,22,C.TEXT,9);
     bar(GW/2+5,26,W/2-10,16,enemy.curHp,enemy.hp,C.EN_FG,C.EN_BG,'ENEMY');
     tx(stunned?'STUNNED':'Atk '+enemy.atk,GW/2+5,56,stunned?C.GOLD:C.DANGER,8);
-    if(phase==='player'){
-      tx('PWR +'+power+(streak>=2?' CHAIN x'+streak:''),GW-12,56,power>0?C.GOLD:C.TEXT_DIM,8,p.RIGHT);
-    } else {
-      const pulse=0.7+0.3*Math.sin(p.frameCount*0.12);
-      const ic=p.color(C.DANGER); ic.setAlpha(pulse*255);
-      p.fill(ic); p.noStroke(); p.textSize(9); p.textAlign(p.RIGHT);
-      p.text('ENEMY TURN',GW-12,56);
-    }
-    dr(10,74,W,88,C.PANEL,8);
-    dro(10,74,W,88,C.BORDER,1,8);
+    tx('PWR +'+power+(streak>=2?' CHAIN x'+streak:''),GW-12,56,power>0?C.GOLD:C.TEXT_DIM,8,p.RIGHT);
+    // enemy portrait panel (taller to fully contain all portrait art)
+    dr(10,74,W,96,C.PANEL,8);
+    dro(10,74,W,96,C.BORDER,1,8);
     if(enemy.boss) tx('BOSS',GW/2,87,C.DANGER,8,p.CENTER);
     drawEnemyPortrait(enemy.id,enemy.color,GW/2,125);
+    // turn phase banner
+    const bnrY=172,bnrH=16;
+    if(phase==='player'){
+      dr(0,bnrY,GW,bnrH,C.HP_BG);
+      tx('▶  YOUR TURN',GW/2,bnrY+bnrH-4,C.HP_FG,10,p.CENTER);
+    } else {
+      const pulse=0.5+0.5*Math.sin(p.frameCount*0.12);
+      const bc=p.color(C.EN_BG); bc.setAlpha(180+Math.round(pulse*75));
+      p.fill(bc); p.noStroke(); p.rect(0,bnrY,GW,bnrH);
+      const tc=p.color(C.DANGER); tc.setAlpha(200+Math.round(pulse*55));
+      p.fill(tc); p.noStroke(); p.textSize(10); p.textAlign(p.CENTER,p.CENTER);
+      p.text('⚠  ENEMY RISING...',GW/2,bnrY+bnrH/2);
+    }
     drawBoard(combat);
     if(phase==='player'){
       drawHandCards(hand,selected);
@@ -716,7 +724,7 @@ new p5(function(p){
     if(state.msg&&state.msgTimer>0){
       const big=state.msg.includes('RESONANCE')||state.msg.includes('ECHO')||state.msg.includes('DOUBLE');
       const col=big?C.GOLD:state.msg.includes('Enemy')||state.msg.includes('enemy')?C.DANGER:C.TEXT;
-      tx(state.msg,GW/2,btn.y+btn.h+28,col,big?11:10,p.CENTER);
+      tx(state.msg,GW/2,btn.y+btn.h+28,col,big?13:11,p.CENTER);
     }
   }
 
@@ -765,7 +773,7 @@ new p5(function(p){
     if(state.msg&&state.msgTimer>0){
       const big=state.msg.includes('RESONANCE')||state.msg.includes('ECHO')||state.msg.includes('DOUBLE');
       const col=big?C.GOLD:state.msg.includes('Enemy')||state.msg.includes('enemy')?C.DANGER:C.TEXT;
-      tx(state.msg,btn.x+btn.w/2,btn.y+btn.h+28,col,big?11:10,p.CENTER);
+      tx(state.msg,btn.x+btn.w/2,btn.y+btn.h+28,col,big?13:11,p.CENTER);
     }
   }
 
