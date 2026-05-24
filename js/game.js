@@ -107,17 +107,14 @@ function rollDice(){
   return Array.from({length:4},()=>({val:Math.floor(Math.random()*4),used:false}));
 }
 
-// player piece: two slots that need dice assigned, plus one free edge
 function randomPiece(){
   const sig=TSIGILS[Math.floor(Math.random()*TSIGILS.length)];
   const freeEdge=Math.floor(Math.random()*4);
-  // slot requirement: -1 = any symbol, 0-3 = specific
   const s1=Math.random()<0.38?-1:Math.floor(Math.random()*4);
   const s2=Math.random()<0.38?-1:Math.floor(Math.random()*4);
   return{sigilId:sig.id,freeEdge,slots:[s1,s2],assigned:[null,null]};
 }
 
-// enemy piece: edges fixed at creation, no slot system
 function randomEnemyPiece(){
   const sig=TSIGILS[Math.floor(Math.random()*TSIGILS.length)];
   const r4=()=>Math.floor(Math.random()*4);
@@ -127,7 +124,6 @@ function randomEnemyPiece(){
 function makeHand(n){return Array.from({length:n},randomPiece);}
 function makeEnemyHand(n){return Array.from({length:n},randomEnemyPiece);}
 
-// derive the three edges from a player piece (assigned dice + free edge)
 function pieceEdges(piece){
   return[piece.assigned[0]??0,piece.assigned[1]??0,piece.freeEdge];
 }
@@ -222,7 +218,7 @@ function placePiece(hIdx,r,c){
   const fxMsg=applyEffect(piece.sigilId,effectiveMult,r,c);
   const tier=effectiveMult>=4?'RESONANCE! ':effectiveMult>=3?'ECHO! ':effectiveMult>=2?'LINK! ':'';
   const chain=combat.streak>=3?' (CHAIN x'+combat.streak+')':combat.streak>=2?' (chain!)':'';
-  showMsg(tier+'x'+effectiveMult+'  +'+dmg+'dmg'+(fxMsg?' · '+fxMsg:'')+chain);
+  showMsg(tier+'x'+effectiveMult+'  +'+dmg+'dmg'+(fxMsg?' . '+fxMsg:'')+chain);
 }
 
 function addVoidCells(combat){
@@ -279,7 +275,6 @@ function tickEnemyTurn(){
       const cells=[...playable];
       const key=cells[Math.floor(Math.random()*cells.length)];
       const[r,c]=key.split(',').map(Number);
-      // enemy pieces have edges pre-set
       combat.board.set(key,{edges:piece.edges,sigilId:piece.sigilId,owner:'enemy'});
       const matches=countMatches(combat.board,r,c,piece.edges);
       if(matches>0){
@@ -301,7 +296,7 @@ function tickEnemyTurn(){
       addVoidCells(combat);
       msg='Enemy strikes '+(combat.enemyCombo>0?atkDmg+' ('+combat.enemy.atk+'+'+combat.enemyCombo+' combo)!':combat.enemy.atk+'!');
     } else {
-      msg='Enemy was STUNNED — skips!';
+      msg='Enemy was STUNNED -- skips!';
     }
     if(combat.board.size>0&&getPlayableCells(combat.board,combat.voided).size===0){
       combat.voided.clear(); msg+=' Void overflow!';
@@ -399,7 +394,6 @@ new p5(function(p){
     });
   }
 
-  // edges passed directly — no rotation
   function drawMiniTri(sigilId,edges,cx,cy,size){
     const sig=TSIGILS.find(s=>s.id===sigilId);
     const h=size*Math.sqrt(3)/2;
@@ -547,7 +541,6 @@ new p5(function(p){
     dr(BX-4,BY-4,bw+8,bh+8,C.DEEP,6);
     dro(BX-4,BY-4,bw+8,bh+8,C.BORDER,1,6);
 
-    // only show placement hints when a ready card is selected
     const selPiece=selected!==null?hand[selected]:null;
     if(phase==='player'&&selPiece&&isReady(selPiece)) drawHints(board,voided);
 
@@ -576,7 +569,6 @@ new p5(function(p){
       p.line(cx2-s,cy2-s,cx2+s,cy2+s);p.line(cx2+s,cy2-s,cx2-s,cy2+s);p.noStroke();
     });
 
-    // ghost preview: only if selected piece is ready
     if(phase==='player'&&selPiece&&isReady(selPiece)&&hoverCell){
       const[r,c]=hoverCell, key=r+','+c;
       const valid=!board.has(key)&&!voided.has(key)&&(board.size===0||hasNeighbor(board,r,c));
@@ -618,7 +610,6 @@ new p5(function(p){
     }
   }
 
-  // dice row geometry constants
   const DW=52,DH=32,DGAP=7;
 
   function diceRowY(){
@@ -654,7 +645,11 @@ new p5(function(p){
   function drawDice(dice,selectedDie){
     const tot=4*(DW+DGAP)-DGAP;
     const x0=diceRowX(), y0=diceRowY();
-    tx('RUNE DICE — tap then tap a sigil card',GW/2,y0-3,C.TEXT_DIM,7.5,p.CENTER);
+    const anyUnused=dice.some(function(d){return !d.used;});
+    const hint=selectedDie!==null?'tap a sigil slot to assign  (tap die again to cancel)'
+              :anyUnused?'tap a rune die, then tap a sigil card slot'
+              :'all runes assigned';
+    tx(hint,GW/2,y0-3,C.TEXT_DIM,7,p.CENTER);
     dice.forEach(function(die,i){
       const x=x0+i*(DW+DGAP);
       const sel=selectedDie===i, used=die.used;
@@ -669,26 +664,44 @@ new p5(function(p){
       } else {
         dr(x,y0,DW,DH,sel?col+'28':C.PANEL,6);
         dro(x,y0,DW,DH,sel?col:col+'77',sel?2.5:1.5,6);
+        if(sel){
+          const pulse=0.7+0.3*Math.sin(p.frameCount*0.18);
+          dro(x-2,y0-2,DW+4,DH+4,col+'88',1.5*pulse,7);
+        }
         tx(EDGE_SYMS[die.val],x+DW/2,y0+DH-8,col,17,p.CENTER);
       }
     });
   }
 
-  function drawHandCards(hand,selected){
+  // drawHandCards: highlights compatible slots green and incompatible red when a die is selected.
+  // Tap a filled slot (no die selected) to return that rune to the dice pool.
+  function drawHandCards(hand,selected,dice,selectedDie){
     const hl=handLayout(), {hY,cardW,cardH,gap}=hl;
     const sx=portrait?hl.sx:hl.RX;
+    const activeDie=(selectedDie!==null&&selectedDie!==undefined&&dice&&!dice[selectedDie].used)?dice[selectedDie]:null;
+
     hand.forEach(function(piece,i){
       const cx=sx+i*(cardW+gap), sel=selected===i;
       const sig=TSIGILS.find(s=>s.id===piece.sigilId);
       const ready=isReady(piece);
-      dr(cx,hY,cardW,cardH,sel&&ready?C.PANEL_ALT:C.PANEL,10);
-      dro(cx,hY,cardW,cardH,ready?C.GOLD:sel?sig.color:C.BORDER,ready?2.5:sel?2:1.5,10);
 
-      // mini tri using current assigned values (or 0 placeholders)
+      let canAccept=false;
+      if(activeDie){
+        canAccept=
+          (piece.assigned[0]===null&&(piece.slots[0]===-1||piece.slots[0]===activeDie.val))||
+          (piece.assigned[1]===null&&(piece.slots[1]===-1||piece.slots[1]===activeDie.val));
+      }
+
+      const bgCol=activeDie&&!canAccept&&!ready?C.DEEP:(sel&&ready?C.PANEL_ALT:C.PANEL);
+      const borderCol=ready?C.GOLD:activeDie&&canAccept?C.HP_FG:sel?sig.color:C.BORDER;
+      const borderW=ready?2.5:activeDie&&canAccept?2.2:sel?2:1.5;
+
+      dr(cx,hY,cardW,cardH,bgCol,10);
+      dro(cx,hY,cardW,cardH,borderCol,borderW,10);
+
       const pe=pieceEdges(piece);
       drawMiniTri(piece.sigilId,pe,cx+cardW/2,hY+cardH*0.34,cardW*0.46);
 
-      // three edge circles: slot0, slot1, free edge
       const slotY=hY+cardH*0.72;
       const R=8, sp=R*2+6;
       const s0x=cx+cardW/2-sp;
@@ -697,22 +710,43 @@ new p5(function(p){
         const sx2=s0x+si*sp;
         const asgn=piece.assigned[si];
         const req=piece.slots[si];
+
         if(asgn!==null){
           const col=EDGE_COLS[asgn];
           p.fill(col+'44');p.stroke(col);p.strokeWeight(1.5);
           p.circle(sx2,slotY,R*2);p.noStroke();
           p.fill(col);p.textSize(8);p.textAlign(p.CENTER,p.CENTER);
           p.text(EDGE_SYMS[asgn],sx2,slotY);
+          p.fill(C.TEXT_MUT);p.textSize(6);p.textAlign(p.CENTER,p.CENTER);
+          p.text('x',sx2,slotY+R+4);
         } else {
-          const col=req>=0?EDGE_COLS[req]:C.TEXT_MUT;
-          p.fill(C.DEEP);p.stroke(col+'aa');p.strokeWeight(1.2);
+          let strokeCol=req>=0?EDGE_COLS[req]+'aa':C.TEXT_MUT+'aa';
+          let fillCol=C.DEEP;
+          let labelCol=req>=0?EDGE_COLS[req]+'cc':C.TEXT_MUT+'cc';
+          let sw=1.2;
+
+          if(activeDie){
+            const compat=(req===-1||req===activeDie.val);
+            if(compat){
+              const pulse=0.8+0.2*Math.sin(p.frameCount*0.14);
+              strokeCol=C.HP_FG;
+              fillCol=C.HP_BG+'55';
+              labelCol=C.HP_FG;
+              sw=2.2*pulse;
+            } else {
+              strokeCol=C.DANGER+'55';
+              fillCol=C.VOID;
+              labelCol=C.DANGER+'55';
+            }
+          }
+
+          p.fill(fillCol);p.stroke(strokeCol);p.strokeWeight(sw);
           p.circle(sx2,slotY,R*2);p.noStroke();
-          p.fill(col+'cc');p.textSize(req>=0?8:9);p.textAlign(p.CENTER,p.CENTER);
+          p.fill(labelCol);p.textSize(req>=0?8:9);p.textAlign(p.CENTER,p.CENTER);
           p.text(req>=0?EDGE_SYMS[req]:'?',sx2,slotY);
         }
       }
 
-      // free edge (fixed, dimmer)
       const fx=s0x+2*sp;
       const fc=EDGE_COLS[piece.freeEdge];
       p.fill(fc+'18');p.stroke(fc+'66');p.strokeWeight(1);
@@ -721,14 +755,13 @@ new p5(function(p){
       p.text(EDGE_SYMS[piece.freeEdge],fx,slotY);
       p.noStroke();
 
-      // status label
       if(ready){
-        tx('READY — tap to place',cx+cardW/2,hY+cardH-8,C.GOLD,7,p.CENTER);
+        tx('READY -- tap to place',cx+cardW/2,hY+cardH-8,C.GOLD,7,p.CENTER);
       } else {
         tx(sig.fxLabel,cx+cardW/2,hY+cardH-8,C.TEXT_DIM,7,p.CENTER);
       }
     });
-    if(!hand.length) tx('No sigils — end turn.',portrait?GW/2:hl.RX+hl.RW/2,hY+36,C.TEXT_DIM,10,p.CENTER);
+    if(!hand.length) tx('No sigils -- end turn.',portrait?GW/2:hl.RX+hl.RW/2,hY+36,C.TEXT_DIM,10,p.CENTER);
   }
 
   function drawEnemyQueue(queue){
@@ -785,22 +818,19 @@ new p5(function(p){
     const{combat,player,floor}=state;
     const{enemy,hand,selected,power,stunned,streak,phase,enemyQueue,dice,selectedDie}=combat;
     const fd=FLOORS.find(f=>f.id===floor), W=GW-20;
-    // header
     dr(10,8,W,60,C.PANEL,8);
     dro(10,8,W,60,C.BORDER,1,8);
-    tx('FLOOR '+floor+' — '+(fd?fd.name:''),15,22,C.TEXT_DIM,9);
+    tx('FLOOR '+floor+' -- '+(fd?fd.name:''),15,22,C.TEXT_DIM,9);
     bar(15,26,W/2-10,16,player.hp,player.maxHp,C.HP_FG,C.HP_BG,'HP');
     tx('ATK '+player.baseDmg+(player.comboBonus>0?'+'+player.comboBonus+' cmb':''),15,56,C.TEXT_DIM,8);
     tx(enemy.name,GW/2+5,22,C.TEXT,9);
     bar(GW/2+5,26,W/2-10,16,enemy.curHp,enemy.hp,C.EN_FG,C.EN_BG,'ENEMY');
     tx(stunned?'STUNNED':'Atk '+enemy.atk,GW/2+5,56,stunned?C.GOLD:C.DANGER,8);
     tx('PWR +'+power+(streak>=2?' CHAIN x'+streak:''),GW-12,56,power>0?C.GOLD:C.TEXT_DIM,8,p.RIGHT);
-    // enemy portrait panel
     dr(10,74,W,96,C.PANEL,8);
     dro(10,74,W,96,C.BORDER,1,8);
     if(enemy.boss) tx('BOSS',GW/2,87,C.DANGER,8,p.CENTER);
     drawEnemyPortrait(enemy.id,enemy.color,GW/2,125);
-    // turn phase banner
     const bnrY=172,bnrH=16;
     if(phase==='player'){
       dr(0,bnrY,GW,bnrH,C.HP_BG);
@@ -816,7 +846,7 @@ new p5(function(p){
     drawBoard(combat);
     if(phase==='player'){
       drawDice(dice,selectedDie);
-      drawHandCards(hand,selected);
+      drawHandCards(hand,selected,dice,selectedDie);
     } else {
       drawEnemyQueue(enemyQueue);
     }
@@ -859,13 +889,13 @@ new p5(function(p){
     if(enemy.boss) tx('BOSS',RX+RW-10,102,C.DANGER,10,p.RIGHT);
     drawEnemyPortrait(enemy.id,enemy.color,RX+RW/2,162);
     bar(RX+8,214,RW-16,16,enemy.curHp,enemy.hp,C.EN_FG,C.EN_BG,'ENEMY HP');
-    tx(stunned?'STUNNED — skips!':'Attacks '+enemy.atk+'/turn',RX+8,244,stunned?C.GOLD:C.DANGER,10);
+    tx(stunned?'STUNNED -- skips!':'Attacks '+enemy.atk+'/turn',RX+8,244,stunned?C.GOLD:C.DANGER,10);
     dr(RX,252,RW,24,C.DEEP,6);
     dro(RX,252,RW,24,C.BORDER,1,6);
     tx('PENDING: +'+power+(streak>=2?'  CHAIN x'+streak:''),RX+RW/2,266,power>0?C.GOLD:C.TEXT_DIM,11,p.CENTER);
     if(phase==='player'){
       drawDice(dice,selectedDie);
-      drawHandCards(hand,selected);
+      drawHandCards(hand,selected,dice,selectedDie);
     } else {
       drawEnemyQueue(enemyQueue);
     }
@@ -943,7 +973,6 @@ new p5(function(p){
     if(state.screen==='combat'&&state.combat&&state.combat.phase==='player'){
       const btn=btnRect();
       if(ir(mx,my,btn.x,btn.y,btn.w,btn.h)) state.hover='endturn';
-      // only track hover cell when a ready card is selected
       const{combat}=state;
       const sel=combat.selected;
       if(sel!==null&&combat.hand[sel]&&isReady(combat.hand[sel])){
@@ -986,11 +1015,10 @@ new p5(function(p){
       const{combat}=state;
       if(combat.phase!=='player') return;
 
-      // end turn button
       const btn=btnRect();
       if(ir(mx,my,btn.x,btn.y,btn.w,btn.h)){endTurn();return;}
 
-      // dice row: tap to select/deselect a die
+      // dice row
       const tot=4*(DW+DGAP)-DGAP;
       const x0=diceRowX(), y0=diceRowY();
       if(ir(mx,my,x0,y0,tot,DH)){
@@ -1011,51 +1039,81 @@ new p5(function(p){
       // hand cards
       const hl=handLayout(),{hY,cardW,cardH,gap}=hl,csx=portrait?hl.sx:hl.RX;
       for(let i=0;i<combat.hand.length;i++){
-        if(ir(mx,my,csx+i*(cardW+gap),hY,cardW,cardH)){
-          const piece=combat.hand[i];
+        const cardCX=csx+i*(cardW+gap);
+        if(!ir(mx,my,cardCX,hY,cardW,cardH)) continue;
+        const piece=combat.hand[i];
+
+        // slot circle hit detection (2.5x radius)
+        const slotY=hY+cardH*0.72;
+        const R=8,sp=R*2+6;
+        const s0x=cardCX+cardW/2-sp;
+        let hitSlot=-1;
+        for(let si=0;si<2;si++){
+          const scx=s0x+si*sp;
+          const ddx=mx-scx,ddy=my-slotY;
+          if(ddx*ddx+ddy*ddy<=R*R*6.25){hitSlot=si;break;}
+        }
+
+        if(hitSlot>=0){
           if(combat.selectedDie!==null){
-            // try to drop the selected die into this card's first open slot
             const die=combat.dice[combat.selectedDie];
-            let slotFilled=-1;
-            for(let si=0;si<2;si++){
-              if(piece.assigned[si]!==null) continue;
-              if(piece.slots[si]===-1||piece.slots[si]===die.val){
-                slotFilled=si; break;
-              }
-            }
-            if(slotFilled>=0){
-              piece.assigned[slotFilled]=die.val;
+            const si=hitSlot;
+            if(piece.assigned[si]!==null){
+              showMsg('Slot full -- tap it to clear first.');
+            } else if(piece.slots[si]!==-1&&piece.slots[si]!==die.val){
+              showMsg('Wrong rune for that slot!');
+            } else {
+              piece.assigned[si]=die.val;
               die.used=true;
               combat.selectedDie=null;
-              if(isReady(piece)){
-                combat.selected=i;
-                showMsg('Sigil charged! Tap board to place.');
-              } else {
-                showMsg('Slot filled. One more rune needed.');
-              }
-            } else {
-              const allFull=piece.assigned[0]!==null&&piece.assigned[1]!==null;
-              showMsg(allFull?'Sigil already fully charged!':'Wrong rune — slot needs a different symbol.');
+              if(isReady(piece)){combat.selected=i;showMsg('Sigil charged! Tap board to place.');}
+              else showMsg('Slot filled. One more rune needed.');
             }
           } else {
-            // no die selected: select this card if ready, otherwise show hint
-            if(isReady(piece)){
-              combat.selected=combat.selected===i?null:i;
-            } else {
-              combat.selected=null;
-              showMsg('Assign rune dice to the circles below the sigil.');
+            if(piece.assigned[hitSlot]!==null){
+              const val=piece.assigned[hitSlot];
+              const rd=combat.dice.find(function(d){return d.used&&d.val===val;});
+              if(rd) rd.used=false;
+              piece.assigned[hitSlot]=null;
+              if(combat.selected===i) combat.selected=null;
+              showMsg('Rune returned to dice pool.');
             }
           }
           return;
         }
-      }
 
-      // board tap: place the selected ready card
-      const cell=nearestCell(mx,my,BX,BY,TRI_S);
-      if(cell&&combat.selected!==null){
-        placePiece(combat.selected,cell[0],cell[1]);
+        // card body tap
+        if(combat.selectedDie!==null){
+          const die=combat.dice[combat.selectedDie];
+          let slotFilled=-1;
+          for(let si=0;si<2;si++){
+            if(piece.assigned[si]!==null) continue;
+            if(piece.slots[si]===-1||piece.slots[si]===die.val){slotFilled=si;break;}
+          }
+          if(slotFilled>=0){
+            piece.assigned[slotFilled]=die.val;
+            die.used=true;
+            combat.selectedDie=null;
+            if(isReady(piece)){combat.selected=i;showMsg('Sigil charged! Tap board to place.');}
+            else showMsg('Slot filled. One more rune needed.');
+          } else {
+            const allFull=piece.assigned[0]!==null&&piece.assigned[1]!==null;
+            showMsg(allFull?'Sigil already fully charged!':'Wrong rune -- slot needs a different symbol.');
+          }
+        } else {
+          if(isReady(piece)){
+            combat.selected=combat.selected===i?null:i;
+          } else {
+            combat.selected=null;
+            showMsg('Assign rune dice to the circles below the sigil.');
+          }
+        }
         return;
       }
+
+      // board tap
+      const cell=nearestCell(mx,my,BX,BY,TRI_S);
+      if(cell&&combat.selected!==null){placePiece(combat.selected,cell[0],cell[1]);return;}
       if(!cell) combat.selected=null;
     }
   }
