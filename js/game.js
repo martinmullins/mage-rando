@@ -273,7 +273,7 @@ function drawMsgOverlay() {
   pop();
 }
 
-// ── TITLE ────────────────────────────────────────────────────────────────
+// -- TITLE --
 function drawTitle() {
   push();
   fill(C.DEEP); noStroke();
@@ -298,7 +298,7 @@ function drawTitle() {
   pop();
 }
 
-// ── FLOOR MAP ────────────────────────────────────────────────────────────
+// -- FLOOR MAP --
 function floorNodeRect(i, totalNodes) {
   var nw = 250, nh = 76;
   var topY = 96, botY = 570;
@@ -315,20 +315,15 @@ function drawFloor() {
   var fl         = FLOORS[min(gs.floorIdx, FLOORS.length - 1)];
   var n          = fl.enemies.length;
   var totalNodes = n + 1;
-
   push();
   fill(C.DEEP); noStroke();
   rect(gx(0), gy(GH * 0.50), sz(GW), sz(GH * 0.50));
   drawWaves(GH * 0.52);
-
-  // Header
   fill(C.GOLD); textAlign(CENTER, TOP); textSize(sz(18)); textStyle(BOLD);
   text(fl.name, gx(GW/2), gy(8));
   textStyle(NORMAL);
   fill(C.ROPE); textSize(sz(10));
   text('Floor ' + (gs.floorIdx + 1) + ' of ' + FLOORS.length, gx(GW/2), gy(29));
-
-  // Player HP bar
   var phpW = 110, phpH = 12, phpX = 8, phpY = 46;
   fill(C.HP_BG); noStroke();
   rect(gx(phpX), gy(phpY), sz(phpW), sz(phpH), sz(3));
@@ -336,13 +331,9 @@ function drawFloor() {
   rect(gx(phpX), gy(phpY), sz(phpW * max(0, gs.player.hp / gs.player.maxHp)), sz(phpH), sz(3));
   noStroke(); fill(C.TEXT); textAlign(LEFT, TOP); textSize(sz(9));
   text('Crew: ' + gs.player.hp + '/' + gs.player.maxHp, gx(phpX + 2), gy(phpY + 2));
-
-  // Gold
   fill(C.GOLD); textAlign(RIGHT, TOP); textSize(sz(12)); textStyle(BOLD);
   text('G: ' + gs.gold, gx(GW - 8), gy(46));
   textStyle(NORMAL);
-
-  // Dashed paths between nodes
   for (var pi = 0; pi < totalNodes - 1; pi++) {
     var ra = floorNodeRect(pi, totalNodes);
     var rb = floorNodeRect(pi + 1, totalNodes);
@@ -355,8 +346,6 @@ function drawFloor() {
       line(gx(px), gy(py1 + d * step), gx(px), gy(py1 + d * step + dashH));
     }
   }
-
-  // Enemy nodes
   for (var ei = 0; ei < n; ei++) {
     var r    = floorNodeRect(ei, totalNodes);
     var eId  = fl.enemies[ei];
@@ -364,11 +353,8 @@ function drawFloor() {
     var done = gs.floorDefeated[ei] || false;
     drawFloorEnemyNode(r.x, r.y, r.w, r.h, def, done);
   }
-
-  // Port node
   var pr = floorNodeRect(n, totalNodes);
   drawFloorPortNode(pr.x, pr.y, pr.w, pr.h, fl);
-
   pop();
 }
 
@@ -378,13 +364,11 @@ function drawFloorEnemyNode(cx, cy, w, h, def, defeated) {
   stroke(defeated ? '#1a3040' : C.BORDER);
   strokeWeight(sz(defeated ? 1 : 2));
   rect(gx(cx), gy(cy), sz(w), sz(h), sz(8));
-
   if (defeated) {
-    noStroke();
-    fill(C.TEXT_DIM); textAlign(CENTER, CENTER); textSize(sz(11));
+    noStroke(); fill(C.TEXT_DIM);
+    textAlign(CENTER, CENTER); textSize(sz(11));
     text(def.name + '  --  SUNK', gx(cx + w / 2), gy(cy + h / 2));
   } else {
-    // Small enemy ship icon on left
     drawShip(cx + 26, cy + h / 2, 32, true);
     noStroke();
     fill(C.TEXT); textAlign(LEFT, TOP); textSize(sz(12)); textStyle(BOLD);
@@ -394,7 +378,6 @@ function drawFloorEnemyNode(cx, cy, w, h, def, defeated) {
     text(def.hp + ' hull', gx(cx + 52), gy(cy + 27));
     fill(C.ROPE);
     text('ATK ' + def.atk + '   +' + def.gold + 'g loot', gx(cx + 52), gy(cy + 43));
-    // Chevron arrow
     fill(C.GOLD); textAlign(RIGHT, CENTER); textSize(sz(18)); textStyle(BOLD);
     text('>', gx(cx + w - 10), gy(cy + h / 2));
     textStyle(NORMAL);
@@ -404,9 +387,7 @@ function drawFloorEnemyNode(cx, cy, w, h, def, defeated) {
 
 function drawFloorPortNode(cx, cy, w, h, fl) {
   push();
-  fill('#0f2030');
-  stroke(C.GOLD);
-  strokeWeight(sz(2));
+  fill('#0f2030'); stroke(C.GOLD); strokeWeight(sz(2));
   rect(gx(cx), gy(cy), sz(w), sz(h), sz(8));
   noStroke();
   fill(C.GOLD); textAlign(CENTER, CENTER); textSize(sz(13)); textStyle(BOLD);
@@ -423,24 +404,17 @@ function handleFloor(mx, my) {
   var fl         = FLOORS[min(gs.floorIdx, FLOORS.length - 1)];
   var n          = fl.enemies.length;
   var totalNodes = n + 1;
-
   for (var i = 0; i < n; i++) {
     var r = floorNodeRect(i, totalNodes);
     if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
-      if (gs.floorDefeated[i]) {
-        showMsg(ENEMY_DB[fl.enemies[i]].name + ' is already sunk!');
-        return;
-      }
+      if (gs.floorDefeated[i]) { showMsg(ENEMY_DB[fl.enemies[i]].name + ' is already sunk!'); return; }
       gs.enemyInFloor = i;
       gs.screen = 'equip';
       return;
     }
   }
-
   var pr = floorNodeRect(n, totalNodes);
-  if (mx >= pr.x && mx <= pr.x + pr.w && my >= pr.y && my <= pr.y + pr.h) {
-    leaveFloor();
-  }
+  if (mx >= pr.x && mx <= pr.x + pr.w && my >= pr.y && my <= pr.y + pr.h) leaveFloor();
 }
 
 function leaveFloor() {
@@ -454,7 +428,7 @@ function leaveFloor() {
   startPort(fl);
 }
 
-// ── EQUIP ────────────────────────────────────────────────────────────────
+// -- EQUIP --
 var EQ = {sidePad:10, cols:2, gap:8, cardH:88, cardY0:76, rowGap:8};
 
 function equipCardRect(i) {
@@ -473,7 +447,6 @@ function drawEquip() {
   var eIdx   = min(gs.enemyInFloor, fl.enemies.length - 1);
   var eId    = fl.enemies[eIdx];
   var target = ENEMY_DB[eId];
-
   fill(C.GOLD); textAlign(CENTER, TOP); textSize(sz(15)); textStyle(BOLD);
   text('CHOOSE YOUR WEAPONS', gx(GW/2), gy(8));
   textStyle(NORMAL);
@@ -482,12 +455,10 @@ function drawEquip() {
   textSize(sz(10)); fill(C.TEXT_DIM);
   text('Equipped: ' + gs.equipped.length + '/3    Gold: ' + gs.gold, gx(GW/2), gy(42));
   text('Tap card to equip / unequip (max 3)', gx(GW/2), gy(56));
-
   for (var i = 0; i < gs.backpack.length; i++) {
     var r = equipCardRect(i);
     drawEquipCard(gs.backpack[i], r.x, r.y, r.w, r.h, gs.equipped.indexOf(i) >= 0);
   }
-
   var canFight = gs.equipped.length > 0;
   var bw = 180, bh = 42, bx = GW/2 - bw/2, by = GH - 56;
   fill(canFight ? C.GOLD : '#334455'); noStroke();
@@ -522,19 +493,13 @@ function drawEquipCard(card, cx, cy, w, h, equipped) {
   pop();
 }
 
-// ── COMBAT ────────────────────────────────────────────────────────────────
+// -- COMBAT --
 var CB = {
-  shipY:    68,
-  hpBarY:   136,
-  intentY:  156,
-  cardY:    182,
-  cardH:    110,
-  domW: 54, domH: 28,
-  domPad:   6,
-  domRowGap:5,
-  domLabelY:306,
-  domY:     318,
-  btnW:     130, btnH: 38
+  shipY:68, hpBarY:136, intentY:156,
+  cardY:182, cardH:110,
+  domW:54, domH:28, domPad:6, domRowGap:5,
+  domLabelY:306, domY:318,
+  btnW:130, btnH:38
 };
 
 function domPerRow(total) {
@@ -581,7 +546,11 @@ function startCombat() {
     nextMove:   pickMove(enemy),
     enemyAnim:  0,
     animIsStun: false,
-    animDom:    rollDominoes(1)[0]
+    animDom:    rollDominoes(1)[0],
+    dragDomIdx: null,
+    dragX:      0,
+    dragY:      0,
+    isDragging: false
   };
   gs.screen = 'combat';
   showMsg('A ' + def.name + ' approaches! Man the cannons!');
@@ -593,13 +562,11 @@ function drawCombat() {
   fill(C.DEEP); noStroke();
   rect(gx(0), gy(GH * 0.62), sz(GW), sz(GH * 0.38));
   drawWaves(GH * 0.64);
-
   drawShip(GW/2, CB.shipY, 90, true);
   fill(C.TEXT); textAlign(CENTER, TOP); textSize(sz(12)); textStyle(BOLD);
   text(cm.enemy.name, gx(GW/2), gy(8));
   textStyle(NORMAL);
 
-  // Enemy HP bar
   var ehpW = 200, ehpH = 16, ehpX = (GW - ehpW)/2;
   fill(C.EN_BG); noStroke();
   rect(gx(ehpX), gy(CB.hpBarY), sz(ehpW), sz(ehpH), sz(4));
@@ -608,7 +575,6 @@ function drawCombat() {
   fill(C.TEXT); textAlign(CENTER, CENTER); textSize(sz(9));
   text(cm.enemy.hp + '/' + cm.enemy.maxHp + ' hull', gx(GW/2), gy(CB.hpBarY + ehpH/2));
 
-  // Enemy intent strip
   var move = cm.nextMove;
   var iBg = move.type === 'atk' ? '#3a0808' : move.type === 'heal' ? '#0a2a0a' : '#0a1428';
   var iFg = move.type === 'atk' ? C.DANGER  : move.type === 'heal' ? C.HP_FG   : C.ROPE;
@@ -625,7 +591,6 @@ function drawCombat() {
   textAlign(RIGHT, CENTER);
   text(iRight, gx(ehpX + ehpW - 6), gy(CB.intentY + 10));
 
-  // Player HP
   var phpW = 120, phpH = 14, phpX = 6, phpY = 6;
   fill(C.HP_BG); noStroke();
   rect(gx(phpX), gy(phpY), sz(phpW), sz(phpH), sz(3));
@@ -636,12 +601,10 @@ function drawCombat() {
   fill(C.TEXT_DIM); textAlign(RIGHT, TOP);
   text('T' + cm.turn + '  G:' + gs.gold, gx(GW - 6), gy(6));
 
-  // Floor progress
   var fl = FLOORS[min(gs.floorIdx, FLOORS.length - 1)];
   fill(C.TEXT_DIM); textAlign(CENTER, TOP); textSize(sz(9));
   text(fl.name + ' - ' + (gs.enemyInFloor + 1) + '/' + fl.enemies.length, gx(GW/2), gy(CB.hpBarY - 14));
 
-  // Equipped cards
   var nc = gs.equipped.length;
   var cardW = (GW - 12 - (nc - 1) * 6) / nc;
   for (var ci = 0; ci < nc; ci++) {
@@ -649,21 +612,32 @@ function drawCombat() {
     drawCombatCard(card, 6 + ci * (cardW + 6), CB.cardY, cardW, CB.cardH, cm);
   }
 
-  // Domino hint label
+  // Hint label
   fill(C.TEXT_DIM); textAlign(CENTER, BOTTOM); textSize(sz(10));
-  if (cm.selDom === null) {
-    text('Tap a domino to select it', gx(GW/2), gy(CB.domLabelY));
+  if (cm.isDragging) {
+    text('Drop onto a card to place', gx(GW/2), gy(CB.domLabelY));
+  } else if (cm.selDom === null) {
+    text('Drag or tap a domino', gx(GW/2), gy(CB.domLabelY));
   } else {
-    text('Tap a card to place  [tap domino to cancel]', gx(GW/2), gy(CB.domLabelY));
+    text('Tap a card to place  [tap domino again to cancel]', gx(GW/2), gy(CB.domLabelY));
   }
 
-  // Dominoes with wrapping
+  // Dominoes
   var total = cm.dominoes.length;
   for (var di = 0; di < total; di++) {
     var dom = cm.dominoes[di];
     var pos = getDomPos(di, total);
     if (!dom.used) {
-      drawDomino(dom, pos.x, pos.y, CB.domW, CB.domH, cm.selDom === di);
+      if (cm.isDragging && cm.dragDomIdx === di) {
+        // Ghost placeholder
+        push();
+        noFill(); stroke(C.BORDER); strokeWeight(sz(1));
+        rect(gx(pos.x), gy(pos.y), sz(CB.domW), sz(CB.domH), sz(4));
+        pop();
+      } else {
+        var showSel = (cm.selDom === di) && !cm.isDragging;
+        drawDomino(dom, pos.x, pos.y, CB.domW, CB.domH, showSel);
+      }
     } else {
       push();
       fill(C.PANEL2); stroke(C.BORDER); strokeWeight(sz(1));
@@ -672,7 +646,6 @@ function drawCombat() {
     }
   }
 
-  // End Turn button
   var btnY = domBtnY(total);
   var etX  = GW/2 - CB.btnW/2;
   var animActive = cm.enemyAnim > 0;
@@ -683,97 +656,283 @@ function drawCombat() {
   fill(animActive ? '#334455' : C.TEXT);
   textAlign(CENTER, CENTER); textSize(sz(12));
   text('End Turn', gx(GW/2), gy(btnY + CB.btnH/2));
+
+  // Dragged domino rendered on top of everything
+  if (cm.isDragging && cm.dragDomIdx !== null && !cm.dominoes[cm.dragDomIdx].used) {
+    drawDomino(cm.dominoes[cm.dragDomIdx], cm.dragX, cm.dragY, CB.domW, CB.domH, true);
+  }
+  pop();
+}
+
+function drawCombatCard(card, cx, cy, w, h, cm) {
+  push();
+  var ready = isReady(card);
+
+  // Drag hover detection
+  var dragHover = false;
+  var dragFit   = false;
+  if (cm.isDragging && cm.dragDomIdx !== null && !cm.dominoes[cm.dragDomIdx].used) {
+    var dcx = cm.dragX + CB.domW / 2;
+    var dcy = cm.dragY + CB.domH / 2;
+    if (dcx >= cx && dcx <= cx + w && dcy >= cy && dcy <= cy + h) {
+      dragHover = true;
+      dragFit   = dominoFits(cm.dominoes[cm.dragDomIdx], card);
+    }
+  }
+
+  // Tap-path fit check
+  var fitType = false;
+  if (!cm.isDragging && cm.selDom !== null && !cm.dominoes[cm.selDom].used) {
+    fitType = dominoFits(cm.dominoes[cm.selDom], card);
+  }
+  var fits = fitType !== false;
+
+  var isGoodDrop = dragHover && (dragFit !== false);
+  var isBadDrop  = dragHover && (dragFit === false);
+
+  fill(ready    ? C.GREEN_HI :
+       isGoodDrop ? '#1a4a1a' :
+       isBadDrop  ? '#2a0a0a' :
+       fits       ? '#1a2f50' : C.PANEL);
+  stroke(ready    ? C.GREEN_BD :
+         isGoodDrop ? '#50ee50' :
+         isBadDrop  ? C.DANGER :
+         fits       ? C.GOLD : C.BORDER);
+  strokeWeight(sz((isGoodDrop || isBadDrop || fits || ready) ? 2.5 : 1.5));
+  rect(gx(cx), gy(cy), sz(w), sz(h), sz(6));
+  noStroke();
+
+  fill(ready ? '#7fff7f' : C.TEXT);
+  textAlign(CENTER, TOP); textSize(sz(9)); textStyle(BOLD);
+  text(card.name, gx(cx + w/2), gy(cy + 5));
+  textStyle(NORMAL);
+
+  var sW = w * 0.82, sH = 24, sX = cx + (w - sW)/2, sY = cy + 20;
+  fill(C.OCEAN); stroke(C.BORDER); strokeWeight(sz(1));
+  rect(gx(sX), gy(sY), sz(sW), sz(sH), sz(3));
+  line(gx(sX + sW/2), gy(sY + 3), gx(sX + sW/2), gy(sY + sH - 3));
+  for (var si = 0; si < 2; si++) {
+    var halfX = sX + si * (sW/2) + sW/4;
+    var asgn  = card.assigned[si];
+    var req   = card.slots[si];
+    noStroke();
+    if (asgn !== null) {
+      fill(C.GOLD); textSize(sz(13)); textStyle(BOLD);
+      textAlign(CENTER, CENTER);
+      text('' + asgn, gx(halfX), gy(sY + sH/2));
+      textStyle(NORMAL);
+    } else {
+      fill(fits || isGoodDrop ? '#88aacc' : C.TEXT_DIM);
+      textSize(sz(11)); textAlign(CENTER, CENTER);
+      text(req === null ? '?' : '' + req, gx(halfX), gy(sY + sH/2));
+    }
+  }
+  noStroke(); fill(C.TEXT_DIM);
+  textAlign(CENTER, TOP); textSize(sz(8));
+  text(card.desc, gx(cx + w/2), gy(sY + sH + 4), sz(w - 8), sz(h - sH - 30));
+
+  if (ready) {
+    fill(C.GOLD); textAlign(CENTER, BOTTOM); textSize(sz(10)); textStyle(BOLD);
+    text('FIRE!', gx(cx + w/2), gy(cy + h - 3));
+    textStyle(NORMAL);
+  } else if (isGoodDrop) {
+    fill('#50ee50'); textAlign(CENTER, BOTTOM); textSize(sz(10)); textStyle(BOLD);
+    text('DROP HERE', gx(cx + w/2), gy(cy + h - 3));
+    textStyle(NORMAL);
+  } else if (isBadDrop) {
+    fill(C.DANGER); textAlign(CENTER, BOTTOM); textSize(sz(9));
+    text("won't fit", gx(cx + w/2), gy(cy + h - 3));
+  } else if (fits) {
+    fill(C.GOLD); textAlign(CENTER, BOTTOM); textSize(sz(9));
+    text('PLACE', gx(cx + w/2), gy(cy + h - 3));
+  }
+  pop();
+}
+
+function drawDomino(dom, dx, dy, w, h, selected) {
+  push();
+  fill(selected ? C.DECK : C.PANEL2);
+  stroke(selected ? C.GOLD : C.BORDER); strokeWeight(sz(selected ? 2.5 : 1.5));
+  rect(gx(dx), gy(dy), sz(w), sz(h), sz(4));
+  stroke(selected ? C.GOLD : '#2e5a8a'); strokeWeight(sz(1));
+  line(gx(dx + w/2), gy(dy + 4), gx(dx + w/2), gy(dy + h - 4));
+  noStroke();
+  fill(selected ? C.GOLD : C.TEXT);
+  textAlign(CENTER, CENTER); textSize(sz(13)); textStyle(BOLD);
+  text('' + dom.left,  gx(dx + w/4),   gy(dy + h/2));
+  text('' + dom.right, gx(dx + 3*w/4), gy(dy + h/2));
+  textStyle(NORMAL);
+  pop();
+}
+
+// Enemy domino with explicit alpha for overlay use
+function drawEnemyDomino(dom, dx, dy, w, h, a) {
+  push();
+  fill(30, 0, 0, a);
+  stroke(220, 80, 80, a); strokeWeight(sz(2));
+  rect(gx(dx), gy(dy), sz(w), sz(h), sz(4));
+  stroke(200, 60, 60, Math.round(a * 0.65)); strokeWeight(sz(1));
+  line(gx(dx + w/2), gy(dy + 4), gx(dx + w/2), gy(dy + h - 4));
+  noStroke();
+  fill(255, 150, 150, a);
+  textAlign(CENTER, CENTER); textSize(sz(13)); textStyle(BOLD);
+  text('' + dom.left,  gx(dx + w/4),   gy(dy + h/2));
+  text('' + dom.right, gx(dx + 3*w/4), gy(dy + h/2));
+  textStyle(NORMAL);
   pop();
 }
 
 function drawEnemyTurnOverlay(cm) {
+  var TOTAL    = 70;
   var f        = cm.enemyAnim;
-  var entered  = 55 - f;
-  var fadeA    = Math.min(entered / 8.0, 1.0);
-  var fadeB    = Math.min(f / 8.0, 1.0);
-  var alpha    = Math.min(fadeA, fadeB);
+  var entered  = TOTAL - f;
+  var fadeIn   = Math.min(entered / 8.0, 1.0);
+  var fadeOut  = Math.min(f / 8.0, 1.0);
+  var alpha    = Math.min(fadeIn, fadeOut);
   if (alpha < 0.01) return;
-  var a8       = Math.round(alpha * 180);
-  var a22      = Math.round(alpha * 220);
-  var isStun   = cm.animIsStun;
-  var move     = cm.nextMove;
-  var pulse    = sin(entered * 0.35) * 0.5 + 0.5;
+
+  var a220  = Math.round(alpha * 220);
+  var a160  = Math.round(alpha * 160);
+  var isStun = cm.animIsStun;
+  var move   = cm.nextMove;
 
   push();
-  fill(0, 0, 20, a8); noStroke();
+  // Dim background
+  fill(0, 0, 15, Math.round(alpha * 210)); noStroke();
   rect(gx(0), gy(0), sz(GW), sz(GH));
 
-  var cw = 240, ch = 168, cx = GW/2 - cw/2, cy = GH * 0.28;
-  var bc = isStun ? color(C.GOLD) : color(C.DANGER);
-  fill(0, 8, 20, Math.round(alpha * 235));
-  stroke(red(bc), green(bc), blue(bc), a22);
-  strokeWeight(sz(2 + pulse * 2));
-  rect(gx(cx), gy(cy), sz(cw), sz(ch), sz(12));
-  noStroke();
+  if (isStun) {
+    var pulse = sin(entered * 0.3) * 0.5 + 0.5;
+    var gc2 = color(C.GOLD);
+    fill(red(gc2), green(gc2), blue(gc2), a220);
+    textAlign(CENTER, CENTER); textSize(sz(28 + pulse * 4)); textStyle(BOLD);
+    text('ANCHORED!', gx(GW/2), gy(GH * 0.36));
+    textStyle(NORMAL);
+    fill(red(gc2), green(gc2), blue(gc2), a160);
+    textSize(sz(12));
+    text('Enemy skips this attack', gx(GW/2), gy(GH * 0.48));
+    pop();
+    return;
+  }
 
-  fill(255, 80, 80, a22);
+  // Header
+  var pulse2 = sin(entered * 0.28) * 0.5 + 0.5;
+  var rc = color(C.DANGER);
+  fill(red(rc), green(rc), blue(rc), Math.round(alpha * (160 + pulse2 * 50)));
   textAlign(CENTER, TOP); textSize(sz(10)); textStyle(BOLD);
-  text("ENEMY'S TURN", gx(GW/2), gy(cy + 8));
+  text("ENEMY'S TURN", gx(GW/2), gy(12));
   textStyle(NORMAL);
 
-  if (isStun) {
-    var gc2 = color(C.GOLD);
-    fill(red(gc2), green(gc2), blue(gc2), a22);
-    textSize(sz(22)); textStyle(BOLD);
-    text('ANCHORED!', gx(GW/2), gy(cy + 32));
+  // Card geometry
+  var cw = 220, ch = 134;
+  var cx = GW/2 - cw/2, cy = 155;
+  var slotW = 80, slotH = 32;
+  var slotX = GW/2 - slotW/2, slotY = cy + 56;
+
+  var moveColor  = move.type === 'atk' ? '#3a0808' : move.type === 'heal' ? '#0a2a0a' : '#0a1428';
+  var moveBorder = move.type === 'atk' ? C.DANGER  : move.type === 'heal' ? C.HP_FG   : C.ROPE;
+  var mc = color(moveColor);
+  var mb = color(moveBorder);
+
+  // Face-down cards peeking behind (drawn first = behind)
+  for (var fo = 2; fo >= 1; fo--) {
+    var fOff = fo * 9;
+    fill(50, 0, 0, a220);
+    stroke(100, 30, 30, a220); strokeWeight(sz(1.5));
+    rect(gx(cx - fOff), gy(cy - fOff * 0.5), sz(cw), sz(ch), sz(8));
+    noStroke();
+    fill(80, 20, 20, a160);
+    textAlign(CENTER, CENTER); textSize(sz(20)); textStyle(BOLD);
+    text('?', gx(GW/2 - fOff), gy(cy - fOff * 0.5 + ch/2));
     textStyle(NORMAL);
-    var dc2 = color(C.TEXT_DIM);
-    fill(red(dc2), green(dc2), blue(dc2), Math.round(alpha * 180));
-    textSize(sz(11));
-    text('Enemy skips this attack', gx(GW/2), gy(cy + 66));
+  }
+
+  // Main card shadow
+  fill(0, 0, 0, Math.round(alpha * 90)); noStroke();
+  rect(gx(cx + 4), gy(cy + 4), sz(cw), sz(ch), sz(10));
+
+  // Main card body
+  fill(red(mc), green(mc), blue(mc), a220);
+  stroke(red(mb), green(mb), blue(mb), a220); strokeWeight(sz(2.5));
+  rect(gx(cx), gy(cy), sz(cw), sz(ch), sz(10));
+
+  // Card header tint
+  noStroke();
+  fill(red(mb), green(mb), blue(mb), Math.round(alpha * 70));
+  rect(gx(cx), gy(cy), sz(cw), sz(26), sz(10));
+  rect(gx(cx), gy(cy + 16), sz(cw), sz(10));
+
+  // Move name
+  fill(red(mb), green(mb), blue(mb), a220);
+  textAlign(CENTER, TOP); textSize(sz(13)); textStyle(BOLD);
+  text(move.name, gx(GW/2), gy(cy + 5));
+  textStyle(NORMAL);
+
+  var typeLabel = move.type === 'atk' ? 'ATTACK' : move.type === 'heal' ? 'HEAL' : 'DEFEND';
+  fill(red(mb), green(mb), blue(mb), a160);
+  textSize(sz(8));
+  text(typeLabel, gx(GW/2), gy(cy + 22));
+
+  // Slot outline (always drawn)
+  fill(0, 0, 0, Math.round(alpha * 100));
+  stroke(red(mb), green(mb), blue(mb), a160); strokeWeight(sz(1.5));
+  rect(gx(slotX), gy(slotY), sz(slotW), sz(slotH), sz(4));
+  strokeWeight(sz(1));
+  line(gx(slotX + slotW/2), gy(slotY + 4), gx(slotX + slotW/2), gy(slotY + slotH - 4));
+
+  // Domino animation
+  var slideStart = 8, slideEnd = 34;
+  var rawT    = (entered - slideStart) / Math.max(1, slideEnd - slideStart);
+  var slideT  = Math.min(Math.max(rawT, 0), 1);
+  var eased   = 1.0 - Math.pow(1.0 - slideT, 2.5);
+  var startY  = 38;
+  var animY   = startY + (slotY - startY) * eased;
+  var arrived = (entered >= slideEnd);
+  var dom     = cm.animDom;
+
+  if (!arrived) {
+    // Floating domino above card
+    var floatA = Math.round(Math.min(Math.max(entered - slideStart + 2, 0) / 3.0, 1) * alpha * 220);
+    if (floatA > 0) drawEnemyDomino(dom, slotX, animY, slotW, slotH, floatA);
+    // ? placeholders in slot
+    noStroke();
+    fill(red(mb), green(mb), blue(mb), a160);
+    textAlign(CENTER, CENTER); textSize(sz(13)); textStyle(BOLD);
+    text('?', gx(slotX + slotW/4),   gy(slotY + slotH/2));
+    text('?', gx(slotX + 3*slotW/4), gy(slotY + slotH/2));
+    textStyle(NORMAL);
   } else {
-    var tc = color(C.TEXT);
-    fill(red(tc), green(tc), blue(tc), a22);
-    textSize(sz(16)); textStyle(BOLD);
-    text(move.name, gx(GW/2), gy(cy + 26));
-    textStyle(NORMAL);
-
-    if (entered > 8) {
-      var slideA = Math.min((entered - 8) / 6.0, 1.0) * alpha;
-      var sa22   = Math.round(slideA * 220);
-      var dom    = cm.animDom;
-      var dw = 62, dh = 30, dx = GW/2 - dw/2, dy = cy + 52;
-      var eb = color(C.EN_BG);
-      fill(red(eb), green(eb), blue(eb), sa22);
-      stroke(255, 80, 80, sa22); strokeWeight(sz(2));
-      rect(gx(dx), gy(dy), sz(dw), sz(dh), sz(4));
-      stroke(255, 80, 80, Math.round(slideA * 150)); strokeWeight(sz(1));
-      line(gx(dx + dw/2), gy(dy + 4), gx(dx + dw/2), gy(dy + dh - 4));
-      noStroke();
-      fill(255, 130, 130, sa22);
-      textAlign(CENTER, CENTER); textSize(sz(13)); textStyle(BOLD);
-      text('' + dom.left,  gx(dx + dw/4),   gy(dy + dh/2));
-      text('' + dom.right, gx(dx + 3*dw/4), gy(dy + dh/2));
-      textStyle(NORMAL);
+    // Domino settled in slot
+    drawEnemyDomino(dom, slotX, slotY, slotW, slotH, a220);
+    // Flash on arrival
+    var flashF = entered - slideEnd;
+    if (flashF < 12) {
+      var flashA = Math.round(alpha * 140 * (1.0 - flashF / 12.0));
+      noStroke(); fill(255, 255, 255, flashA);
+      rect(gx(cx), gy(cy), sz(cw), sz(ch), sz(10));
     }
-
+    // Effect text
+    var effEntered = entered - slideEnd;
+    var effA = Math.round(Math.min(effEntered / 8.0, 1.0) * alpha * 220);
     var effStr, effR, effG, effB;
     if (move.type === 'atk') {
       effStr = '-' + move.dmg + ' crew HP';
       effR = 255; effG = 80; effB = 80;
     } else if (move.type === 'heal') {
       effStr = '+' + move.healAmt + ' hull repaired';
-      var hc2 = color(C.HP_FG);
-      effR = red(hc2); effG = green(hc2); effB = blue(hc2);
+      var hc = color(C.HP_FG); effR = red(hc); effG = green(hc); effB = blue(hc);
     } else {
-      effStr = 'BRACING! Your next hit is halved';
-      var rc2 = color(C.ROPE);
-      effR = red(rc2); effG = green(rc2); effB = blue(rc2);
+      effStr = 'BRACING - next hit halved!';
+      var rope = color(C.ROPE); effR = red(rope); effG = green(rope); effB = blue(rope);
     }
-    fill(effR, effG, effB, a22);
-    textAlign(CENTER, TOP); textSize(sz(13)); textStyle(BOLD);
-    text(effStr, gx(GW/2), gy(cy + 96));
+    fill(effR, effG, effB, effA);
+    textAlign(CENTER, TOP); textSize(sz(15)); textStyle(BOLD);
+    text(effStr, gx(GW/2), gy(cy + ch + 12));
     textStyle(NORMAL);
-
-    var dimc = color(C.TEXT_DIM);
-    fill(red(dimc), green(dimc), blue(dimc), Math.round(alpha * 160));
+    var dc = color(C.TEXT_DIM);
+    fill(red(dc), green(dc), blue(dc), Math.round(Math.min(effEntered / 10.0, 1.0) * alpha * 150));
     textSize(sz(9));
-    text(move.desc, gx(GW/2), gy(cy + 118));
+    text(move.desc, gx(GW/2), gy(cy + ch + 32));
   }
   pop();
 }
@@ -811,76 +970,11 @@ function resolveEnemyTurn(cm) {
   gs.player.extraDraw = 0;
   cm.dominoes = rollDominoes(domCount);
   cm.selDom   = null;
+  cm.dragDomIdx = null;
+  cm.isDragging = false;
 }
 
-function drawCombatCard(card, cx, cy, w, h, cm) {
-  push();
-  var ready = isReady(card);
-  var fitType = false;
-  if (cm.selDom !== null && !cm.dominoes[cm.selDom].used) {
-    fitType = dominoFits(cm.dominoes[cm.selDom], card);
-  }
-  var fits = fitType !== false;
-  fill(ready ? C.GREEN_HI : (fits ? '#1a2f50' : C.PANEL));
-  stroke(ready ? C.GREEN_BD : (fits ? C.GOLD : C.BORDER));
-  strokeWeight(sz(fits || ready ? 2.5 : 1.5));
-  rect(gx(cx), gy(cy), sz(w), sz(h), sz(6));
-  noStroke();
-  fill(ready ? '#7fff7f' : C.TEXT);
-  textAlign(CENTER, TOP); textSize(sz(9)); textStyle(BOLD);
-  text(card.name, gx(cx + w/2), gy(cy + 5));
-  textStyle(NORMAL);
-  var sW = w * 0.82, sH = 24, sX = cx + (w - sW)/2, sY = cy + 20;
-  fill(C.OCEAN); stroke(C.BORDER); strokeWeight(sz(1));
-  rect(gx(sX), gy(sY), sz(sW), sz(sH), sz(3));
-  line(gx(sX + sW/2), gy(sY + 3), gx(sX + sW/2), gy(sY + sH - 3));
-  for (var si = 0; si < 2; si++) {
-    var halfX = sX + si * (sW/2) + sW/4;
-    var asgn  = card.assigned[si];
-    var req   = card.slots[si];
-    noStroke();
-    if (asgn !== null) {
-      fill(C.GOLD); textSize(sz(13)); textStyle(BOLD);
-      textAlign(CENTER, CENTER);
-      text('' + asgn, gx(halfX), gy(sY + sH/2));
-      textStyle(NORMAL);
-    } else {
-      fill(fits ? '#88aacc' : C.TEXT_DIM);
-      textSize(sz(11)); textAlign(CENTER, CENTER);
-      text(req === null ? '?' : '' + req, gx(halfX), gy(sY + sH/2));
-    }
-  }
-  noStroke(); fill(C.TEXT_DIM);
-  textAlign(CENTER, TOP); textSize(sz(8));
-  text(card.desc, gx(cx + w/2), gy(sY + sH + 4), sz(w - 8), sz(h - sH - 30));
-  if (ready) {
-    fill(C.GOLD); textAlign(CENTER, BOTTOM); textSize(sz(10)); textStyle(BOLD);
-    text('FIRE!', gx(cx + w/2), gy(cy + h - 3));
-    textStyle(NORMAL);
-  } else if (fits) {
-    fill(C.GOLD); textAlign(CENTER, BOTTOM); textSize(sz(9));
-    text('PLACE', gx(cx + w/2), gy(cy + h - 3));
-  }
-  pop();
-}
-
-function drawDomino(dom, dx, dy, w, h, selected) {
-  push();
-  fill(selected ? C.DECK : C.PANEL2);
-  stroke(selected ? C.GOLD : C.BORDER); strokeWeight(sz(selected ? 2.5 : 1.5));
-  rect(gx(dx), gy(dy), sz(w), sz(h), sz(4));
-  stroke(selected ? C.GOLD : '#2e5a8a'); strokeWeight(sz(1));
-  line(gx(dx + w/2), gy(dy + 4), gx(dx + w/2), gy(dy + h - 4));
-  noStroke();
-  fill(selected ? C.GOLD : C.TEXT);
-  textAlign(CENTER, CENTER); textSize(sz(13)); textStyle(BOLD);
-  text('' + dom.left,  gx(dx + w/4),   gy(dy + h/2));
-  text('' + dom.right, gx(dx + 3*w/4), gy(dy + h/2));
-  textStyle(NORMAL);
-  pop();
-}
-
-// ── LOOT ────────────────────────────────────────────────────────────────
+// -- LOOT --
 function startLoot() {
   var fl     = FLOORS[min(gs.floorIdx, FLOORS.length - 1)];
   var eId    = fl.enemies[min(gs.enemyInFloor, fl.enemies.length - 1)];
@@ -951,7 +1045,7 @@ function drawLootCard(card, cx, cy, w, h) {
   pop();
 }
 
-// ── PORT ────────────────────────────────────────────────────────────────
+// -- PORT --
 function startPort(completedFloor) {
   var ownedIds = gs.backpack.map(function(c) { return c.id; });
   var pool = CARD_DB.filter(function(c) { return ownedIds.indexOf(c.id) < 0; });
@@ -1032,7 +1126,7 @@ function drawPortItem(item, cx, cy, w, h, canAfford, done) {
   pop();
 }
 
-// ── INPUT ────────────────────────────────────────────────────────────────
+// -- INPUT --
 function mousePressed() {
   var mx = toGX(mouseX), my = toGY(mouseY);
   if      (gs.screen === 'title')  handleTitle(mx, my);
@@ -1044,6 +1138,56 @@ function mousePressed() {
 }
 
 function touchStarted() { mousePressed(); return false; }
+
+function mouseDragged() { handleDrag(); }
+function touchMoved()   { handleDrag(); return false; }
+function mouseReleased()  { handleRelease(); }
+function touchEnded()     { handleRelease(); return false; }
+
+function handleDrag() {
+  if (gs.screen !== 'combat') return;
+  var cm = gs.combat;
+  if (!cm || cm.enemyAnim > 0 || cm.dragDomIdx === null) return;
+  var mx = toGX(mouseX), my = toGY(mouseY);
+  cm.dragX = mx - CB.domW / 2;
+  cm.dragY = my - CB.domH / 2;
+  cm.isDragging = true;
+}
+
+function handleRelease() {
+  if (gs.screen !== 'combat') return;
+  var cm = gs.combat;
+  if (!cm || cm.enemyAnim > 0) return;
+  if (cm.isDragging && cm.dragDomIdx !== null && !cm.dominoes[cm.dragDomIdx].used) {
+    var mx = toGX(mouseX), my = toGY(mouseY);
+    var nc = gs.equipped.length;
+    var cardW = (GW - 12 - (nc - 1) * 6) / nc;
+    for (var ci = 0; ci < nc; ci++) {
+      var card = gs.backpack[gs.equipped[ci]];
+      var ccx  = 6 + ci * (cardW + 6);
+      if (mx >= ccx && mx <= ccx + cardW && my >= CB.cardY && my <= CB.cardY + CB.cardH) {
+        var dom = cm.dominoes[cm.dragDomIdx];
+        var fitType = dominoFits(dom, card);
+        if (!fitType) {
+          showMsg("That domino doesn't fit " + card.name + '!');
+        } else {
+          if (fitType === 'normal') { card.assigned[0] = dom.left;  card.assigned[1] = dom.right; }
+          else                     { card.assigned[0] = dom.right; card.assigned[1] = dom.left; }
+          dom.used      = true;
+          cm.selDom     = null;
+          applyCard(card, cm);
+          if (cm.enemy.hp <= 0) {
+            cm.dragDomIdx = null; cm.isDragging = false;
+            startLoot(); return;
+          }
+        }
+        break;
+      }
+    }
+  }
+  cm.dragDomIdx = null;
+  cm.isDragging = false;
+}
 
 function handleTitle(mx, my) {
   var bw = 190, bh = 46, bx = GW/2 - bw/2, by = GH * 0.76;
@@ -1077,15 +1221,23 @@ function handleCombat(mx, my) {
   var cm = gs.combat;
   if (cm.enemyAnim > 0) return;
   var total = cm.dominoes.length;
+
+  // Domino press: start drag and toggle tap-selection
   for (var di = 0; di < total; di++) {
     if (cm.dominoes[di].used) continue;
     var pos = getDomPos(di, total);
     if (mx >= pos.x && mx <= pos.x + CB.domW && my >= pos.y && my <= pos.y + CB.domH) {
-      cm.selDom = (cm.selDom === di) ? null : di;
+      cm.selDom     = (cm.selDom === di) ? null : di;
+      cm.dragDomIdx = di;
+      cm.isDragging = false;
+      cm.dragX      = pos.x;
+      cm.dragY      = pos.y;
       return;
     }
   }
-  if (cm.selDom !== null) {
+
+  // Card tap-path (selDom set, not currently dragging)
+  if (cm.selDom !== null && !cm.isDragging) {
     var nc = gs.equipped.length;
     var cardW = (GW - 12 - (nc - 1) * 6) / nc;
     for (var ci = 0; ci < nc; ci++) {
@@ -1097,16 +1249,20 @@ function handleCombat(mx, my) {
         if (!fitType) { showMsg("That domino doesn't fit " + card.name + '!'); return; }
         if (fitType === 'normal') { card.assigned[0] = dom.left;  card.assigned[1] = dom.right; }
         else                     { card.assigned[0] = dom.right; card.assigned[1] = dom.left; }
-        dom.used  = true;
-        cm.selDom = null;
+        dom.used      = true;
+        cm.selDom     = null;
+        cm.dragDomIdx = null;
         applyCard(card, cm);
         if (cm.enemy.hp <= 0) { startLoot(); return; }
         return;
       }
     }
-    cm.selDom = null;
+    cm.selDom     = null;
+    cm.dragDomIdx = null;
     return;
   }
+
+  // End turn button
   var btnY = domBtnY(total);
   var etX  = GW/2 - CB.btnW/2;
   if (mx >= etX && mx <= etX + CB.btnW && my >= btnY && my <= btnY + CB.btnH) doEndTurn();
@@ -1116,7 +1272,7 @@ function doEndTurn() {
   var cm = gs.combat;
   cm.animIsStun = cm.enemy.stunned;
   cm.animDom    = rollDominoes(1)[0];
-  cm.enemyAnim  = 55;
+  cm.enemyAnim  = 70;
 }
 
 function handleLoot(mx, my) {
