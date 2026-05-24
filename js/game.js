@@ -40,12 +40,20 @@ var CARD_DB = [
   {id:'nav_chart',    name:'Nav Chart',     slots:[null,null], dmg:0,  heal:0, extraDraw:3, stun:false, desc:'+3 dominoes next turn.'}
 ];
 
+var MOVE_DB = {
+  light:  {name:'Pot Shot',    type:'atk', mult:0.6, desc:'A light attack'},
+  cannon: {name:'Cannon Fire', type:'atk', mult:1.0, desc:'Standard volley'},
+  heavy:  {name:'Broadside',   type:'atk', mult:1.5, desc:'Powerful volley!'},
+  brace:  {name:'Brace',       type:'def', mult:0,   desc:'Halves next hit taken'},
+  repair: {name:'Patch Hull',  type:'heal',mult:0,   desc:'Emergency repairs'}
+};
+
 var ENEMY_DB = [
-  {name:'Dinghy',     hp:14, atk:2,  gold:1},
-  {name:'Sloop',      hp:24, atk:4,  gold:2},
-  {name:'Brigantine', hp:38, atk:6,  gold:3},
-  {name:"Man-o-War",  hp:55, atk:9,  gold:4},
-  {name:'Ghost Ship', hp:75, atk:13, gold:5}
+  {name:'Dinghy',     hp:14, atk:2,  gold:1, moveset:['light','light','brace']},
+  {name:'Sloop',      hp:24, atk:4,  gold:2, moveset:['cannon','light','repair']},
+  {name:'Brigantine', hp:38, atk:6,  gold:3, moveset:['cannon','heavy','brace']},
+  {name:"Man-o-War",  hp:55, atk:9,  gold:4, moveset:['heavy','cannon','brace']},
+  {name:'Ghost Ship', hp:75, atk:13, gold:5, moveset:['heavy','heavy','repair']}
 ];
 
 var FLOORS = [
@@ -100,6 +108,19 @@ function rollDominoes(n) {
   return result;
 }
 
+function pickMove(enemy) {
+  var id   = enemy.moveset[Math.floor(Math.random() * enemy.moveset.length)];
+  var base = MOVE_DB[id];
+  return {
+    id:      id,
+    name:    base.name,
+    type:    base.type,
+    dmg:     base.type === 'atk'  ? Math.max(1, Math.round(enemy.atk * base.mult)) : 0,
+    healAmt: base.type === 'heal' ? Math.max(3, Math.round(enemy.maxHp * 0.15))    : 0,
+    desc:    base.desc
+  };
+}
+
 function dominoFits(dom, card) {
   if (card.assigned[0] !== null && card.assigned[1] !== null) return false;
   var s0 = card.slots[0], s1 = card.slots[1];
@@ -118,8 +139,15 @@ function applyCard(card, cm) {
   if (!isReady(card)) return;
   var msgs = [];
   if (card.dmg > 0) {
-    cm.enemy.hp -= card.dmg;
-    msgs.push('BOOM! -' + card.dmg + ' hull!');
+    var dmg = card.dmg;
+    if (cm.enemy.braceActive) {
+      dmg = Math.max(1, Math.round(dmg * 0.5));
+      cm.enemy.braceActive = false;
+      msgs.push('Brace absorbed! -' + dmg + ' hull!');
+    } else {
+      msgs.push('BOOM! -' + dmg + ' hull!');
+    }
+    cm.enemy.hp -= dmg;
   }
   if (card.heal > 0) {
     gs.player.hp = min(gs.player.maxHp, gs.player.hp + card.heal);
@@ -169,7 +197,18 @@ function draw() {
   gs.wave = (gs.wave + 0.02) % TWO_PI;
   if      (gs.screen === 'title')  drawTitle();
   else if (gs.screen === 'equip')  drawEquip();
-  else if (gs.screen === 'combat') drawCombat();
+  else if (gs.screen === 'combat') {
+    drawCombat();
+    var cm = gs.combat;
+    if (cm && cm.enemyAnim > 0) {
+      cm.enemyAnim--;
+      if (cm.enemyAnim > 0) {
+        drawEnemyTurnOverlay(cm);
+      } else {
+        resolveEnemyTurn(cm);
+      }
+    }
+  }
   else if (gs.screen === 'loot')   drawLoot();
   else if (gs.screen === 'port')   drawPort();
   drawMsgOverlay();
@@ -194,8 +233,7 @@ function drawWaves(yBase) {
 function drawShip(cx, cy, w, enemy) {
   push();
   var h = w * 0.42;
-  fill(enemy ? C.DANGER : C.DECK);
-  noStroke();
+  fill(enemy ? C.DANGER : C.DECK); noStroke();
   beginShape();
   vertex(gx(cx - w/2),          gy(cy));
   vertex(gx(cx + w/2),          gy(cy));
@@ -217,13 +255,11 @@ function drawMsgOverlay() {
   var a = min(1, gs.msgTimer / 30) * 230;
   push();
   rectMode(CENTER);
-  fill(10, 20, 40, a);
-  noStroke();
+  fill(10, 20, 40, a); noStroke();
   rect(gx(GW/2), gy(GH - 52), sz(GW - 30), sz(34), sz(8));
   var gc = color(C.GOLD);
   fill(red(gc), green(gc), blue(gc), a);
-  textAlign(CENTER, CENTER);
-  textSize(sz(12));
+  textAlign(CENTER, CENTER); textSize(sz(12));
   text(gs.msg, gx(GW/2), gy(GH - 52));
   pop();
 }
@@ -238,8 +274,7 @@ function drawTitle() {
   drawShip(GW/2, GH * 0.60, 120, false);
   push();
   textAlign(CENTER, CENTER);
-  fill(C.GOLD);
-  textSize(sz(42)); textStyle(BOLD);
+  fill(C.GOLD); textSize(sz(42)); textStyle(BOLD);
   text('DOMINO', gx(GW/2), gy(GH * 0.18));
   text('SEAS',   gx(GW/2), gy(GH * 0.27));
   textStyle(NORMAL);
@@ -269,7 +304,7 @@ function equipCardRect(i) {
 function drawEquip() {
   push();
   var flIdx = min(gs.floorIdx, FLOORS.length - 1);
-  var fl = FLOORS[flIdx];
+  var fl    = FLOORS[flIdx];
   fill(C.GOLD); textAlign(CENTER, TOP); textSize(sz(15)); textStyle(BOLD);
   text('CHOOSE YOUR WEAPONS', gx(GW/2), gy(8));
   textStyle(NORMAL);
@@ -296,8 +331,7 @@ function drawEquip() {
 function drawEquipCard(card, cx, cy, w, h, equipped) {
   push();
   fill(equipped ? '#1a3a5c' : C.PANEL);
-  stroke(equipped ? C.GOLD : C.BORDER);
-  strokeWeight(sz(equipped ? 2.5 : 1.5));
+  stroke(equipped ? C.GOLD : C.BORDER); strokeWeight(sz(equipped ? 2.5 : 1.5));
   rect(gx(cx), gy(cy), sz(w), sz(h), sz(6));
   noStroke();
   fill(equipped ? C.GOLD : C.TEXT);
@@ -320,20 +354,20 @@ function drawEquipCard(card, cx, cy, w, h, equipped) {
 // ── COMBAT ────────────────────────────────────────────────────────────────
 var CB = {
   shipY:    68,
-  hpBarY:   138,
-  cardY:    186,
+  hpBarY:   136,
+  intentY:  156,
+  cardY:    182,
   cardH:    110,
-  domW:     54, domH: 28,
+  domW: 54, domH: 28,
   domPad:   6,
   domRowGap:5,
-  domLabelY:308,
-  domY:     320,
+  domLabelY:306,
+  domY:     318,
   btnW:     130, btnH: 38
 };
 
 function domPerRow(total) {
-  var fit = Math.floor((GW - 14) / (CB.domW + CB.domPad));
-  return Math.min(total, Math.max(1, fit));
+  return Math.min(total, Math.max(1, Math.floor((GW - 14) / (CB.domW + CB.domPad))));
 }
 
 function getDomPos(di, total) {
@@ -363,11 +397,20 @@ function startCombat() {
   var def = ENEMY_DB[eId];
   var domCount = 4 + gs.player.extraDraw;
   gs.player.extraDraw = 0;
+  var enemy = {
+    name: def.name, hp: def.hp, maxHp: def.hp,
+    atk: def.atk, gold: def.gold, moveset: def.moveset,
+    stunned: false, braceActive: false
+  };
   gs.combat = {
-    enemy:    {name:def.name, hp:def.hp, maxHp:def.hp, atk:def.atk, gold:def.gold, stunned:false},
-    dominoes: rollDominoes(domCount),
-    selDom:   null,
-    turn:     1
+    enemy:      enemy,
+    dominoes:   rollDominoes(domCount),
+    selDom:     null,
+    turn:       1,
+    nextMove:   pickMove(enemy),
+    enemyAnim:  0,
+    animIsStun: false,
+    animDom:    rollDominoes(1)[0]
   };
   gs.screen = 'combat';
   showMsg('A ' + def.name + ' approaches! Man the cannons!');
@@ -393,10 +436,23 @@ function drawCombat() {
   rect(gx(ehpX), gy(CB.hpBarY), sz(ehpW * max(0, cm.enemy.hp/cm.enemy.maxHp)), sz(ehpH), sz(4));
   fill(C.TEXT); textAlign(CENTER, CENTER); textSize(sz(9));
   text(cm.enemy.hp + '/' + cm.enemy.maxHp + ' hull', gx(GW/2), gy(CB.hpBarY + ehpH/2));
-  if (cm.enemy.stunned) {
-    fill(C.GOLD); textAlign(CENTER, TOP); textSize(sz(9));
-    text('[ANCHORED]', gx(GW/2), gy(CB.hpBarY + ehpH + 2));
-  }
+
+  // Enemy intent strip
+  var move = cm.nextMove;
+  var iBg = move.type === 'atk' ? '#3a0808' : move.type === 'heal' ? '#0a2a0a' : '#0a1428';
+  var iFg = move.type === 'atk' ? C.DANGER  : move.type === 'heal' ? C.HP_FG   : C.ROPE;
+  if (cm.enemy.stunned) { iBg = '#2a2a00'; iFg = C.GOLD; }
+  fill(iBg); stroke(iFg); strokeWeight(sz(1.5));
+  rect(gx(ehpX), gy(CB.intentY), sz(ehpW), sz(20), sz(3));
+  noStroke(); fill(iFg);
+  textAlign(LEFT, CENTER); textSize(sz(9));
+  var iLabel = cm.enemy.stunned ? 'ANCHORED' : move.name;
+  text(iLabel, gx(ehpX + 6), gy(CB.intentY + 10));
+  var iRight = cm.enemy.stunned ? 'skips turn' :
+               move.type === 'atk'  ? ('-' + move.dmg + ' crew') :
+               move.type === 'heal' ? ('+' + move.healAmt + ' hull') : 'blocks next hit';
+  textAlign(RIGHT, CENTER);
+  text(iRight, gx(ehpX + ehpW - 6), gy(CB.intentY + 10));
 
   // Player HP
   var phpW = 120, phpH = 14, phpX = 6, phpY = 6;
@@ -406,15 +462,13 @@ function drawCombat() {
   rect(gx(phpX), gy(phpY), sz(phpW * max(0, gs.player.hp/gs.player.maxHp)), sz(phpH), sz(3));
   fill(C.TEXT); textAlign(LEFT, TOP); textSize(sz(9));
   text('Crew: ' + gs.player.hp + '/' + gs.player.maxHp, gx(phpX + 3), gy(phpY + 2));
-
-  // Turn + gold (top right)
-  fill(C.TEXT_DIM); textAlign(RIGHT, TOP); textSize(sz(9));
+  fill(C.TEXT_DIM); textAlign(RIGHT, TOP);
   text('T' + cm.turn + '  G:' + gs.gold, gx(GW - 6), gy(6));
 
-  // Floor progress (below HP bar)
+  // Floor progress
   var fl = FLOORS[min(gs.floorIdx, FLOORS.length - 1)];
   fill(C.TEXT_DIM); textAlign(CENTER, TOP); textSize(sz(9));
-  text(fl.name + ' - enemy ' + (gs.enemyInFloor + 1) + '/' + fl.enemies.length, gx(GW/2), gy(CB.hpBarY - 14));
+  text(fl.name + ' - ' + (gs.enemyInFloor + 1) + '/' + fl.enemies.length, gx(GW/2), gy(CB.hpBarY - 14));
 
   // Equipped cards
   var nc = gs.equipped.length;
@@ -424,7 +478,7 @@ function drawCombat() {
     drawCombatCard(card, 6 + ci * (cardW + 6), CB.cardY, cardW, CB.cardH, cm);
   }
 
-  // Domino label
+  // Domino hint label
   fill(C.TEXT_DIM); textAlign(CENTER, BOTTOM); textSize(sz(10));
   if (cm.selDom === null) {
     text('Tap a domino to select it', gx(GW/2), gy(CB.domLabelY));
@@ -447,15 +501,147 @@ function drawCombat() {
     }
   }
 
-  // End Turn button - position adjusts for domino rows
+  // End Turn button (disabled during animation)
   var btnY = domBtnY(total);
-  var etX = GW/2 - CB.btnW/2;
-  fill(C.DECK); stroke(C.BORDER); strokeWeight(sz(1.5));
+  var etX  = GW/2 - CB.btnW/2;
+  var animActive = cm.enemyAnim > 0;
+  fill(animActive ? '#0d1f30' : C.DECK);
+  stroke(animActive ? '#1a3040' : C.BORDER); strokeWeight(sz(1.5));
   rect(gx(etX), gy(btnY), sz(CB.btnW), sz(CB.btnH), sz(8));
-  noStroke(); fill(C.TEXT);
+  noStroke();
+  fill(animActive ? '#334455' : C.TEXT);
   textAlign(CENTER, CENTER); textSize(sz(12));
   text('End Turn', gx(GW/2), gy(btnY + CB.btnH/2));
   pop();
+}
+
+function drawEnemyTurnOverlay(cm) {
+  var f        = cm.enemyAnim;
+  var entered  = 55 - f;
+  var fadeA    = Math.min(entered / 8.0, 1.0);
+  var fadeB    = Math.min(f / 8.0, 1.0);
+  var alpha    = Math.min(fadeA, fadeB);
+  if (alpha < 0.01) return;
+  var a8       = Math.round(alpha * 180);
+  var a22      = Math.round(alpha * 220);
+  var isStun   = cm.animIsStun;
+  var move     = cm.nextMove;
+  var pulse    = sin(entered * 0.35) * 0.5 + 0.5;
+
+  push();
+  fill(0, 0, 20, a8); noStroke();
+  rect(gx(0), gy(0), sz(GW), sz(GH));
+
+  var cw = 240, ch = 168, cx = GW/2 - cw/2, cy = GH * 0.28;
+  var bc = isStun ? color(C.GOLD) : color(C.DANGER);
+  fill(0, 8, 20, Math.round(alpha * 235));
+  stroke(red(bc), green(bc), blue(bc), a22);
+  strokeWeight(sz(2 + pulse * 2));
+  rect(gx(cx), gy(cy), sz(cw), sz(ch), sz(12));
+  noStroke();
+
+  fill(255, 80, 80, a22);
+  textAlign(CENTER, TOP); textSize(sz(10)); textStyle(BOLD);
+  text("ENEMY'S TURN", gx(GW/2), gy(cy + 8));
+  textStyle(NORMAL);
+
+  if (isStun) {
+    var gc2 = color(C.GOLD);
+    fill(red(gc2), green(gc2), blue(gc2), a22);
+    textSize(sz(22)); textStyle(BOLD);
+    text('ANCHORED!', gx(GW/2), gy(cy + 32));
+    textStyle(NORMAL);
+    var dc2 = color(C.TEXT_DIM);
+    fill(red(dc2), green(dc2), blue(dc2), Math.round(alpha * 180));
+    textSize(sz(11));
+    text('Enemy skips this attack', gx(GW/2), gy(cy + 66));
+  } else {
+    var tc = color(C.TEXT);
+    fill(red(tc), green(tc), blue(tc), a22);
+    textSize(sz(16)); textStyle(BOLD);
+    text(move.name, gx(GW/2), gy(cy + 26));
+    textStyle(NORMAL);
+
+    // Cosmetic domino slides in after 8 frames
+    if (entered > 8) {
+      var slideA = Math.min((entered - 8) / 6.0, 1.0) * alpha;
+      var sa22   = Math.round(slideA * 220);
+      var dom    = cm.animDom;
+      var dw = 62, dh = 30, dx = GW/2 - dw/2, dy = cy + 52;
+      var eb = color(C.EN_BG);
+      fill(red(eb), green(eb), blue(eb), sa22);
+      stroke(255, 80, 80, sa22); strokeWeight(sz(2));
+      rect(gx(dx), gy(dy), sz(dw), sz(dh), sz(4));
+      stroke(255, 80, 80, Math.round(slideA * 150)); strokeWeight(sz(1));
+      line(gx(dx + dw/2), gy(dy + 4), gx(dx + dw/2), gy(dy + dh - 4));
+      noStroke();
+      fill(255, 130, 130, sa22);
+      textAlign(CENTER, CENTER); textSize(sz(13)); textStyle(BOLD);
+      text('' + dom.left,  gx(dx + dw/4),   gy(dy + dh/2));
+      text('' + dom.right, gx(dx + 3*dw/4), gy(dy + dh/2));
+      textStyle(NORMAL);
+    }
+
+    // Effect line
+    var effStr, effR, effG, effB;
+    if (move.type === 'atk') {
+      effStr = '-' + move.dmg + ' crew HP';
+      effR = 255; effG = 80; effB = 80;
+    } else if (move.type === 'heal') {
+      effStr = '+' + move.healAmt + ' hull repaired';
+      var hc2 = color(C.HP_FG);
+      effR = red(hc2); effG = green(hc2); effB = blue(hc2);
+    } else {
+      effStr = 'BRACING! Your next hit is halved';
+      var rc2 = color(C.ROPE);
+      effR = red(rc2); effG = green(rc2); effB = blue(rc2);
+    }
+    fill(effR, effG, effB, a22);
+    textAlign(CENTER, TOP); textSize(sz(13)); textStyle(BOLD);
+    text(effStr, gx(GW/2), gy(cy + 96));
+    textStyle(NORMAL);
+
+    var dimc = color(C.TEXT_DIM);
+    fill(red(dimc), green(dimc), blue(dimc), Math.round(alpha * 160));
+    textSize(sz(9));
+    text(move.desc, gx(GW/2), gy(cy + 118));
+  }
+  pop();
+}
+
+function resolveEnemyTurn(cm) {
+  var move = cm.nextMove;
+  if (cm.animIsStun) {
+    cm.enemy.stunned = false;
+    showMsg(cm.enemy.name + ' was anchored and skipped its attack!');
+  } else {
+    if (move.type === 'atk') {
+      gs.player.hp -= move.dmg;
+      showMsg(cm.enemy.name + ' fires ' + move.name + '! -' + move.dmg + ' HP!');
+      if (gs.player.hp <= 0) {
+        gs.player.hp = 0;
+        showMsg('Your ship is sunk! Starting over...');
+        setTimeout(function() { initGS(); }, 2200);
+        return;
+      }
+    } else if (move.type === 'heal') {
+      cm.enemy.hp = min(cm.enemy.maxHp, cm.enemy.hp + move.healAmt);
+      showMsg(cm.enemy.name + ' patches hull! +' + move.healAmt + ' HP!');
+    } else {
+      cm.enemy.braceActive = true;
+      showMsg(cm.enemy.name + ' braces! Your next hit is halved!');
+    }
+  }
+  cm.nextMove = pickMove(cm.enemy);
+  cm.animDom  = rollDominoes(1)[0];
+  cm.turn++;
+  for (var i = 0; i < gs.equipped.length; i++) {
+    gs.backpack[gs.equipped[i]].assigned = [null, null];
+  }
+  var domCount = 4 + gs.player.extraDraw;
+  gs.player.extraDraw = 0;
+  cm.dominoes = rollDominoes(domCount);
+  cm.selDom   = null;
 }
 
 function drawCombatCard(card, cx, cy, w, h, cm) {
@@ -512,8 +698,7 @@ function drawCombatCard(card, cx, cy, w, h, cm) {
 function drawDomino(dom, dx, dy, w, h, selected) {
   push();
   fill(selected ? C.DECK : C.PANEL2);
-  stroke(selected ? C.GOLD : C.BORDER);
-  strokeWeight(sz(selected ? 2.5 : 1.5));
+  stroke(selected ? C.GOLD : C.BORDER); strokeWeight(sz(selected ? 2.5 : 1.5));
   rect(gx(dx), gy(dy), sz(w), sz(h), sz(4));
   stroke(selected ? C.GOLD : '#2e5a8a'); strokeWeight(sz(1));
   line(gx(dx + w/2), gy(dy + 4), gx(dx + w/2), gy(dy + h - 4));
@@ -528,10 +713,10 @@ function drawDomino(dom, dx, dy, w, h, selected) {
 
 // ── LOOT ────────────────────────────────────────────────────────────────
 function startLoot() {
-  var fl  = FLOORS[min(gs.floorIdx, FLOORS.length - 1)];
-  var eId = fl.enemies[min(gs.enemyInFloor, fl.enemies.length - 1)];
+  var fl     = FLOORS[min(gs.floorIdx, FLOORS.length - 1)];
+  var eId    = fl.enemies[min(gs.enemyInFloor, fl.enemies.length - 1)];
   var earned = ENEMY_DB[eId].gold;
-  gs.gold += earned;
+  gs.gold   += earned;
   var ownedIds = gs.backpack.map(function(c) { return c.id; });
   var pool = CARD_DB.filter(function(c) { return ownedIds.indexOf(c.id) < 0; });
   for (var i = pool.length - 1; i > 0; i--) {
@@ -539,7 +724,7 @@ function startLoot() {
     var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
   }
   var choices = pool.slice(0, min(2, pool.length)).map(function(c) { return cloneCard(c); });
-  gs.loot = {choices: choices};
+  gs.loot   = {choices: choices};
   gs.screen = 'loot';
   showMsg('Victory! +' + earned + ' gold! Choose your plunder!');
 }
@@ -569,13 +754,11 @@ function drawLoot() {
   textStyle(NORMAL);
   textSize(sz(11)); fill(C.TEXT_DIM);
   text('Choose a card to add to your hold.   Gold: ' + gs.gold, gx(GW/2), gy(46));
-
   var cards = gs.loot.choices;
   var cw = 170, ch = 120;
-  var totalW = cards.length * cw + (cards.length - 1) * 12;
+  var totalW  = cards.length * cw + (cards.length - 1) * 12;
   var cStartX = (GW - totalW) / 2;
   var cStartY = 66;
-
   if (cards.length === 0) {
     fill(C.TEXT_DIM); textSize(sz(12));
     text('No new cards available.', gx(GW/2), gy(GH/2));
@@ -587,7 +770,6 @@ function drawLoot() {
     textStyle(NORMAL);
     pop(); return;
   }
-
   for (var i = 0; i < cards.length; i++) {
     drawLootCard(cards[i], cStartX + i * (cw + 12), cStartY, cw, ch);
   }
@@ -623,7 +805,7 @@ function startPort(completedFloor) {
   }
   var portCards = pool.slice(0, 2).map(function(c) { return cloneCard(c); });
   var items = [
-    {type:'heal',     label:'Patch Hull',    desc:'+15 HP to your crew',  cost:2, done:false},
+    {type:'heal',     label:'Patch Hull',    desc:'+15 HP to your crew',   cost:2, done:false},
     {type:'fullheal', label:'Full Overhaul', desc:'Repair hull to full HP', cost:5, done:false}
   ];
   for (var k = 0; k < portCards.length; k++) {
@@ -655,14 +837,10 @@ function drawPort() {
   text('A safe harbour. Spend wisely.', gx(GW/2), gy(28));
   fill(C.GOLD); textSize(sz(13));
   text('Gold: ' + gs.gold, gx(GW/2), gy(46));
-
   for (var i = 0; i < port.items.length; i++) {
     var item = port.items[i];
-    var iy = portItemY(i);
-    var ih = portItemH(item);
-    drawPortItem(item, 12, iy, GW - 24, ih, gs.gold >= item.cost, item.done);
+    drawPortItem(item, 12, portItemY(i), GW - 24, portItemH(item), gs.gold >= item.cost, item.done);
   }
-
   var bw = 180, bh = 42, bx = GW/2 - bw/2, by = GH - 56;
   fill(C.GOLD); noStroke();
   rect(gx(bx), gy(by), sz(bw), sz(bh), sz(10));
@@ -679,11 +857,9 @@ function drawPortItem(item, cx, cy, w, h, canAfford, done) {
   strokeWeight(sz(canAfford && !done ? 2 : 1.5));
   rect(gx(cx), gy(cy), sz(w), sz(h), sz(6));
   noStroke();
-  // Cost badge (top right)
   fill(done ? C.TEXT_DIM : (canAfford ? C.GOLD : C.DANGER));
   textAlign(RIGHT, TOP); textSize(sz(11));
   text(done ? '[done]' : (item.cost + 'g'), gx(cx + w - 8), gy(cy + 8));
-  // Name
   fill(done ? C.TEXT_DIM : (canAfford ? C.TEXT : '#556677'));
   textAlign(LEFT, TOP); textSize(sz(11)); textStyle(BOLD);
   text(item.label, gx(cx + 8), gy(cy + 8));
@@ -691,7 +867,7 @@ function drawPortItem(item, cx, cy, w, h, canAfford, done) {
   if (item.type === 'card') {
     fill(C.ROPE); textSize(sz(10));
     text(item.slotStr, gx(cx + 8), gy(cy + 24));
-    fill(done ? C.TEXT_DIM : C.TEXT_DIM); textSize(sz(9));
+    fill(C.TEXT_DIM); textSize(sz(9));
     text(item.desc, gx(cx + 8), gy(cy + 38), sz(w - 16), sz(h - 44));
   } else {
     fill(done ? '#334455' : C.TEXT_DIM); textSize(sz(9));
@@ -742,9 +918,8 @@ function handleEquip(mx, my) {
 
 function handleCombat(mx, my) {
   var cm = gs.combat;
+  if (cm.enemyAnim > 0) return;
   var total = cm.dominoes.length;
-
-  // Domino taps (check wrapped positions)
   for (var di = 0; di < total; di++) {
     if (cm.dominoes[di].used) continue;
     var pos = getDomPos(di, total);
@@ -753,8 +928,6 @@ function handleCombat(mx, my) {
       return;
     }
   }
-
-  // Card taps (when domino selected)
   if (cm.selDom !== null) {
     var nc = gs.equipped.length;
     var cardW = (GW - 12 - (nc - 1) * 6) / nc;
@@ -767,8 +940,8 @@ function handleCombat(mx, my) {
         if (!fitType) { showMsg("That domino doesn't fit " + card.name + '!'); return; }
         if (fitType === 'normal') { card.assigned[0] = dom.left;  card.assigned[1] = dom.right; }
         else                     { card.assigned[0] = dom.right; card.assigned[1] = dom.left; }
-        dom.used    = true;
-        cm.selDom   = null;
+        dom.used  = true;
+        cm.selDom = null;
         applyCard(card, cm);
         if (cm.enemy.hp <= 0) { startLoot(); return; }
         return;
@@ -777,36 +950,16 @@ function handleCombat(mx, my) {
     cm.selDom = null;
     return;
   }
-
-  // End Turn button
   var btnY = domBtnY(total);
-  var etX = GW/2 - CB.btnW/2;
+  var etX  = GW/2 - CB.btnW/2;
   if (mx >= etX && mx <= etX + CB.btnW && my >= btnY && my <= btnY + CB.btnH) doEndTurn();
 }
 
 function doEndTurn() {
   var cm = gs.combat;
-  if (cm.enemy.stunned) {
-    showMsg(cm.enemy.name + ' is anchored - skips attack!');
-    cm.enemy.stunned = false;
-  } else {
-    gs.player.hp -= cm.enemy.atk;
-    showMsg(cm.enemy.name + ' deals ' + cm.enemy.atk + ' damage!');
-    if (gs.player.hp <= 0) {
-      gs.player.hp = 0;
-      showMsg('Your ship is sunk! Starting over...');
-      setTimeout(function() { initGS(); }, 2200);
-      return;
-    }
-  }
-  for (var i = 0; i < gs.equipped.length; i++) {
-    gs.backpack[gs.equipped[i]].assigned = [null, null];
-  }
-  var domCount = 4 + gs.player.extraDraw;
-  gs.player.extraDraw = 0;
-  cm.dominoes = rollDominoes(domCount);
-  cm.selDom   = null;
-  cm.turn++;
+  cm.animIsStun = cm.enemy.stunned;
+  cm.animDom    = rollDominoes(1)[0];
+  cm.enemyAnim  = 55;
 }
 
 function handleLoot(mx, my) {
@@ -815,7 +968,6 @@ function handleLoot(mx, my) {
   var totalW  = cards.length * cw + (cards.length - 1) * 12;
   var cStartX = (GW - totalW) / 2;
   var cStartY = 66;
-
   if (cards.length === 0) {
     var bw = 160, bh = 40, bx = GW/2 - bw/2, by = GH * 0.65;
     if (mx >= bx && mx <= bx + bw && my >= by && my <= by + bh) afterLoot();
@@ -840,13 +992,12 @@ function handlePort(mx, my) {
   var port = gs.port;
   for (var i = 0; i < port.items.length; i++) {
     var item = port.items[i];
-    var iy = portItemY(i);
-    var ih = portItemH(item);
+    var iy = portItemY(i), ih = portItemH(item);
     if (mx >= 12 && mx <= GW - 12 && my >= iy && my <= iy + ih) {
-      if (item.done)          { showMsg('Already purchased.'); return; }
-      if (gs.gold < item.cost){ showMsg('Need ' + item.cost + 'g - not enough gold!'); return; }
-      gs.gold   -= item.cost;
-      item.done  = true;
+      if (item.done)           { showMsg('Already purchased.'); return; }
+      if (gs.gold < item.cost) { showMsg('Need ' + item.cost + 'g - not enough gold!'); return; }
+      gs.gold  -= item.cost;
+      item.done = true;
       if (item.type === 'heal') {
         gs.player.hp = min(gs.player.maxHp, gs.player.hp + 15);
         showMsg('Hull patched! +15 HP. (' + gs.gold + 'g left)');
