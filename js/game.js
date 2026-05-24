@@ -77,6 +77,12 @@ function cloneCard(def) {
   };
 }
 
+function initFloorState() {
+  var fl = FLOORS[min(gs.floorIdx, FLOORS.length - 1)];
+  gs.floorDefeated = [];
+  for (var i = 0; i < fl.enemies.length; i++) gs.floorDefeated.push(false);
+}
+
 function initGS() {
   gs = {
     screen:       'title',
@@ -85,6 +91,7 @@ function initGS() {
     equipped:     [0, 1, 2],
     floorIdx:     0,
     enemyInFloor: 0,
+    floorDefeated:[],
     gold:         2,
     combat:       null,
     loot:         null,
@@ -93,6 +100,7 @@ function initGS() {
     msgTimer:     0,
     wave:         0
   };
+  initFloorState();
 }
 
 function makeDomino(l, r) { return {left:l, right:r, used:false}; }
@@ -196,6 +204,7 @@ function draw() {
   background(C.OCEAN);
   gs.wave = (gs.wave + 0.02) % TWO_PI;
   if      (gs.screen === 'title')  drawTitle();
+  else if (gs.screen === 'floor')  drawFloor();
   else if (gs.screen === 'equip')  drawEquip();
   else if (gs.screen === 'combat') {
     drawCombat();
@@ -289,8 +298,164 @@ function drawTitle() {
   pop();
 }
 
+// ── FLOOR MAP ────────────────────────────────────────────────────────────
+function floorNodeRect(i, totalNodes) {
+  var nw = 250, nh = 76;
+  var topY = 96, botY = 570;
+  var slotY;
+  if (totalNodes <= 1) {
+    slotY = (topY + botY - nh) / 2;
+  } else {
+    slotY = topY + i * (botY - topY - nh) / (totalNodes - 1);
+  }
+  return {x: (GW - nw) / 2, y: slotY, w: nw, h: nh};
+}
+
+function drawFloor() {
+  var fl         = FLOORS[min(gs.floorIdx, FLOORS.length - 1)];
+  var n          = fl.enemies.length;
+  var totalNodes = n + 1;
+
+  push();
+  fill(C.DEEP); noStroke();
+  rect(gx(0), gy(GH * 0.50), sz(GW), sz(GH * 0.50));
+  drawWaves(GH * 0.52);
+
+  // Header
+  fill(C.GOLD); textAlign(CENTER, TOP); textSize(sz(18)); textStyle(BOLD);
+  text(fl.name, gx(GW/2), gy(8));
+  textStyle(NORMAL);
+  fill(C.ROPE); textSize(sz(10));
+  text('Floor ' + (gs.floorIdx + 1) + ' of ' + FLOORS.length, gx(GW/2), gy(29));
+
+  // Player HP bar
+  var phpW = 110, phpH = 12, phpX = 8, phpY = 46;
+  fill(C.HP_BG); noStroke();
+  rect(gx(phpX), gy(phpY), sz(phpW), sz(phpH), sz(3));
+  fill(C.HP_FG);
+  rect(gx(phpX), gy(phpY), sz(phpW * max(0, gs.player.hp / gs.player.maxHp)), sz(phpH), sz(3));
+  noStroke(); fill(C.TEXT); textAlign(LEFT, TOP); textSize(sz(9));
+  text('Crew: ' + gs.player.hp + '/' + gs.player.maxHp, gx(phpX + 2), gy(phpY + 2));
+
+  // Gold
+  fill(C.GOLD); textAlign(RIGHT, TOP); textSize(sz(12)); textStyle(BOLD);
+  text('G: ' + gs.gold, gx(GW - 8), gy(46));
+  textStyle(NORMAL);
+
+  // Dashed paths between nodes
+  for (var pi = 0; pi < totalNodes - 1; pi++) {
+    var ra = floorNodeRect(pi, totalNodes);
+    var rb = floorNodeRect(pi + 1, totalNodes);
+    var px = GW / 2;
+    var py1 = ra.y + ra.h + 5;
+    var py2 = rb.y - 5;
+    var step = 10, dashH = 5;
+    for (var d = 0; py1 + d * step + dashH <= py2; d++) {
+      stroke(C.ROPE); strokeWeight(sz(1.5));
+      line(gx(px), gy(py1 + d * step), gx(px), gy(py1 + d * step + dashH));
+    }
+  }
+
+  // Enemy nodes
+  for (var ei = 0; ei < n; ei++) {
+    var r    = floorNodeRect(ei, totalNodes);
+    var eId  = fl.enemies[ei];
+    var def  = ENEMY_DB[eId];
+    var done = gs.floorDefeated[ei] || false;
+    drawFloorEnemyNode(r.x, r.y, r.w, r.h, def, done);
+  }
+
+  // Port node
+  var pr = floorNodeRect(n, totalNodes);
+  drawFloorPortNode(pr.x, pr.y, pr.w, pr.h, fl);
+
+  pop();
+}
+
+function drawFloorEnemyNode(cx, cy, w, h, def, defeated) {
+  push();
+  fill(defeated ? '#0a1520' : C.PANEL2);
+  stroke(defeated ? '#1a3040' : C.BORDER);
+  strokeWeight(sz(defeated ? 1 : 2));
+  rect(gx(cx), gy(cy), sz(w), sz(h), sz(8));
+
+  if (defeated) {
+    noStroke();
+    fill(C.TEXT_DIM); textAlign(CENTER, CENTER); textSize(sz(11));
+    text(def.name + '  --  SUNK', gx(cx + w / 2), gy(cy + h / 2));
+  } else {
+    // Small enemy ship icon on left
+    drawShip(cx + 26, cy + h / 2, 32, true);
+    noStroke();
+    fill(C.TEXT); textAlign(LEFT, TOP); textSize(sz(12)); textStyle(BOLD);
+    text(def.name, gx(cx + 52), gy(cy + 9));
+    textStyle(NORMAL);
+    fill(C.EN_FG); textSize(sz(10));
+    text(def.hp + ' hull', gx(cx + 52), gy(cy + 27));
+    fill(C.ROPE);
+    text('ATK ' + def.atk + '   +' + def.gold + 'g loot', gx(cx + 52), gy(cy + 43));
+    // Chevron arrow
+    fill(C.GOLD); textAlign(RIGHT, CENTER); textSize(sz(18)); textStyle(BOLD);
+    text('>', gx(cx + w - 10), gy(cy + h / 2));
+    textStyle(NORMAL);
+  }
+  pop();
+}
+
+function drawFloorPortNode(cx, cy, w, h, fl) {
+  push();
+  fill('#0f2030');
+  stroke(C.GOLD);
+  strokeWeight(sz(2));
+  rect(gx(cx), gy(cy), sz(w), sz(h), sz(8));
+  noStroke();
+  fill(C.GOLD); textAlign(CENTER, CENTER); textSize(sz(13)); textStyle(BOLD);
+  text('ANCHOR AT PORT', gx(cx + w / 2), gy(cy + h / 2 - 12));
+  textStyle(NORMAL);
+  fill(C.ROPE); textSize(sz(10));
+  text(fl.portName, gx(cx + w / 2), gy(cy + h / 2 + 7));
+  fill(C.TEXT_DIM); textSize(sz(9));
+  text('(ends this floor)', gx(cx + w / 2), gy(cy + h / 2 + 22));
+  pop();
+}
+
+function handleFloor(mx, my) {
+  var fl         = FLOORS[min(gs.floorIdx, FLOORS.length - 1)];
+  var n          = fl.enemies.length;
+  var totalNodes = n + 1;
+
+  for (var i = 0; i < n; i++) {
+    var r = floorNodeRect(i, totalNodes);
+    if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) {
+      if (gs.floorDefeated[i]) {
+        showMsg(ENEMY_DB[fl.enemies[i]].name + ' is already sunk!');
+        return;
+      }
+      gs.enemyInFloor = i;
+      gs.screen = 'equip';
+      return;
+    }
+  }
+
+  var pr = floorNodeRect(n, totalNodes);
+  if (mx >= pr.x && mx <= pr.x + pr.w && my >= pr.y && my <= pr.y + pr.h) {
+    leaveFloor();
+  }
+}
+
+function leaveFloor() {
+  var fl = FLOORS[gs.floorIdx];
+  gs.floorIdx++;
+  if (gs.floorIdx >= FLOORS.length) {
+    showMsg('You conquered the seas! VICTORY, CAPTAIN!');
+    setTimeout(function() { initGS(); }, 3500);
+    return;
+  }
+  startPort(fl);
+}
+
 // ── EQUIP ────────────────────────────────────────────────────────────────
-var EQ = {sidePad:10, cols:2, gap:8, cardH:88, cardY0:66, rowGap:8};
+var EQ = {sidePad:10, cols:2, gap:8, cardH:88, cardY0:76, rowGap:8};
 
 function equipCardRect(i) {
   var cw = (GW - 2*EQ.sidePad - (EQ.cols-1)*EQ.gap) / EQ.cols;
@@ -303,20 +468,26 @@ function equipCardRect(i) {
 
 function drawEquip() {
   push();
-  var flIdx = min(gs.floorIdx, FLOORS.length - 1);
-  var fl    = FLOORS[flIdx];
+  var flIdx  = min(gs.floorIdx, FLOORS.length - 1);
+  var fl     = FLOORS[flIdx];
+  var eIdx   = min(gs.enemyInFloor, fl.enemies.length - 1);
+  var eId    = fl.enemies[eIdx];
+  var target = ENEMY_DB[eId];
+
   fill(C.GOLD); textAlign(CENTER, TOP); textSize(sz(15)); textStyle(BOLD);
   text('CHOOSE YOUR WEAPONS', gx(GW/2), gy(8));
   textStyle(NORMAL);
   textSize(sz(10)); fill(C.ROPE);
-  text(fl.name + '  -  ' + fl.enemies.length + ' enemies ahead', gx(GW/2), gy(26));
+  text('Facing: ' + target.name + '  (' + (eIdx + 1) + '/' + fl.enemies.length + ')', gx(GW/2), gy(27));
   textSize(sz(10)); fill(C.TEXT_DIM);
-  text('Equipped: ' + gs.equipped.length + '/3    Gold: ' + gs.gold, gx(GW/2), gy(40));
-  text('Tap card to equip / unequip (max 3)', gx(GW/2), gy(52));
+  text('Equipped: ' + gs.equipped.length + '/3    Gold: ' + gs.gold, gx(GW/2), gy(42));
+  text('Tap card to equip / unequip (max 3)', gx(GW/2), gy(56));
+
   for (var i = 0; i < gs.backpack.length; i++) {
     var r = equipCardRect(i);
     drawEquipCard(gs.backpack[i], r.x, r.y, r.w, r.h, gs.equipped.indexOf(i) >= 0);
   }
+
   var canFight = gs.equipped.length > 0;
   var bw = 180, bh = 42, bx = GW/2 - bw/2, by = GH - 56;
   fill(canFight ? C.GOLD : '#334455'); noStroke();
@@ -501,7 +672,7 @@ function drawCombat() {
     }
   }
 
-  // End Turn button (disabled during animation)
+  // End Turn button
   var btnY = domBtnY(total);
   var etX  = GW/2 - CB.btnW/2;
   var animActive = cm.enemyAnim > 0;
@@ -562,7 +733,6 @@ function drawEnemyTurnOverlay(cm) {
     text(move.name, gx(GW/2), gy(cy + 26));
     textStyle(NORMAL);
 
-    // Cosmetic domino slides in after 8 frames
     if (entered > 8) {
       var slideA = Math.min((entered - 8) / 6.0, 1.0) * alpha;
       var sa22   = Math.round(slideA * 220);
@@ -582,7 +752,6 @@ function drawEnemyTurnOverlay(cm) {
       textStyle(NORMAL);
     }
 
-    // Effect line
     var effStr, effR, effG, effB;
     if (move.type === 'atk') {
       effStr = '-' + move.dmg + ' crew HP';
@@ -730,21 +899,8 @@ function startLoot() {
 }
 
 function afterLoot() {
-  var fl = FLOORS[min(gs.floorIdx, FLOORS.length - 1)];
-  gs.enemyInFloor++;
-  if (gs.enemyInFloor >= fl.enemies.length) {
-    var done = fl;
-    gs.enemyInFloor = 0;
-    gs.floorIdx++;
-    if (gs.floorIdx >= FLOORS.length) {
-      showMsg('You conquered the seas! VICTORY, CAPTAIN!');
-      setTimeout(function() { initGS(); }, 3500);
-    } else {
-      startPort(done);
-    }
-  } else {
-    gs.screen = 'equip';
-  }
+  gs.floorDefeated[gs.enemyInFloor] = true;
+  gs.screen = 'floor';
 }
 
 function drawLoot() {
@@ -880,6 +1036,7 @@ function drawPortItem(item, cx, cy, w, h, canAfford, done) {
 function mousePressed() {
   var mx = toGX(mouseX), my = toGY(mouseY);
   if      (gs.screen === 'title')  handleTitle(mx, my);
+  else if (gs.screen === 'floor')  handleFloor(mx, my);
   else if (gs.screen === 'equip')  handleEquip(mx, my);
   else if (gs.screen === 'combat') handleCombat(mx, my);
   else if (gs.screen === 'loot')   handleLoot(mx, my);
@@ -890,7 +1047,7 @@ function touchStarted() { mousePressed(); return false; }
 
 function handleTitle(mx, my) {
   var bw = 190, bh = 46, bx = GW/2 - bw/2, by = GH * 0.76;
-  if (mx >= bx && mx <= bx + bw && my >= by && my <= by + bh) gs.screen = 'equip';
+  if (mx >= bx && mx <= bx + bw && my >= by && my <= by + bh) gs.screen = 'floor';
 }
 
 function handleEquip(mx, my) {
@@ -1012,5 +1169,8 @@ function handlePort(mx, my) {
     }
   }
   var bw = 180, bh = 42, bx = GW/2 - bw/2, by = GH - 56;
-  if (mx >= bx && mx <= bx + bw && my >= by && my <= by + bh) gs.screen = 'equip';
+  if (mx >= bx && mx <= bx + bw && my >= by && my <= by + bh) {
+    initFloorState();
+    gs.screen = 'floor';
+  }
 }
