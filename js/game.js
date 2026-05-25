@@ -35,11 +35,12 @@ var MOVE_DB = {
 };
 
 var ENEMY_DB = [
-  {name:'Dinghy',    hp:14,atk:2, gold:1,moveset:['light','light','brace']},
-  {name:'Sloop',     hp:24,atk:4, gold:2,moveset:['cannon','light','repair']},
-  {name:'Brigantine',hp:38,atk:6, gold:3,moveset:['cannon','heavy','brace']},
-  {name:"Man-o-War", hp:55,atk:9, gold:4,moveset:['heavy','cannon','brace']},
-  {name:'Ghost Ship',hp:75,atk:13,gold:5,moveset:['heavy','heavy','repair']}
+  {name:'Dinghy',    hp:14, atk:2, gold:1, moveset:['light','light','brace']},
+  {name:'Sloop',     hp:24, atk:4, gold:2, moveset:['cannon','light','repair']},
+  {name:'Brigantine',hp:38, atk:6, gold:3, moveset:['cannon','heavy','brace']},
+  {name:"Man-o-War", hp:55, atk:9, gold:4, moveset:['heavy','cannon','brace']},
+  {name:'Ghost Ship',hp:75, atk:13,gold:5, moveset:['heavy','heavy','repair']},
+  {name:'The Kraken',hp:150,atk:22,gold:15,moveset:['heavy','cannon','heavy','repair','heavy','brace']}
 ];
 
 var FLOORS = [
@@ -58,7 +59,7 @@ function cloneCard(def) {
           desc:def.desc,assigned:[null,null]};
 }
 
-// ── MAP GENERATION ──────────────────────────────────────────────────────────
+// ── MAP GENERATION ────────────────────────────────────────────
 var NW = 172, NH = 70;
 var xL = 10, xR = 218, xC = 114;
 var yR = [100, 238, 376, 510]; // row y positions
@@ -172,12 +173,13 @@ function initGS() {
     floorMap:null,
     gold:2,
     combat:null, loot:null, port:null,
+    finalBoss:false,
     msg:'', msgTimer:0, wave:0
   };
   initFloorState();
 }
 
-// ── DOMINO / COMBAT HELPERS ──────────────────────────────────────────────────
+// ── DOMINO / COMBAT HELPERS ───────────────────────────────────────────
 function makeDomino(l,r){return{left:l,right:r,used:false};}
 function rollDominoes(n){
   var r=[];
@@ -308,7 +310,7 @@ function drawMsgOverlay(){
   pop();
 }
 
-// ── TITLE ────────────────────────────────────────────────────────────────────
+// ── TITLE ──────────────────────────────────────────────────────────────────────────────
 function drawTitle(){
   push();
   fill(C.DEEP);noStroke();
@@ -333,7 +335,7 @@ function drawTitle(){
   pop();
 }
 
-// ── FLOOR MAP ────────────────────────────────────────────────────────────────
+// ── FLOOR MAP ───────────────────────────────────────────────────────────────────
 function drawFloor(){
   var map=gs.floorMap;
   var fl=FLOORS[min(gs.floorIdx,FLOORS.length-1)];
@@ -394,10 +396,14 @@ function drawFloor(){
 
 function drawMapNode(n,visited,reachable,fl){
   push();
+  var isFinalFloor=gs.floorIdx>=FLOORS.length-1;
   var bg,bd,bw;
   if(visited){bg='#090e18';bd='#1a2840';bw=1;}
   else if(reachable){
-    if(n.type==='exit'){bg='#0f2030';bd=C.GOLD;bw=2.5;}
+    if(n.type==='exit'){
+      if(isFinalFloor){bg='#0d0020';bd='#9400d3';bw=3;}
+      else{bg='#0f2030';bd=C.GOLD;bw=2.5;}
+    }
     else if(n.type==='port'){bg=C.PANEL;bd=C.GOLD;bw=2.5;}
     else{bg=C.PANEL2;bd=C.BORDER;bw=2;}
   } else {bg='#070c14';bd='#0c1520';bw=1;}
@@ -443,11 +449,23 @@ function drawMapNode(n,visited,reachable,fl){
     fill(C.ROPE);textSize(sz(9));
     text('Rest & restock',gx(n.x+NW/2),gy(n.y+NH/2+10));
   } else {
-    fill(C.GOLD);textAlign(CENTER,CENTER);textSize(sz(13));textStyle(BOLD);
-    text('DEPART',gx(n.x+NW/2),gy(n.y+NH/2-9));
-    textStyle(NORMAL);
-    fill(C.ROPE);textSize(sz(9));
-    text('Advance to next floor >>',gx(n.x+NW/2),gy(n.y+NH/2+9));
+    // exit node
+    if(isFinalFloor){
+      // Pulse the border
+      var pulse=sin(gs.wave*4)*0.5+0.5;
+      fill('#cc44ff');textAlign(CENTER,CENTER);textSize(sz(13));textStyle(BOLD);
+      text('THE KRAKEN',gx(n.x+NW/2),gy(n.y+NH/2-14));
+      text('AWAITS',gx(n.x+NW/2),gy(n.y+NH/2+1));
+      textStyle(NORMAL);
+      fill('#ee88ff');textSize(sz(8));
+      text('150 hull   ATK 22',gx(n.x+NW/2),gy(n.y+NH/2+15));
+    } else {
+      fill(C.GOLD);textAlign(CENTER,CENTER);textSize(sz(13));textStyle(BOLD);
+      text('DEPART',gx(n.x+NW/2),gy(n.y+NH/2-9));
+      textStyle(NORMAL);
+      fill(C.ROPE);textSize(sz(9));
+      text('Advance to next floor >>',gx(n.x+NW/2),gy(n.y+NH/2+9));
+    }
   }
   pop();
 }
@@ -469,7 +487,16 @@ function handleFloor(mx,my){
         gs.screen='port';
         showMsg('Welcome to '+fl.portName+'!');
       } else {
-        exitFloor();
+        // exit node
+        if(gs.floorIdx>=FLOORS.length-1){
+          // Final boss fight!
+          gs.finalBoss=true;
+          map.fightingNodeId=n.id;
+          gs.screen='equip';
+          showMsg('THE KRAKEN RISES FROM THE DEEP!');
+        } else {
+          exitFloor();
+        }
       }
       return;
     }
@@ -510,7 +537,7 @@ function buildPortItems(fl,isInFloor){
   return{portName:fl.portName,items:items,isInFloor:isInFloor};
 }
 
-// ── EQUIP ────────────────────────────────────────────────────────────────────
+// ── EQUIP ─────────────────────────────────────────────────────────────────────────────
 var EQ={sidePad:10,cols:2,gap:8,cardH:88,cardY0:76,rowGap:8};
 function equipCardRect(i){
   var cw=(GW-2*EQ.sidePad-(EQ.cols-1)*EQ.gap)/EQ.cols;
@@ -520,12 +547,20 @@ function equipCardRect(i){
 function drawEquip(){
   push();
   var node=gs.floorMap?getMapNode(gs.floorMap.fightingNodeId):null;
-  var target=node?ENEMY_DB[node.eId]:ENEMY_DB[0];
-  fill(C.GOLD);textAlign(CENTER,TOP);textSize(sz(15));textStyle(BOLD);
-  text('CHOOSE YOUR WEAPONS',gx(GW/2),gy(8));
-  textStyle(NORMAL);
-  textSize(sz(10));fill(C.ROPE);
-  text('Facing: '+target.name+'  ('+target.hp+' hull / ATK '+target.atk+')',gx(GW/2),gy(27));
+  var target=gs.finalBoss?ENEMY_DB[5]:(node?ENEMY_DB[node.eId]:ENEMY_DB[0]);
+  if(gs.finalBoss){
+    fill('#cc44ff');textAlign(CENTER,TOP);textSize(sz(15));textStyle(BOLD);
+    text('CHOOSE YOUR WEAPONS',gx(GW/2),gy(8));
+    textStyle(NORMAL);
+    textSize(sz(10));fill('#ee88ff');
+    text('THE KRAKEN awaits!  (150 hull / ATK 22)',gx(GW/2),gy(27));
+  } else {
+    fill(C.GOLD);textAlign(CENTER,TOP);textSize(sz(15));textStyle(BOLD);
+    text('CHOOSE YOUR WEAPONS',gx(GW/2),gy(8));
+    textStyle(NORMAL);
+    textSize(sz(10));fill(C.ROPE);
+    text('Facing: '+target.name+'  ('+target.hp+' hull / ATK '+target.atk+')',gx(GW/2),gy(27));
+  }
   textSize(sz(10));fill(C.TEXT_DIM);
   text('Equipped: '+gs.equipped.length+'/3    Gold: '+gs.gold,gx(GW/2),gy(42));
   text('Tap card to equip / unequip (max 3)',gx(GW/2),gy(56));
@@ -535,11 +570,11 @@ function drawEquip(){
   }
   var canFight=gs.equipped.length>0;
   var bw=180,bh=42,bx=GW/2-bw/2,by=GH-56;
-  fill(canFight?C.GOLD:'#334455');noStroke();
+  fill(canFight?(gs.finalBoss?'#9400d3':C.GOLD):'#334455');noStroke();
   rect(gx(bx),gy(by),sz(bw),sz(bh),sz(10));
-  fill(canFight?C.OCEAN:'#556677');
+  fill(canFight?C.TEXT:'#556677');
   textAlign(CENTER,CENTER);textSize(sz(14));textStyle(BOLD);
-  text('WEIGH ANCHOR!',gx(GW/2),gy(by+bh/2));
+  text(gs.finalBoss?'FACE THE KRAKEN!':'WEIGH ANCHOR!',gx(GW/2),gy(by+bh/2));
   textStyle(NORMAL);
   pop();
 }
@@ -563,7 +598,7 @@ function drawEquipCard(card,cx,cy,w,h,equipped){
   pop();
 }
 
-// ── COMBAT ───────────────────────────────────────────────────────────────────
+// ── COMBAT ─────────────────────────────────────────────────────────────────────────────
 var CB={
   shipY:68,hpBarY:136,intentY:156,
   cardY:182,cardH:110,
@@ -590,7 +625,7 @@ function domBtnY(total){
 function startCombat(){
   for(var i=0;i<gs.equipped.length;i++) gs.backpack[gs.equipped[i]].assigned=[null,null];
   var node=getMapNode(gs.floorMap.fightingNodeId);
-  var def=ENEMY_DB[node?node.eId:0];
+  var def=gs.finalBoss?ENEMY_DB[5]:(node?ENEMY_DB[node.eId]:ENEMY_DB[0]);
   var domCount=4+gs.player.extraDraw;
   gs.player.extraDraw=0;
   var enemy={
@@ -608,24 +643,28 @@ function startCombat(){
     dragDomIdx:null,dragX:0,dragY:0,isDragging:false
   };
   gs.screen='combat';
-  showMsg('A '+def.name+' approaches! Man the cannons!');
+  if(gs.finalBoss){
+    showMsg('THE KRAKEN rises! Fight for your life, Captain!');
+  } else {
+    showMsg('A '+def.name+' approaches! Man the cannons!');
+  }
 }
 
 function drawCombat(){
   var cm=gs.combat;
   push();
-  fill(C.DEEP);noStroke();
+  fill(gs.finalBoss?'#0d001a':C.DEEP);noStroke();
   rect(gx(0),gy(GH*0.62),sz(GW),sz(GH*0.38));
   drawWaves(GH*0.64);
   drawShip(GW/2,CB.shipY,90,true);
-  fill(C.TEXT);textAlign(CENTER,TOP);textSize(sz(12));textStyle(BOLD);
+  fill(gs.finalBoss?'#cc44ff':C.TEXT);textAlign(CENTER,TOP);textSize(sz(12));textStyle(BOLD);
   text(cm.enemy.name,gx(GW/2),gy(8));
   textStyle(NORMAL);
 
   var ehpW=200,ehpH=16,ehpX=(GW-ehpW)/2;
-  fill(C.EN_BG);noStroke();
+  fill(gs.finalBoss?'#1a0030':C.EN_BG);noStroke();
   rect(gx(ehpX),gy(CB.hpBarY),sz(ehpW),sz(ehpH),sz(4));
-  fill(C.EN_FG);
+  fill(gs.finalBoss?'#9400d3':C.EN_FG);
   rect(gx(ehpX),gy(CB.hpBarY),sz(ehpW*max(0,cm.enemy.hp/cm.enemy.maxHp)),sz(ehpH),sz(4));
   fill(C.TEXT);textAlign(CENTER,CENTER);textSize(sz(9));
   text(cm.enemy.hp+'/'+cm.enemy.maxHp+' hull',gx(GW/2),gy(CB.hpBarY+ehpH/2));
@@ -633,7 +672,6 @@ function drawCombat(){
   // Enemy moveset preview — show cycle pills
   var ms=cm.enemy.moveset;
   var curIdx=(cm.enemy.moveIdx===0?ms.length:cm.enemy.moveIdx)-1; // last used
-  // Show upcoming moves: next 3 in cycle order
   var pillW=54,pillH=14,pillGap=4;
   var totalPW=ms.length*(pillW+pillGap)-pillGap;
   var pillX=(GW-totalPW)/2;
@@ -641,7 +679,6 @@ function drawCombat(){
     var mId=ms[mi];
     var mBase=MOVE_DB[mId];
     var isNext=(mi===cm.enemy.moveIdx%ms.length);
-    var isCur=(mi===curIdx);
     var pBg=mBase.type==='atk'?'#3a0808':mBase.type==='heal'?'#0a2a0a':'#0a1428';
     var pFg=mBase.type==='atk'?C.DANGER:mBase.type==='heal'?C.HP_FG:C.ROPE;
     fill(pBg);
@@ -681,8 +718,8 @@ function drawCombat(){
   text('T'+cm.turn+'  G:'+gs.gold,gx(GW-6),gy(6));
 
   var fl=FLOORS[min(gs.floorIdx,FLOORS.length-1)];
-  fill(C.TEXT_DIM);textAlign(CENTER,TOP);textSize(sz(9));
-  text(fl.name+' - Floor '+(gs.floorIdx+1)+'/'+FLOORS.length,gx(GW/2),gy(CB.hpBarY-32));
+  fill(gs.finalBoss?'#cc44ff':C.TEXT_DIM);textAlign(CENTER,TOP);textSize(sz(9));
+  text(gs.finalBoss?'FINAL BOSS':(fl.name+' - Floor '+(gs.floorIdx+1)+'/'+FLOORS.length),gx(GW/2),gy(CB.hpBarY-32));
 
   var nc=gs.equipped.length;
   var cardW=(GW-12-(nc-1)*6)/nc;
@@ -917,11 +954,18 @@ function resolveEnemyTurn(cm){
   cm.selDom=null;cm.dragDomIdx=null;cm.isDragging=false;
 }
 
-// ── LOOT ─────────────────────────────────────────────────────────────────────
+// ── LOOT ─────────────────────────────────────────────────────────────────────────────
 function startLoot(){
   var node=getMapNode(gs.floorMap.fightingNodeId);
-  var def=node?ENEMY_DB[node.eId]:ENEMY_DB[0];
+  var def=gs.finalBoss?ENEMY_DB[5]:(node?ENEMY_DB[node.eId]:ENEMY_DB[0]);
   gs.gold+=def.gold;
+  // Victory after beating the final boss
+  if(gs.finalBoss){
+    gs.finalBoss=false;
+    showMsg('THE KRAKEN IS SLAIN! You rule the seven seas! VICTORY!');
+    setTimeout(function(){initGS();},3500);
+    return;
+  }
   var ownedIds=gs.backpack.map(function(c){return c.id;});
   var pool=CARD_DB.filter(function(c){return ownedIds.indexOf(c.id)<0;});
   for(var i=pool.length-1;i>0;i--){
@@ -975,7 +1019,7 @@ function drawLootCard(card,cx,cy,w,h){
   pop();
 }
 
-// ── PORT ─────────────────────────────────────────────────────────────────────
+// ── PORT ─────────────────────────────────────────────────────────────────────────────
 function portItemH(item){return item.type==='card'?90:62;}
 function portItemY(idx){
   var y=74;
@@ -1024,7 +1068,7 @@ function drawPortItem(item,cx,cy,w,h,canAfford,done){
   pop();
 }
 
-// ── INPUT ────────────────────────────────────────────────────────────────────
+// ── INPUT ─────────────────────────────────────────────────────────────────────────────
 function mousePressed(){
   var mx=toGX(mouseX),my=toGY(mouseY);
   if     (gs.screen==='title')  handleTitle(mx,my);
