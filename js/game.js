@@ -62,7 +62,7 @@ function cloneCard(def) {
 // ── MAP GENERATION ────────────────────────────────────────────
 var NW = 172, NH = 70;
 var xL = 10, xR = 218, xC = 114;
-var yR = [100, 238, 376, 510]; // row y positions
+var yR = [100, 238, 376, 510];
 
 function generateFloorMap(flIdx) {
   var fl   = FLOORS[min(flIdx, FLOORS.length - 1)];
@@ -84,7 +84,6 @@ function generateFloorMap(flIdx) {
   var entryIds;
 
   if (tpl === 0) {
-    // Split at start — one side might be port
     var hasPort = Math.random() < 0.55;
     var nA   = mk('enemy', xL, yR[0], rnd());
     var nB   = hasPort ? mk('port', xR, yR[0]) : mk('enemy', xR, yR[0], rnd());
@@ -98,10 +97,9 @@ function generateFloorMap(flIdx) {
     entryIds = [nA, nB];
 
   } else if (tpl === 1) {
-    // Single start, then fork — left path guarded port, right path skip
     var n0   = mk('enemy', xC, yR[0], rnd());
-    var nGd  = mk('enemy', xL, yR[1], rnd());  // guard
-    var nSk  = mk('enemy', xR, yR[1], rnd());  // skip
+    var nGd  = mk('enemy', xL, yR[1], rnd());
+    var nSk  = mk('enemy', xR, yR[1], rnd());
     var nPt  = mk('port',  xL, yR[2]);
     var nBs  = mk('enemy', xR, yR[2], boss());
     var nEx  = mk('exit',  xC, yR[3]);
@@ -113,7 +111,6 @@ function generateFloorMap(flIdx) {
     entryIds = [n0];
 
   } else {
-    // Two parallel paths, one has port
     var portRight = Math.random() < 0.5;
     var nL1  = mk('enemy', xL, yR[0], rnd());
     var nR1  = mk('enemy', xR, yR[0], rnd());
@@ -187,7 +184,6 @@ function rollDominoes(n){
   return r;
 }
 
-// Sequential cycling through moveset
 function pickMove(enemy) {
   var id   = enemy.moveset[enemy.moveIdx % enemy.moveset.length];
   enemy.moveIdx = (enemy.moveIdx + 1) % enemy.moveset.length;
@@ -346,14 +342,12 @@ function drawFloor(){
   rect(gx(0),gy(GH*0.5),sz(GW),sz(GH*0.5));
   drawWaves(GH*0.52);
 
-  // Header
   fill(C.GOLD);textAlign(CENTER,TOP);textSize(sz(18));textStyle(BOLD);
   text(fl.name,gx(GW/2),gy(8));
   textStyle(NORMAL);
   fill(C.ROPE);textSize(sz(10));
   text('Floor '+(gs.floorIdx+1)+' of '+FLOORS.length,gx(GW/2),gy(29));
 
-  // HP bar
   var phpW=110,phpH=12,phpX=8,phpY=46;
   fill(C.HP_BG);noStroke();
   rect(gx(phpX),gy(phpY),sz(phpW),sz(phpH),sz(3));
@@ -365,7 +359,6 @@ function drawFloor(){
   text('G: '+gs.gold,gx(GW-8),gy(46));
   textStyle(NORMAL);
 
-  // Edges
   for(var ni=0;ni<map.nodes.length;ni++){
     var n=map.nodes[ni];
     for(var nj=0;nj<n.next.length;nj++){
@@ -383,7 +376,6 @@ function drawFloor(){
     }
   }
 
-  // Nodes
   for(var ni=0;ni<map.nodes.length;ni++){
     var n=map.nodes[ni];
     var vis=map.visited.indexOf(n.id)>=0;
@@ -449,10 +441,7 @@ function drawMapNode(n,visited,reachable,fl){
     fill(C.ROPE);textSize(sz(9));
     text('Rest & restock',gx(n.x+NW/2),gy(n.y+NH/2+10));
   } else {
-    // exit node
     if(isFinalFloor){
-      // Pulse the border
-      var pulse=sin(gs.wave*4)*0.5+0.5;
       fill('#cc44ff');textAlign(CENTER,CENTER);textSize(sz(13));textStyle(BOLD);
       text('THE KRAKEN',gx(n.x+NW/2),gy(n.y+NH/2-14));
       text('AWAITS',gx(n.x+NW/2),gy(n.y+NH/2+1));
@@ -487,9 +476,7 @@ function handleFloor(mx,my){
         gs.screen='port';
         showMsg('Welcome to '+fl.portName+'!');
       } else {
-        // exit node
         if(gs.floorIdx>=FLOORS.length-1){
-          // Final boss fight!
           gs.finalBoss=true;
           map.fightingNodeId=n.id;
           gs.screen='equip';
@@ -669,9 +656,7 @@ function drawCombat(){
   fill(C.TEXT);textAlign(CENTER,CENTER);textSize(sz(9));
   text(cm.enemy.hp+'/'+cm.enemy.maxHp+' hull',gx(GW/2),gy(CB.hpBarY+ehpH/2));
 
-  // Enemy moveset preview — show cycle pills
   var ms=cm.enemy.moveset;
-  var curIdx=(cm.enemy.moveIdx===0?ms.length:cm.enemy.moveIdx)-1; // last used
   var pillW=54,pillH=14,pillGap=4;
   var totalPW=ms.length*(pillW+pillGap)-pillGap;
   var pillX=(GW-totalPW)/2;
@@ -799,8 +784,9 @@ function drawCombatCard(card,cx,cy,w,h,cm){
     if(asgn!==null){fill(C.GOLD);textSize(sz(13));textStyle(BOLD);textAlign(CENTER,CENTER);text(''+asgn,gx(halfX),gy(sY+sH/2));textStyle(NORMAL);}
     else{fill(fits||goodDrop?'#88aacc':C.TEXT_DIM);textSize(sz(11));textAlign(CENTER,CENTER);text(req===null?'?':''+req,gx(halfX),gy(sY+sH/2));}
   }
-  noStroke();fill(C.TEXT_DIM);textAlign(CENTER,TOP);textSize(sz(8));
-  text(card.desc,gx(cx+w/2),gy(sY+sH+4),sz(w-8),sz(h-sH-30));
+  // description: use LEFT align with x at card left edge to stay within bounds
+  noStroke();fill(C.TEXT_DIM);textAlign(LEFT,TOP);textSize(sz(8));
+  text(card.desc,gx(cx+4),gy(sY+sH+4),sz(w-8),sz(h-sH-30));
   if(ready){fill(C.GOLD);textAlign(CENTER,BOTTOM);textSize(sz(10));textStyle(BOLD);text('FIRE!',gx(cx+w/2),gy(cy+h-3));textStyle(NORMAL);}
   else if(goodDrop){fill('#50ee50');textAlign(CENTER,BOTTOM);textSize(sz(10));textStyle(BOLD);text('DROP HERE',gx(cx+w/2),gy(cy+h-3));textStyle(NORMAL);}
   else if(badDrop){fill(C.DANGER);textAlign(CENTER,BOTTOM);textSize(sz(9));text("won't fit",gx(cx+w/2),gy(cy+h-3));}
@@ -959,7 +945,6 @@ function startLoot(){
   var node=getMapNode(gs.floorMap.fightingNodeId);
   var def=gs.finalBoss?ENEMY_DB[5]:(node?ENEMY_DB[node.eId]:ENEMY_DB[0]);
   gs.gold+=def.gold;
-  // Victory after beating the final boss
   if(gs.finalBoss){
     gs.finalBoss=false;
     showMsg('THE KRAKEN IS SLAIN! You rule the seven seas! VICTORY!');
@@ -1014,8 +999,10 @@ function drawLootCard(card,cx,cy,w,h){
   text(card.name,gx(cx+w/2),gy(cy+10));textStyle(NORMAL);
   var s0=card.slots[0]===null?'?':''+card.slots[0];
   var s1=card.slots[1]===null?'?':''+card.slots[1];
-  fill(C.ROPE);textSize(sz(11));text('['+s0+'|'+s1+']',gx(cx+w/2),gy(cy+28));
-  fill(C.TEXT);textSize(sz(10));text(card.desc,gx(cx+w/2),gy(cy+46),sz(w-14),sz(h-52));
+  fill(C.ROPE);textAlign(CENTER,TOP);textSize(sz(11));text('['+s0+'|'+s1+']',gx(cx+w/2),gy(cy+28));
+  // description: LEFT align with x at card left edge to stay within bounds
+  fill(C.TEXT);textAlign(LEFT,TOP);textSize(sz(10));
+  text(card.desc,gx(cx+7),gy(cy+46),sz(w-14),sz(h-52));
   pop();
 }
 
