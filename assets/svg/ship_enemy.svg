@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="150" viewBox="0 0 200 150">
+  <ellipse cx="100" cy="132" rx="80" ry="6" fill="#040a14" opacity="0.5"/>
+  <polygon points="32,122 168,122 160,132 40,132" fill="#0a0202"/>
+  <polygon points="20,108 180,108 168,122 32,122" fill="#1e0404"/>
+  <polygon points="10,80 190,80 180,108 20,108" fill="#3a0808"/>
+  <polygon points="10,80 190,80 184,86 16,86" fill="#6a1818" opacity="0.45"/>
+  <polygon points="10,80 190,80 186,84 14,84" fill="#8b1a1a" opacity="0.9"/>
+  <rect x="12" y="70" width="174" height="12" fill="#4a2808"/>
+  <line x1="12" y1="73" x2="186" y2="73" stroke="#2a1804" stroke-width="0.8" opacity="0.6"/>
+  <line x1="12" y1="76" x2="186" y2="76" stroke="#2a1804" stroke-width="0.7" opacity="0.5"/>
+  <rect x="10" y="52" width="46" height="20" fill="#280808" rx="2"/>
+  <rect x="10" y="50" width="50" height="8" fill="#4a2808" rx="1"/>
+  <line x1="12" y1="50" x2="58" y2="50" stroke="#8b2020" stroke-width="1.5"/>
+  <rect x="10" y="53" width="5" height="9" fill="#ff4444" opacity="0.85" rx="1"/>
+  <rect x="11" y="55" width="3" height="5" fill="#ffaaaa" opacity="0.7"/>
+  <polygon points="190,80 198,86 190,92" fill="#8b1a1a"/>
+  <line x1="188" y1="76" x2="198" y2="66" stroke="#4a2808" stroke-width="4" stroke-linecap="round"/>
+  <rect x="91" y="4" width="11" height="68" fill="#4a2808" rx="1.5"/>
+  <rect x="147" y="18" width="9" height="54" fill="#4a2808" rx="1"/>
+  <rect x="58" y="18" width="74" height="6" fill="#5a3010" rx="2"/>
+  <rect x="70" y="42" width="52" height="5" fill="#5a3010" rx="1.5"/>
+  <rect x="128" y="28" width="44" height="5" fill="#5a3010" rx="1.5"/>
+  <polygon points="91,6 91,20 132,20 132,8" fill="#8b1010" stroke="#5a0808" stroke-width="1"/>
+  <polygon points="91,20 91,68 164,52 164,20" fill="#9a1414" stroke="#5a0808" stroke-width="1.5"/>
+  <polygon points="91,20 91,68 106,62 106,22" fill="#500808" opacity="0.45"/>
+  <line x1="118" y1="21" x2="118" y2="66" stroke="#7a1010" stroke-width="0.9" opacity="0.5"/>
+  <line x1="140" y1="22" x2="140" y2="60" stroke="#7a1010" stroke-width="0.9" opacity="0.5"/>
+  <polygon points="147,20 147,30 178,28 178,20" fill="#800e0e" stroke="#5a0808" stroke-width="0.8"/>
+  <polygon points="147,30 147,70 182,56 182,32" fill="#881212" stroke="#5a0808" stroke-width="1"/>
+  <polygon points="152,70 10,60 91,70" fill="#701010" stroke="#5a0808" stroke-width="0.8" opacity="0.75"/>
+  <rect x="91" y="0" width="6" height="8" fill="#3a2008"/>
+  <polygon points="91,1 91,15 118,8" fill="#1a1a1a" stroke="#444" stroke-width="0.8"/>
+  <circle cx="106" cy="7" r="3.5" fill="#e0e0e0"/>
+  <ellipse cx="104" cy="6" rx="1" ry="1.2" fill="#1a1a1a"/>
+  <ellipse cx="108" cy="6" rx="1" ry="1.2" fill="#1a1a1a"/>
+  <circle cx="106" cy="8" r="0.7" fill="#888"/>
+  <rect x="103" y="9.5" width="6" height="2.5" fill="#e0e0e0" rx="0.5"/>
+  <line x1="105" y1="9.5" x2="105" y2="12" stroke="#1a1a1a" stroke-width="0.7"/>
+  <line x1="107" y1="9.5" x2="107" y2="12" stroke="#1a1a1a" stroke-width="0.7"/>
+  <line x1="96" y1="6" x2="188" y2="70" stroke="#5a4030" stroke-width="1" opacity="0.4"/>
+  <line x1="96" y1="6" x2="10" y2="64" stroke="#5a4030" stroke-width="1" opacity="0.4"/>
+  <rect x="28" y="86" width="14" height="11" fill="#080202" rx="2"/>
+  <rect x="52" y="86" width="14" height="11" fill="#080202" rx="2"/>
+  <rect x="76" y="86" width="14" height="11" fill="#080202" rx="2"/>
+  <rect x="100" y="86" width="14" height="11" fill="#080202" rx="2"/>
+  <rect x="124" y="86" width="14" height="11" fill="#080202" rx="2"/>
+  <rect x="148" y="86" width="14" height="11" fill="#080202" rx="2"/>
+  <rect x="30" y="87" width="10" height="3" fill="#8b2020" opacity="0.7" rx="1"/>
+  <rect x="54" y="87" width="10" height="3" fill="#8b2020" opacity="0.7" rx="1"/>
+  <rect x="78" y="87" width="10" height="3" fill="#8b2020" opacity="0.7" rx="1"/>
+  <rect x="102" y="87" width="10" height="3" fill="#8b2020" opacity="0.7" rx="1"/>
+  <rect x="126" y="87" width="10" height="3" fill="#8b2020" opacity="0.7" rx="1"/>
+  <rect x="150" y="87" width="10" height="3" fill="#8b2020" opacity="0.7" rx="1"/>
+</svg>
