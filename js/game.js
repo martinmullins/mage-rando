@@ -13,6 +13,8 @@ var C = {
   GREEN_HI:'#1a4a2a', GREEN_BD:'#27ae60'
 };
 
+var imgShipPlayer = null, imgShipEnemy = null, imgKraken = null;
+
 var CARD_DB = [
   {id:'rusty_cannon',name:'Rusty Cannon', slots:[null,null],dmg:4, heal:0,extraDraw:0,stun:false,desc:'Deal 4 damage.'},
   {id:'bilge_pump',  name:'Bilge Pump',   slots:[null,null],dmg:0, heal:4,extraDraw:0,stun:false,desc:'Heal 4 HP.'},
@@ -240,6 +242,12 @@ function recalcScale(){
   oy=(VH-GH*sc)/2;
 }
 
+function preload(){
+  imgShipPlayer = loadImage('assets/svg/ship_player.svg');
+  imgShipEnemy  = loadImage('assets/svg/ship_enemy.svg');
+  imgKraken     = loadImage('assets/svg/kraken.svg');
+}
+
 function setup(){createCanvas(windowWidth,windowHeight);textFont('monospace');recalcScale();initGS();}
 function windowResized(){resizeCanvas(windowWidth,windowHeight);recalcScale();}
 
@@ -276,8 +284,13 @@ function drawWaves(yBase){
 }
 
 function drawShip(cx,cy,w,enemy){
-  push();
   var h=w*0.42;
+  var img=enemy?imgShipEnemy:imgShipPlayer;
+  if(img){
+    image(img,gx(cx-w/2),gy(cy-h*1.15),sz(w),sz(w*0.75));
+    return;
+  }
+  push();
   fill(enemy?C.DANGER:C.DECK);noStroke();
   beginShape();
   vertex(gx(cx-w/2),gy(cy));vertex(gx(cx+w/2),gy(cy));
@@ -643,7 +656,14 @@ function drawCombat(){
   fill(gs.finalBoss?'#0d001a':C.DEEP);noStroke();
   rect(gx(0),gy(GH*0.62),sz(GW),sz(GH*0.38));
   drawWaves(GH*0.64);
-  drawShip(GW/2,CB.shipY,90,true);
+
+  if(gs.finalBoss&&imgKraken){
+    var kw=110,kh=110;
+    image(imgKraken,gx(GW/2-kw/2),gy(CB.shipY-kh*0.6),sz(kw),sz(kh));
+  }else{
+    drawShip(GW/2,CB.shipY,90,true);
+  }
+
   fill(gs.finalBoss?'#cc44ff':C.TEXT);textAlign(CENTER,TOP);textSize(sz(12));textStyle(BOLD);
   text(cm.enemy.name,gx(GW/2),gy(8));
   textStyle(NORMAL);
@@ -784,7 +804,6 @@ function drawCombatCard(card,cx,cy,w,h,cm){
     if(asgn!==null){fill(C.GOLD);textSize(sz(13));textStyle(BOLD);textAlign(CENTER,CENTER);text(''+asgn,gx(halfX),gy(sY+sH/2));textStyle(NORMAL);}
     else{fill(fits||goodDrop?'#88aacc':C.TEXT_DIM);textSize(sz(11));textAlign(CENTER,CENTER);text(req===null?'?':''+req,gx(halfX),gy(sY+sH/2));}
   }
-  // description: use LEFT align with x at card left edge to stay within bounds
   noStroke();fill(C.TEXT_DIM);textAlign(LEFT,TOP);textSize(sz(8));
   text(card.desc,gx(cx+4),gy(sY+sH+4),sz(w-8),sz(h-sH-30));
   if(ready){fill(C.GOLD);textAlign(CENTER,BOTTOM);textSize(sz(10));textStyle(BOLD);text('FIRE!',gx(cx+w/2),gy(cy+h-3));textStyle(NORMAL);}
@@ -1000,7 +1019,6 @@ function drawLootCard(card,cx,cy,w,h){
   var s0=card.slots[0]===null?'?':''+card.slots[0];
   var s1=card.slots[1]===null?'?':''+card.slots[1];
   fill(C.ROPE);textAlign(CENTER,TOP);textSize(sz(11));text('['+s0+'|'+s1+']',gx(cx+w/2),gy(cy+28));
-  // description: LEFT align with x at card left edge to stay within bounds
   fill(C.TEXT);textAlign(LEFT,TOP);textSize(sz(10));
   text(card.desc,gx(cx+7),gy(cy+46),sz(w-14),sz(h-52));
   pop();
