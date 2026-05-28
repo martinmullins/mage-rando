@@ -14,6 +14,7 @@ var C = {
 };
 
 var imgShipPlayer = null, imgShipEnemy = null, imgKraken = null;
+var imgTreasureChest = null, imgCannon = null, imgGhostShip = null;
 
 var CARD_DB = [
   {id:'rusty_cannon',name:'Rusty Cannon', slots:[null,null],dmg:4, heal:0,extraDraw:0,stun:false,desc:'Deal 4 damage.'},
@@ -246,6 +247,9 @@ function preload(){
   imgShipPlayer = loadImage('assets/svg/ship_player.svg');
   imgShipEnemy  = loadImage('assets/svg/ship_enemy.svg');
   imgKraken     = loadImage('assets/svg/kraken.svg');
+  imgTreasureChest = loadImage('assets/svg/treasure_chest.svg');
+  imgCannon        = loadImage('assets/svg/cannon.svg');
+  imgGhostShip     = loadImage('assets/svg/ghost_ship.svg');
 }
 
 function setup(){createCanvas(windowWidth,windowHeight);textFont('monospace');recalcScale();initGS();}
@@ -572,6 +576,15 @@ function drawEquip(){
   var bw=180,bh=42,bx=GW/2-bw/2,by=GH-56;
   fill(canFight?(gs.finalBoss?'#9400d3':C.GOLD):'#334455');noStroke();
   rect(gx(bx),gy(by),sz(bw),sz(bh),sz(10));
+  if(imgCannon){
+    var canW=52,canH=30;
+    image(imgCannon,gx(bx-canW-8),gy(by+bh/2-canH/2),sz(canW),sz(canH));
+    push();
+    translate(gx(bx+bw+8+canW),gy(by+bh/2-canH/2));
+    scale(-1,1);
+    image(imgCannon,0,0,sz(canW),sz(canH));
+    pop();
+  }
   fill(canFight?C.TEXT:'#556677');
   textAlign(CENTER,CENTER);textSize(sz(14));textStyle(BOLD);
   text(gs.finalBoss?'FACE THE KRAKEN!':'WEIGH ANCHOR!',gx(GW/2),gy(by+bh/2));
@@ -660,11 +673,15 @@ function drawCombat(){
   if(gs.finalBoss&&imgKraken){
     var kw=110,kh=110;
     image(imgKraken,gx(GW/2-kw/2),gy(CB.shipY-kh*0.6),sz(kw),sz(kh));
+  }else if(cm.enemy.name==='Ghost Ship'&&imgGhostShip){
+    var gsw=90,gsh=gsw*0.42;
+    image(imgGhostShip,gx(GW/2-gsw/2),gy(CB.shipY-gsh*1.15),sz(gsw),sz(gsw*0.75));
   }else{
     drawShip(GW/2,CB.shipY,90,true);
   }
 
-  fill(gs.finalBoss?'#cc44ff':C.TEXT);textAlign(CENTER,TOP);textSize(sz(12));textStyle(BOLD);
+  fill(gs.finalBoss?'#cc44ff':(cm.enemy.name==='Ghost Ship'?'#88ddff':C.TEXT));
+  textAlign(CENTER,TOP);textSize(sz(12));textStyle(BOLD);
   text(cm.enemy.name,gx(GW/2),gy(8));
   textStyle(NORMAL);
 
@@ -990,13 +1007,17 @@ function afterLoot(){
 
 function drawLoot(){
   push();
+  if(imgTreasureChest){
+    var ciw=72,cih=54;
+    image(imgTreasureChest,gx(GW/2-ciw/2),gy(4),sz(ciw),sz(cih));
+  }
   fill(C.GOLD);textAlign(CENTER,TOP);textSize(sz(22));textStyle(BOLD);
-  text('PLUNDER!',gx(GW/2),gy(16));textStyle(NORMAL);
+  text('PLUNDER!',gx(GW/2),gy(60));textStyle(NORMAL);
   textSize(sz(11));fill(C.TEXT_DIM);
-  text('Choose a card to add to your hold.   Gold: '+gs.gold,gx(GW/2),gy(46));
+  text('Choose a card to add to your hold.   Gold: '+gs.gold,gx(GW/2),gy(86));
   var cards=gs.loot.choices,cw=170,ch=120;
   var totalW=cards.length*cw+(cards.length-1)*12;
-  var cStartX=(GW-totalW)/2,cStartY=66;
+  var cStartX=(GW-totalW)/2,cStartY=104;
   if(cards.length===0){
     fill(C.TEXT_DIM);textSize(sz(12));text('No new cards available.',gx(GW/2),gy(GH/2));
     var bw=160,bh=40,bx=GW/2-bw/2,by2=GH*0.65;
@@ -1195,7 +1216,7 @@ function doEndTurn(){
 function handleLoot(mx,my){
   var cards=gs.loot.choices,cw=170,ch=120;
   var totalW=cards.length*cw+(cards.length-1)*12;
-  var cStartX=(GW-totalW)/2,cStartY=66;
+  var cStartX=(GW-totalW)/2,cStartY=104;
   if(cards.length===0){
     var bw=160,bh=40,bx=GW/2-bw/2,by=GH*0.65;
     if(mx>=bx&&mx<=bx+bw&&my>=by&&my<=by+bh) afterLoot();
