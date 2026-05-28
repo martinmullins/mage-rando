@@ -62,7 +62,7 @@ function cloneCard(def) {
           desc:def.desc,assigned:[null,null]};
 }
 
-// ── MAP GENERATION ────────────────────────────────────────────
+// ── MAP GENERATION ─────────────────────────────────────────────
 var NW = 172, NH = 70;
 var xL = 10, xR = 218, xC = 114;
 var yR = [100, 238, 376, 510];
@@ -179,7 +179,7 @@ function initGS() {
   initFloorState();
 }
 
-// ── DOMINO / COMBAT HELPERS ───────────────────────────────────────────
+// ── DOMINO / COMBAT HELPERS ─────────────────────────────────────────────────────
 function makeDomino(l,r){return{left:l,right:r,used:false};}
 function rollDominoes(n){
   var r=[];
@@ -241,6 +241,43 @@ function recalcScale(){
   sc=min(VW/GW,VH/GH);
   ox=(VW-GW*sc)/2;
   oy=(VH-GH*sc)/2;
+}
+
+// ── PIP DRAWING ─────────────────────────────────────────────────────────────────────────────
+function drawPips(val,hx,hy,hw,hh,pr,pg,pb,pa){
+  if(pa===undefined) pa=255;
+  var r=Math.min(hw,hh)*0.10;
+  var lx=hx+hw*0.28, rx=hx+hw*0.72, cx2=hx+hw*0.50;
+  var ty=hy+hh*0.28, midy=hy+hh*0.50, by2=hy+hh*0.72;
+  fill(pr,pg,pb,pa); noStroke();
+  if(val===1){
+    ellipse(gx(cx2),gy(midy),sz(r)*2,sz(r)*2);
+  } else if(val===2){
+    ellipse(gx(rx),gy(ty),sz(r)*2,sz(r)*2);
+    ellipse(gx(lx),gy(by2),sz(r)*2,sz(r)*2);
+  } else if(val===3){
+    ellipse(gx(rx),gy(ty),sz(r)*2,sz(r)*2);
+    ellipse(gx(cx2),gy(midy),sz(r)*2,sz(r)*2);
+    ellipse(gx(lx),gy(by2),sz(r)*2,sz(r)*2);
+  } else if(val===4){
+    ellipse(gx(lx),gy(ty),sz(r)*2,sz(r)*2);
+    ellipse(gx(rx),gy(ty),sz(r)*2,sz(r)*2);
+    ellipse(gx(lx),gy(by2),sz(r)*2,sz(r)*2);
+    ellipse(gx(rx),gy(by2),sz(r)*2,sz(r)*2);
+  } else if(val===5){
+    ellipse(gx(lx),gy(ty),sz(r)*2,sz(r)*2);
+    ellipse(gx(rx),gy(ty),sz(r)*2,sz(r)*2);
+    ellipse(gx(cx2),gy(midy),sz(r)*2,sz(r)*2);
+    ellipse(gx(lx),gy(by2),sz(r)*2,sz(r)*2);
+    ellipse(gx(rx),gy(by2),sz(r)*2,sz(r)*2);
+  } else if(val===6){
+    ellipse(gx(lx),gy(ty),sz(r)*2,sz(r)*2);
+    ellipse(gx(rx),gy(ty),sz(r)*2,sz(r)*2);
+    ellipse(gx(lx),gy(midy),sz(r)*2,sz(r)*2);
+    ellipse(gx(rx),gy(midy),sz(r)*2,sz(r)*2);
+    ellipse(gx(lx),gy(by2),sz(r)*2,sz(r)*2);
+    ellipse(gx(rx),gy(by2),sz(r)*2,sz(r)*2);
+  }
 }
 
 function preload(){
@@ -323,7 +360,7 @@ function drawMsgOverlay(){
   pop();
 }
 
-// ── TITLE ──────────────────────────────────────────────────────────────────────────────
+// ── TITLE ──────────────────────────────────────────────────────────────────────────────────────
 function drawTitle(){
   push();
   fill(C.DEEP);noStroke();
@@ -348,7 +385,7 @@ function drawTitle(){
   pop();
 }
 
-// ── FLOOR MAP ───────────────────────────────────────────────────────────────────
+// ── FLOOR MAP ───────────────────────────────────────────────────────────────────────────────────
 function drawFloor(){
   var map=gs.floorMap;
   var fl=FLOORS[min(gs.floorIdx,FLOORS.length-1)];
@@ -534,14 +571,12 @@ function buildPortItems(fl,isInFloor){
   ];
   for(var k=0;k<portCards.length;k++){
     var c=portCards[k];
-    var s0=c.slots[0]===null?'?':''+c.slots[0];
-    var s1=c.slots[1]===null?'?':''+c.slots[1];
-    items.push({type:'card',label:c.name,slotStr:'['+s0+'|'+s1+']',desc:c.desc,cost:2,card:c,done:false});
+    items.push({type:'card',label:c.name,slot0:c.slots[0],slot1:c.slots[1],desc:c.desc,cost:2,card:c,done:false});
   }
   return{portName:fl.portName,items:items,isInFloor:isInFloor};
 }
 
-// ── EQUIP ─────────────────────────────────────────────────────────────────────────────
+// ── EQUIP ─────────────────────────────────────────────────────────────────────────────────────────
 var EQ={sidePad:10,cols:2,gap:8,cardH:88,cardY0:76,rowGap:8};
 function equipCardRect(i){
   var cw=(GW-2*EQ.sidePad-(EQ.cols-1)*EQ.gap)/EQ.cols;
@@ -601,17 +636,32 @@ function drawEquipCard(card,cx,cy,w,h,equipped){
   fill(equipped?C.GOLD:C.TEXT);textAlign(LEFT,TOP);textSize(sz(11));textStyle(BOLD);
   text(card.name,gx(cx+7),gy(cy+7));
   textStyle(NORMAL);
-  var s0=card.slots[0]===null?'?':''+card.slots[0];
-  var s1=card.slots[1]===null?'?':''+card.slots[1];
-  fill(C.ROPE);textSize(sz(10));
-  text('['+s0+'|'+s1+']',gx(cx+7),gy(cy+22));
-  fill(C.TEXT_DIM);textSize(sz(9));
-  text(card.desc,gx(cx+7),gy(cy+36),sz(w-14),sz(h-40));
-  if(equipped){fill(C.GOLD);textAlign(RIGHT,TOP);textSize(sz(9));text('[ON DECK]',gx(cx+w-6),gy(cy+7));}
+  // mini pip domino showing slot requirements
+  var dw=48,dh=20,dx2=cx+7,dy2=cy+22;
+  fill(C.OCEAN);stroke(C.BORDER);strokeWeight(sz(1));
+  rect(gx(dx2),gy(dy2),sz(dw),sz(dh),sz(3));
+  stroke('#2e5a8a');strokeWeight(sz(0.8));
+  line(gx(dx2+dw/2),gy(dy2+2),gx(dx2+dw/2),gy(dy2+dh-2));
+  var eqC=color(equipped?C.GOLD:C.ROPE);
+  if(card.slots[0]!==null){
+    drawPips(card.slots[0],dx2,dy2,dw/2,dh,red(eqC),green(eqC),blue(eqC));
+  } else {
+    noStroke();fill(equipped?C.GOLD:C.ROPE);textSize(sz(9));textAlign(CENTER,CENTER);
+    text('?',gx(dx2+dw/4),gy(dy2+dh/2));
+  }
+  if(card.slots[1]!==null){
+    drawPips(card.slots[1],dx2+dw/2,dy2,dw/2,dh,red(eqC),green(eqC),blue(eqC));
+  } else {
+    noStroke();fill(equipped?C.GOLD:C.ROPE);textSize(sz(9));textAlign(CENTER,CENTER);
+    text('?',gx(dx2+3*dw/4),gy(dy2+dh/2));
+  }
+  noStroke();fill(C.TEXT_DIM);textAlign(LEFT,TOP);textSize(sz(9));
+  text(card.desc,gx(cx+7),gy(cy+45),sz(w-14),sz(h-50));
+  if(equipped){noStroke();fill(C.GOLD);textAlign(RIGHT,TOP);textSize(sz(9));text('[ON DECK]',gx(cx+w-6),gy(cy+7));}
   pop();
 }
 
-// ── COMBAT ─────────────────────────────────────────────────────────────────────────────
+// ── COMBAT ────────────────────────────────────────────────────────────────────────────────────────
 var CB={
   shipY:68,hpBarY:136,intentY:156,
   cardY:182,cardH:110,
@@ -811,15 +861,26 @@ function drawCombatCard(card,cx,cy,w,h,cm){
   noStroke();
   fill(ready?'#7fff7f':C.TEXT);textAlign(CENTER,TOP);textSize(sz(9));textStyle(BOLD);
   text(card.name,gx(cx+w/2),gy(cy+5));textStyle(NORMAL);
+  // pip domino slot display
   var sW=w*0.82,sH=24,sX=cx+(w-sW)/2,sY=cy+20;
   fill(C.OCEAN);stroke(C.BORDER);strokeWeight(sz(1));
   rect(gx(sX),gy(sY),sz(sW),sz(sH),sz(3));
+  stroke(C.BORDER);strokeWeight(sz(1));
   line(gx(sX+sW/2),gy(sY+3),gx(sX+sW/2),gy(sY+sH-3));
   for(var si=0;si<2;si++){
-    var halfX=sX+si*(sW/2)+sW/4,asgn=card.assigned[si],req=card.slots[si];
-    noStroke();
-    if(asgn!==null){fill(C.GOLD);textSize(sz(13));textStyle(BOLD);textAlign(CENTER,CENTER);text(''+asgn,gx(halfX),gy(sY+sH/2));textStyle(NORMAL);}
-    else{fill(fits||goodDrop?'#88aacc':C.TEXT_DIM);textSize(sz(11));textAlign(CENTER,CENTER);text(req===null?'?':''+req,gx(halfX),gy(sY+sH/2));}
+    var hLeftX=sX+si*(sW/2),asgn=card.assigned[si],req=card.slots[si];
+    if(asgn!==null){
+      var aPC=color(C.GOLD);
+      drawPips(asgn,hLeftX,sY,sW/2,sH,red(aPC),green(aPC),blue(aPC));
+    } else if(req!==null){
+      var rPCol=fits||goodDrop?'#88aacc':C.TEXT_DIM;
+      var rPC=color(rPCol);
+      drawPips(req,hLeftX,sY,sW/2,sH,red(rPC),green(rPC),blue(rPC),160);
+    } else {
+      noStroke();fill(fits||goodDrop?'#88aacc':C.TEXT_DIM);
+      textSize(sz(10));textAlign(CENTER,CENTER);
+      text('?',gx(hLeftX+sW/4),gy(sY+sH/2));
+    }
   }
   noStroke();fill(C.TEXT_DIM);textAlign(LEFT,TOP);textSize(sz(8));
   text(card.desc,gx(cx+4),gy(sY+sH+4),sz(w-8),sz(h-sH-30));
@@ -837,11 +898,10 @@ function drawDomino(dom,dx,dy,w,h,selected){
   rect(gx(dx),gy(dy),sz(w),sz(h),sz(4));
   stroke(selected?C.GOLD:'#2e5a8a');strokeWeight(sz(1));
   line(gx(dx+w/2),gy(dy+4),gx(dx+w/2),gy(dy+h-4));
-  noStroke();fill(selected?C.GOLD:C.TEXT);
-  textAlign(CENTER,CENTER);textSize(sz(13));textStyle(BOLD);
-  text(''+dom.left,gx(dx+w/4),gy(dy+h/2));
-  text(''+dom.right,gx(dx+3*w/4),gy(dy+h/2));
-  textStyle(NORMAL);pop();
+  var pipC=color(selected?C.GOLD:C.TEXT);
+  drawPips(dom.left,dx,dy,w/2,h,red(pipC),green(pipC),blue(pipC));
+  drawPips(dom.right,dx+w/2,dy,w/2,h,red(pipC),green(pipC),blue(pipC));
+  pop();
 }
 
 function drawEnemyDomino(dom,dx,dy,w,h,a){
@@ -850,11 +910,9 @@ function drawEnemyDomino(dom,dx,dy,w,h,a){
   rect(gx(dx),gy(dy),sz(w),sz(h),sz(4));
   stroke(200,60,60,Math.round(a*0.65));strokeWeight(sz(1));
   line(gx(dx+w/2),gy(dy+4),gx(dx+w/2),gy(dy+h-4));
-  noStroke();fill(255,150,150,a);
-  textAlign(CENTER,CENTER);textSize(sz(13));textStyle(BOLD);
-  text(''+dom.left,gx(dx+w/4),gy(dy+h/2));
-  text(''+dom.right,gx(dx+3*w/4),gy(dy+h/2));
-  textStyle(NORMAL);pop();
+  drawPips(dom.left,dx,dy,w/2,h,255,150,150,a);
+  drawPips(dom.right,dx+w/2,dy,w/2,h,255,150,150,a);
+  pop();
 }
 
 function drawEnemyTurnOverlay(cm){
@@ -976,7 +1034,7 @@ function resolveEnemyTurn(cm){
   cm.selDom=null;cm.dragDomIdx=null;cm.isDragging=false;
 }
 
-// ── LOOT ─────────────────────────────────────────────────────────────────────────────
+// ── LOOT ────────────────────────────────────────────────────────────────────────────────────────
 function startLoot(){
   var node=getMapNode(gs.floorMap.fightingNodeId);
   var def=gs.finalBoss?ENEMY_DB[5]:(node?ENEMY_DB[node.eId]:ENEMY_DB[0]);
@@ -1037,16 +1095,32 @@ function drawLootCard(card,cx,cy,w,h){
   rect(gx(cx),gy(cy),sz(w),sz(h),sz(8));noStroke();
   fill(C.GOLD);textAlign(CENTER,TOP);textSize(sz(12));textStyle(BOLD);
   text(card.name,gx(cx+w/2),gy(cy+10));textStyle(NORMAL);
-  var s0=card.slots[0]===null?'?':''+card.slots[0];
-  var s1=card.slots[1]===null?'?':''+card.slots[1];
-  fill(C.ROPE);textAlign(CENTER,TOP);textSize(sz(11));text('['+s0+'|'+s1+']',gx(cx+w/2),gy(cy+28));
-  fill(C.TEXT);textAlign(LEFT,TOP);textSize(sz(10));
-  text(card.desc,gx(cx+7),gy(cy+46),sz(w-14),sz(h-52));
+  // mini pip domino centered
+  var dLW=52,dLH=22,dLX=cx+(w-dLW)/2,dLY=cy+26;
+  fill(C.OCEAN);stroke(C.BORDER);strokeWeight(sz(1));
+  rect(gx(dLX),gy(dLY),sz(dLW),sz(dLH),sz(3));
+  stroke('#2e5a8a');strokeWeight(sz(0.8));
+  line(gx(dLX+dLW/2),gy(dLY+2),gx(dLX+dLW/2),gy(dLY+dLH-2));
+  var rC=color(C.ROPE);
+  if(card.slots[0]!==null){
+    drawPips(card.slots[0],dLX,dLY,dLW/2,dLH,red(rC),green(rC),blue(rC));
+  } else {
+    noStroke();fill(C.ROPE);textSize(sz(9));textAlign(CENTER,CENTER);
+    text('?',gx(dLX+dLW/4),gy(dLY+dLH/2));
+  }
+  if(card.slots[1]!==null){
+    drawPips(card.slots[1],dLX+dLW/2,dLY,dLW/2,dLH,red(rC),green(rC),blue(rC));
+  } else {
+    noStroke();fill(C.ROPE);textSize(sz(9));textAlign(CENTER,CENTER);
+    text('?',gx(dLX+3*dLW/4),gy(dLY+dLH/2));
+  }
+  noStroke();fill(C.TEXT);textAlign(LEFT,TOP);textSize(sz(10));
+  text(card.desc,gx(cx+7),gy(cy+52),sz(w-14),sz(h-58));
   pop();
 }
 
-// ── PORT ─────────────────────────────────────────────────────────────────────────────
-function portItemH(item){return item.type==='card'?90:62;}
+// ── PORT ────────────────────────────────────────────────────────────────────────────────────────
+function portItemH(item){return item.type==='card'?96:62;}
 function portItemY(idx){
   var y=74;
   for(var i=0;i<idx;i++) y+=portItemH(gs.port.items[i])+8;
@@ -1086,15 +1160,35 @@ function drawPortItem(item,cx,cy,w,h,canAfford,done){
   textAlign(LEFT,TOP);textSize(sz(11));textStyle(BOLD);
   text(item.label,gx(cx+8),gy(cy+8));textStyle(NORMAL);
   if(item.type==='card'){
-    fill(C.ROPE);textSize(sz(10));text(item.slotStr,gx(cx+8),gy(cy+24));
-    fill(C.TEXT_DIM);textSize(sz(9));text(item.desc,gx(cx+8),gy(cy+38),sz(w-16),sz(h-44));
+    // mini pip domino for slot requirements
+    var dPW=46,dPH=20,dPX=cx+8,dPY=cy+26;
+    fill(C.OCEAN);stroke(done?'#1a3040':C.BORDER);strokeWeight(sz(1));
+    rect(gx(dPX),gy(dPY),sz(dPW),sz(dPH),sz(3));
+    stroke('#2e5a8a');strokeWeight(sz(0.8));
+    line(gx(dPX+dPW/2),gy(dPY+2),gx(dPX+dPW/2),gy(dPY+dPH-2));
+    var ppC=color(done?C.TEXT_DIM:C.ROPE);
+    if(item.slot0!==null){
+      drawPips(item.slot0,dPX,dPY,dPW/2,dPH,red(ppC),green(ppC),blue(ppC));
+    } else {
+      noStroke();fill(done?C.TEXT_DIM:C.ROPE);textSize(sz(9));textAlign(CENTER,CENTER);
+      text('?',gx(dPX+dPW/4),gy(dPY+dPH/2));
+    }
+    if(item.slot1!==null){
+      drawPips(item.slot1,dPX+dPW/2,dPY,dPW/2,dPH,red(ppC),green(ppC),blue(ppC));
+    } else {
+      noStroke();fill(done?C.TEXT_DIM:C.ROPE);textSize(sz(9));textAlign(CENTER,CENTER);
+      text('?',gx(dPX+3*dPW/4),gy(dPY+dPH/2));
+    }
+    noStroke();fill(done?'#334455':C.TEXT_DIM);textSize(sz(9));
+    text(item.desc,gx(cx+8),gy(cy+50),sz(w-16),sz(h-56));
   } else {
-    fill(done?'#334455':C.TEXT_DIM);textSize(sz(9));text(item.desc,gx(cx+8),gy(cy+26),sz(w-16),sz(h-32));
+    noStroke();fill(done?'#334455':C.TEXT_DIM);textSize(sz(9));
+    text(item.desc,gx(cx+8),gy(cy+26),sz(w-16),sz(h-32));
   }
   pop();
 }
 
-// ── INPUT ─────────────────────────────────────────────────────────────────────────────
+// ── INPUT ───────────────────────────────────────────────────────────────────────────────────────
 function mousePressed(){
   var mx=toGX(mouseX),my=toGY(mouseY);
   if     (gs.screen==='title')  handleTitle(mx,my);
