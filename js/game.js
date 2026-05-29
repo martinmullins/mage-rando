@@ -104,6 +104,13 @@ function cloneCard(def) {
   };
 }
 
+function shuffleArray(arr){
+  for(var i=arr.length-1;i>0;i--){
+    var j=Math.floor(Math.random()*(i+1));
+    var t=arr[i];arr[i]=arr[j];arr[j]=t;
+  }
+}
+
 // -- MAP GENERATION -----------------------------------------------------------
 var NW = 172, NH = 70;
 var xL = 10, xR = 218, xC = 114;
@@ -185,7 +192,7 @@ function initGS(){
     screen:'title',
     player:{hp:30,maxHp:30,extraDraw:0},
     backpack:[cloneCard(CARD_DB[0]),cloneCard(CARD_DB[1]),cloneCard(CARD_DB[2])],
-    equipped:[0,1,2],floorIdx:0,floorMap:null,gold:2,
+    floorIdx:0,floorMap:null,gold:2,
     combat:null,loot:null,port:null,
     finalBoss:false,msg:'',msgTimer:0,wave:0
   };
@@ -248,15 +255,15 @@ function applyCard(card,cm){
   card.usesThisTurn=(card.usesThisTurn||0)+1;
   card.assigned=[null,null];
   if(msgs.length>0) showMsg(msgs.join(' '));
-}
-
-function resetCardUses(){
-  for(var i=0;i<gs.equipped.length;i++){
-    var c=gs.backpack[gs.equipped[i]];
-    c.usesThisTurn=0;
-    c.assigned=[null,null];
+  // Discard card once maxUses reached, draw replacement
+  if(card.usesThisTurn>=(card.maxUses||1)){
+    var hi=cm.hand.indexOf(card);
+    if(hi>=0){cm.hand.splice(hi,1);cm.discard.push(card);}
+    drawCard(cm);
   }
 }
+
+// resetCardUses removed - refillHand(cm) is used instead
 
 function showMsg(m){gs.msg=m;gs.msgTimer=180;}
 function toGX(px){return(px-ox)/sc;}
@@ -573,25 +580,25 @@ function drawEquip(){
   var target=gs.finalBoss?ENEMY_DB[5]:(node?ENEMY_DB[node.eId]:ENEMY_DB[0]);
   if(gs.finalBoss){
     fill('#cc44ff');textAlign(CENTER,TOP);textSize(sz(15));textStyle(BOLD);
-    text('CHOOSE YOUR WEAPONS',gx(GW/2),gy(8));textStyle(NORMAL);
+    text("SHIP'S HOLD",gx(GW/2),gy(8));textStyle(NORMAL);
     textSize(sz(10));fill('#ee88ff');
     text('THE KRAKEN awaits!  (150 hull / ATK 22)',gx(GW/2),gy(27));
   } else {
     fill(C.GOLD);textAlign(CENTER,TOP);textSize(sz(15));textStyle(BOLD);
-    text('CHOOSE YOUR WEAPONS',gx(GW/2),gy(8));textStyle(NORMAL);
+    text("SHIP'S HOLD",gx(GW/2),gy(8));textStyle(NORMAL);
     textSize(sz(10));fill(C.TEXT_DIM);
     text('Facing: '+target.title+' '+target.captain+'  ('+target.hp+' hull)',gx(GW/2),gy(27));
   }
-  textSize(sz(10));fill(C.TEXT_DIM);
-  text('Equipped: '+gs.equipped.length+'/3    Gold: '+gs.gold,gx(GW/2),gy(42));
-  text('Tap card to equip / unequip (max 3)',gx(GW/2),gy(56));
+  textSize(sz(9));fill(C.TEXT_DIM);textAlign(CENTER,TOP);
+  text('Draw 4 at start  |  Draw 2 per turn  |  Max 5 in hand  |  Cards cycle from discard',gx(GW/2),gy(42));
+  fill(C.BORDER);textSize(sz(9));
+  text(gs.backpack.length+' cards in hold    Gold: '+gs.gold,gx(GW/2),gy(54));
   for(var i=0;i<gs.backpack.length;i++){
     var r=equipCardRect(i);
-    drawEquipCard(gs.backpack[i],r.x,r.y,r.w,r.h,gs.equipped.indexOf(i)>=0);
+    drawEquipCard(gs.backpack[i],r.x,r.y,r.w,r.h,false);
   }
-  var canFight=gs.equipped.length>0;
   var bw=180,bh=42,bx=GW/2-bw/2,by=GH-56;
-  fill(canFight?(gs.finalBoss?'#9400d3':C.GOLD):'#2a4a6a');noStroke();
+  fill(gs.finalBoss?'#9400d3':C.GOLD);noStroke();
   rect(gx(bx),gy(by),sz(bw),sz(bh),sz(10));
   if(imgCannon){
     var canW=52,canH=30;
@@ -602,7 +609,7 @@ function drawEquip(){
     image(imgCannon,0,0,sz(canW),sz(canH));
     pop();
   }
-  fill(canFight?C.TEXT:'#6a9ac0');
+  fill(C.TEXT);
   textAlign(CENTER,CENTER);textSize(sz(14));textStyle(BOLD);
   text(gs.finalBoss?'FACE THE KRAKEN!':'WEIGH ANCHOR!',gx(GW/2),gy(by+bh/2));
   textStyle(NORMAL);
@@ -640,7 +647,7 @@ function drawEquipCard(card,cx,cy,w,h,equipped){
   }
   noStroke();fill(C.TEXT_DIM);textAlign(LEFT,TOP);textSize(sz(9));
   text(card.desc,gx(cx+7),gy(cy+45),sz(w-14),sz(h-50));
-  if(equipped){noStroke();fill(C.GOLD);textAlign(RIGHT,TOP);textSize(sz(9));text('[ON DECK]',gx(cx+w-6),gy(cy+7));}
+  // no equipped badge in deck mode
   pop();
 }
 
@@ -669,7 +676,6 @@ function domBtnY(total){
 }
 
 function startCombat(){
-  resetCardUses();
   var node=getMapNode(gs.floorMap.fightingNodeId);
   var def=gs.finalBoss?ENEMY_DB[5]:(node?ENEMY_DB[node.eId]:ENEMY_DB[0]);
   var domCount=4+gs.player.extraDraw;
@@ -679,6 +685,12 @@ function startCombat(){
     hp:def.hp,maxHp:def.hp,atk:def.atk,gold:def.gold,
     moveset:def.moveset,stunned:false,braceActive:false,moveIdx:0
   };
+  // Build shuffled hold from backpack, draw opening hand of 4
+  var hold=[];
+  for(var bi=0;bi<gs.backpack.length;bi++) hold.push(cloneCard(gs.backpack[bi]));
+  shuffleArray(hold);
+  var hand=[];
+  for(var di=0;di<4&&hold.length>0;di++) hand.push(hold.pop());
   gs.combat={
     enemy:enemy,
     dominoes:rollDominoes(domCount),
@@ -686,11 +698,34 @@ function startCombat(){
     nextMove:pickMove(enemy),
     enemyAnim:0,animIsStun:false,pendingTurns:0,
     animDom:rollDominoes(1)[0],
-    dragDomIdx:null,dragX:0,dragY:0,isDragging:false
+    dragDomIdx:null,dragX:0,dragY:0,isDragging:false,
+    hold:hold,hand:hand,discard:[],handMax:5
   };
   gs.screen='combat';
   if(gs.finalBoss) showMsg('THE KRAKEN: "'+def.intro+'"');
   else showMsg(def.captain+': "'+def.intro+'"');
+}
+
+function drawCard(cm){
+  if(cm.hand.length>=cm.handMax) return;
+  if(cm.hold.length===0){
+    if(cm.discard.length===0) return;
+    cm.hold=cm.discard.slice();
+    cm.discard=[];
+    shuffleArray(cm.hold);
+    showMsg('Hold reshuffled!');
+  }
+  var c=cm.hold.pop();
+  c.usesThisTurn=0;c.assigned=[null,null];
+  cm.hand.push(c);
+}
+
+function refillHand(cm){
+  for(var i=0;i<cm.hand.length;i++){
+    cm.hand[i].usesThisTurn=0;
+    cm.hand[i].assigned=[null,null];
+  }
+  for(var d=0;d<2;d++) drawCard(cm);
 }
 
 function drawCombat(){
@@ -767,11 +802,21 @@ function drawCombat(){
   var fl=FLOORS[min(gs.floorIdx,FLOORS.length-1)];
   fill(gs.finalBoss?'#cc44ff':C.TEXT_DIM);textAlign(CENTER,TOP);textSize(sz(9));
   text(gs.finalBoss?'FINAL BOSS':(fl.name+' - Floor '+(gs.floorIdx+1)+'/'+FLOORS.length),gx(GW/2),gy(CB.hpBarY-38));
-  // combat cards
-  var nc=gs.equipped.length;
-  var cardW=(GW-12-(nc-1)*6)/nc;
-  for(var ci=0;ci<nc;ci++){
-    drawCombatCard(gs.backpack[gs.equipped[ci]],6+ci*(cardW+6),CB.cardY,cardW,CB.cardH,cm);
+  // hold / discard indicators
+  noStroke();fill(C.TEXT_DIM);textSize(sz(9));textAlign(LEFT,TOP);
+  text('Hold:'+cm.hold.length,gx(6),gy(CB.cardY-13));
+  textAlign(RIGHT,TOP);
+  text('Disc:'+cm.discard.length,gx(GW-6),gy(CB.cardY-13));
+  // combat cards from hand
+  var nc=cm.hand.length;
+  if(nc===0){
+    noStroke();fill(C.TEXT_DIM);textAlign(CENTER,CENTER);textSize(sz(10));
+    text('No cards in hand - End Turn to draw',gx(GW/2),gy(CB.cardY+CB.cardH/2));
+  } else {
+    var cardW=(GW-12-(nc-1)*6)/nc;
+    for(var ci=0;ci<nc;ci++){
+      drawCombatCard(cm.hand[ci],6+ci*(cardW+6),CB.cardY,cardW,CB.cardH,cm);
+    }
   }
   // domino label
   fill(C.TEXT_DIM);textAlign(CENTER,BOTTOM);textSize(sz(10));
@@ -1020,7 +1065,7 @@ function resolveEnemyTurn(cm){
   advanceMoveIdx(cm.enemy);
   cm.nextMove=pickMove(cm.enemy);
   cm.turn++;
-  resetCardUses();
+  refillHand(cm);
   var domCount=4+gs.player.extraDraw;
   gs.player.extraDraw=0;
   cm.dominoes=rollDominoes(domCount);
@@ -1207,10 +1252,10 @@ function handleRelease(){
   if(!cm||cm.enemyAnim>0) return;
   if(cm.isDragging&&cm.dragDomIdx!==null&&!cm.dominoes[cm.dragDomIdx].used){
     var mx=toGX(mouseX),my=toGY(mouseY);
-    var nc=gs.equipped.length;
+    var nc=cm.hand.length;
     var cardW=(GW-12-(nc-1)*6)/nc;
     for(var ci=0;ci<nc;ci++){
-      var card=gs.backpack[gs.equipped[ci]];
+      var card=cm.hand[ci];
       var ccx=6+ci*(cardW+6);
       if(mx>=ccx&&mx<=ccx+cardW&&my>=CB.cardY&&my<=CB.cardY+CB.cardH){
         var dom=cm.dominoes[cm.dragDomIdx];
@@ -1236,18 +1281,8 @@ function handleTitle(mx,my){
 }
 
 function handleEquip(mx,my){
-  for(var i=0;i<gs.backpack.length;i++){
-    var r=equipCardRect(i);
-    if(mx>=r.x&&mx<=r.x+r.w&&my>=r.y&&my<=r.y+r.h){
-      var idx=gs.equipped.indexOf(i);
-      if(idx>=0){gs.equipped.splice(idx,1);showMsg('Unequipped '+gs.backpack[i].name+'.');}
-      else if(gs.equipped.length<3){gs.equipped.push(i);showMsg('Equipped '+gs.backpack[i].name+'!');}
-      else showMsg('Already have 3 cards equipped!');
-      return;
-    }
-  }
   var bw=180,bh=42,bx=GW/2-bw/2,by=GH-56;
-  if(gs.equipped.length>0&&mx>=bx&&mx<=bx+bw&&my>=by&&my<=by+bh) startCombat();
+  if(mx>=bx&&mx<=bx+bw&&my>=by&&my<=by+bh) startCombat();
 }
 
 function handleCombat(mx,my){
@@ -1265,10 +1300,10 @@ function handleCombat(mx,my){
     }
   }
   if(cm.selDom!==null&&!cm.isDragging){
-    var nc=gs.equipped.length;
+    var nc=cm.hand.length;
     var cardW=(GW-12-(nc-1)*6)/nc;
     for(var ci=0;ci<nc;ci++){
-      var card=gs.backpack[gs.equipped[ci]];
+      var card=cm.hand[ci];
       var ccx=6+ci*(cardW+6);
       if(mx>=ccx&&mx<=ccx+cardW&&my>=CB.cardY&&my<=CB.cardY+CB.cardH){
         var dom=cm.dominoes[cm.selDom];
