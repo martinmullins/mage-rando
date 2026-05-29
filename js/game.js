@@ -5,28 +5,29 @@ var sc = 1, ox = 0, oy = 0;
 var VW, VH;
 
 var C = {
-  OCEAN:'#0a1628', DEEP:'#0d1f3c', DECK:'#1a3a5c',
-  PLANK:'#8b6340', ROPE:'#c4a265', GOLD:'#f0c040', GOLD2:'#d4a820',
-  SAIL:'#f5eed8', DANGER:'#c0392b', TEXT:'#f5eed8', TEXT_DIM:'#a89a7a',
-  HP_FG:'#27ae60', HP_BG:'#1a3a2a', EN_FG:'#e74c3c', EN_BG:'#3a1a1a',
-  PANEL:'#0f2744', PANEL2:'#132f50', BORDER:'#2e5a8a',
-  GREEN_HI:'#1a4a2a', GREEN_BD:'#27ae60'
+  OCEAN:'#1565c0', DEEP:'#1976d2', DECK:'#1e88e5',
+  PLANK:'#9b7a4e', ROPE:'#d4a84b', GOLD:'#f0c040', GOLD2:'#d4a820',
+  SAIL:'#f5eed8', DANGER:'#e53935', TEXT:'#ffffff', TEXT_DIM:'#bbdefb',
+  HP_FG:'#43a047', HP_BG:'#1b5e20', EN_FG:'#ef5350', EN_BG:'#4a1515',
+  PANEL:'#0d47a1', PANEL2:'#1565c0', BORDER:'#64b5f6',
+  GREEN_HI:'#1b5e20', GREEN_BD:'#43a047'
 };
 
 var imgShipPlayer = null, imgShipEnemy = null, imgKraken = null;
 var imgTreasureChest = null, imgCannon = null, imgGhostShip = null;
 
 var CARD_DB = [
-  {id:'rusty_cannon',name:'Rusty Cannon', slots:[null,null],dmg:4, heal:0,extraDraw:0,stun:false,desc:'Deal 4 damage.'},
-  {id:'bilge_pump',  name:'Bilge Pump',   slots:[null,null],dmg:0, heal:4,extraDraw:0,stun:false,desc:'Heal 4 HP.'},
-  {id:'crows_nest',  name:"Crow's Nest",  slots:[null,null],dmg:0, heal:0,extraDraw:2,stun:false,desc:'+2 dominoes next turn.'},
-  {id:'iron_cannon', name:'Iron Cannon',  slots:[null,6],   dmg:9, heal:0,extraDraw:0,stun:false,desc:'Needs a 6. Deal 9 damage.'},
-  {id:'grapeshot',   name:'Grapeshot',    slots:[3,null],   dmg:6, heal:0,extraDraw:0,stun:false,desc:'Needs a 3. Deal 6 damage.'},
-  {id:'broadside',   name:'Broadside',    slots:[5,5],      dmg:16,heal:0,extraDraw:0,stun:false,desc:'Double 5s only! Deal 16.'},
-  {id:'powder_keg',  name:'Powder Keg',   slots:[6,6],      dmg:24,heal:0,extraDraw:0,stun:false,desc:'Double 6s only! Deal 24.'},
-  {id:'sea_witch',   name:'Sea Witch',    slots:[null,null],dmg:0, heal:10,extraDraw:0,stun:false,desc:'Heal 10 HP.'},
-  {id:'anchor_drop', name:'Anchor Drop',  slots:[null,null],dmg:2, heal:0,extraDraw:0,stun:true, desc:'Stun enemy. Deal 2 damage.'},
-  {id:'nav_chart',   name:'Nav Chart',    slots:[null,null],dmg:0, heal:0,extraDraw:3,stun:false,desc:'+3 dominoes next turn.'}
+  {id:'rusty_cannon',name:'Rusty Cannon', slots:[null,null],dmg:4, heal:0,extraDraw:0,stun:false,loadedDice:false,desc:'Deal 4 damage.'},
+  {id:'bilge_pump',  name:'Bilge Pump',   slots:[null,null],dmg:0, heal:4,extraDraw:0,stun:false,loadedDice:false,desc:'Heal 4 HP.'},
+  {id:'crows_nest',  name:"Crow's Nest",  slots:[null,null],dmg:0, heal:0,extraDraw:2,stun:false,loadedDice:false,desc:'+2 dominoes next turn.'},
+  {id:'iron_cannon', name:'Iron Cannon',  slots:[null,6],   dmg:9, heal:0,extraDraw:0,stun:false,loadedDice:false,desc:'Needs a 6. Deal 9 damage.'},
+  {id:'grapeshot',   name:'Grapeshot',    slots:[3,null],   dmg:6, heal:0,extraDraw:0,stun:false,loadedDice:false,desc:'Needs a 3. Deal 6 damage.'},
+  {id:'broadside',   name:'Broadside',    slots:[5,5],      dmg:16,heal:0,extraDraw:0,stun:false,loadedDice:false,desc:'Double 5s only! Deal 16.'},
+  {id:'powder_keg',  name:'Powder Keg',   slots:[6,6],      dmg:24,heal:0,extraDraw:0,stun:false,loadedDice:false,desc:'Double 6s only! Deal 24.'},
+  {id:'sea_witch',   name:'Sea Witch',    slots:[null,null],dmg:0, heal:10,extraDraw:0,stun:false,loadedDice:false,desc:'Heal 10 HP.'},
+  {id:'anchor_drop', name:'Anchor Drop',  slots:[null,null],dmg:2, heal:0,extraDraw:0,stun:true, loadedDice:false,desc:'Stun enemy. Deal 2 damage.'},
+  {id:'nav_chart',   name:'Nav Chart',    slots:[null,null],dmg:0, heal:0,extraDraw:3,stun:false,loadedDice:false,desc:'+3 dominoes next turn.'},
+  {id:'loaded_dice', name:'Loaded Dice',  slots:[null,null],dmg:0, heal:0,extraDraw:0,stun:false,loadedDice:true, desc:'Any domino: adds [5|5]+[6|6] to hand!'}
 ];
 
 var MOVE_DB = {
@@ -41,9 +42,9 @@ var ENEMY_DB = [
   {name:'Dinghy',    hp:14, atk:2, gold:1, moveset:['light','light','brace']},
   {name:'Sloop',     hp:24, atk:4, gold:2, moveset:['cannon','light','repair']},
   {name:'Brigantine',hp:38, atk:6, gold:3, moveset:['cannon','heavy','brace']},
-  {name:"Man-o-War", hp:55, atk:9, gold:4, moveset:['heavy','cannon','brace']},
-  {name:'Ghost Ship',hp:75, atk:13,gold:5, moveset:['heavy','heavy','repair']},
-  {name:'The Kraken',hp:150,atk:22,gold:15,moveset:['heavy','cannon','heavy','repair','heavy','brace']}
+  {name:"Man-o-War", hp:55, atk:9, gold:4, moveset:['heavy','cannon','brace','heavy','cannon']},
+  {name:'Ghost Ship',hp:75, atk:13,gold:5, moveset:['heavy','heavy','repair','heavy','brace','heavy']},
+  {name:'The Kraken',hp:150,atk:22,gold:15,moveset:['heavy','cannon','heavy','repair','heavy','brace','cannon','heavy']}
 ];
 
 var FLOORS = [
@@ -59,10 +60,10 @@ var gs;
 function cloneCard(def) {
   return {id:def.id,name:def.name,slots:[def.slots[0],def.slots[1]],
           dmg:def.dmg,heal:def.heal,extraDraw:def.extraDraw,stun:def.stun,
-          desc:def.desc,assigned:[null,null]};
+          loadedDice:!!def.loadedDice,desc:def.desc,assigned:[null,null]};
 }
 
-// ── MAP GENERATION ─────────────────────────────────────────────
+// -- MAP GENERATION -----------------------------------------------------------
 var NW = 172, NH = 70;
 var xL = 10, xR = 218, xC = 114;
 var yR = [100, 238, 376, 510];
@@ -71,7 +72,6 @@ function generateFloorMap(flIdx) {
   var fl   = FLOORS[min(flIdx, FLOORS.length - 1)];
   var pool = fl.enemies;
   var nodes = [], nid = 0;
-
   function rnd() { return pool[Math.floor(Math.random() * pool.length)]; }
   function boss() {
     var b = pool[0];
@@ -82,10 +82,8 @@ function generateFloorMap(flIdx) {
     nodes.push({id:nid,type:type,eId:eId||0,x:x,y:y,next:[]});
     return nid++;
   }
-
   var tpl = Math.floor(Math.random() * 3);
   var entryIds;
-
   if (tpl === 0) {
     var hasPort = Math.random() < 0.55;
     var nA   = mk('enemy', xL, yR[0], rnd());
@@ -93,42 +91,31 @@ function generateFloorMap(flIdx) {
     var nMid = mk('enemy', xC, yR[1], rnd());
     var nBs  = mk('enemy', xC, yR[2], boss());
     var nEx  = mk('exit',  xC, yR[3]);
-    nodes[nA].next  = [nMid];
-    nodes[nB].next  = [nMid];
-    nodes[nMid].next= [nBs];
-    nodes[nBs].next = [nEx];
-    entryIds = [nA, nB];
-
+    nodes[nA].next=[nMid]; nodes[nB].next=[nMid];
+    nodes[nMid].next=[nBs]; nodes[nBs].next=[nEx];
+    entryIds=[nA,nB];
   } else if (tpl === 1) {
-    var n0   = mk('enemy', xC, yR[0], rnd());
-    var nGd  = mk('enemy', xL, yR[1], rnd());
-    var nSk  = mk('enemy', xR, yR[1], rnd());
-    var nPt  = mk('port',  xL, yR[2]);
-    var nBs  = mk('enemy', xR, yR[2], boss());
-    var nEx  = mk('exit',  xC, yR[3]);
-    nodes[n0].next  = [nGd, nSk];
-    nodes[nGd].next = [nPt];
-    nodes[nSk].next = [nBs];
-    nodes[nPt].next = [nBs];
-    nodes[nBs].next = [nEx];
-    entryIds = [n0];
-
+    var n0  = mk('enemy', xC, yR[0], rnd());
+    var nGd = mk('enemy', xL, yR[1], rnd());
+    var nSk = mk('enemy', xR, yR[1], rnd());
+    var nPt = mk('port',  xL, yR[2]);
+    var nBs = mk('enemy', xR, yR[2], boss());
+    var nEx = mk('exit',  xC, yR[3]);
+    nodes[n0].next=[nGd,nSk]; nodes[nGd].next=[nPt];
+    nodes[nSk].next=[nBs]; nodes[nPt].next=[nBs]; nodes[nBs].next=[nEx];
+    entryIds=[n0];
   } else {
     var portRight = Math.random() < 0.5;
-    var nL1  = mk('enemy', xL, yR[0], rnd());
-    var nR1  = mk('enemy', xR, yR[0], rnd());
-    var nL2  = portRight ? mk('enemy', xL, yR[1], rnd()) : mk('port', xL, yR[1]);
-    var nR2  = portRight ? mk('port',  xR, yR[1])        : mk('enemy',xR, yR[1], rnd());
-    var nBs  = mk('enemy', xC, yR[2], boss());
-    var nEx  = mk('exit',  xC, yR[3]);
-    nodes[nL1].next = [nL2];
-    nodes[nR1].next = [nR2];
-    nodes[nL2].next = [nBs];
-    nodes[nR2].next = [nBs];
-    nodes[nBs].next = [nEx];
-    entryIds = [nL1, nR1];
+    var nL1 = mk('enemy', xL, yR[0], rnd());
+    var nR1 = mk('enemy', xR, yR[0], rnd());
+    var nL2 = portRight ? mk('enemy', xL, yR[1], rnd()) : mk('port', xL, yR[1]);
+    var nR2 = portRight ? mk('port',  xR, yR[1])        : mk('enemy',xR, yR[1], rnd());
+    var nBs = mk('enemy', xC, yR[2], boss());
+    var nEx = mk('exit',  xC, yR[3]);
+    nodes[nL1].next=[nL2]; nodes[nR1].next=[nR2];
+    nodes[nL2].next=[nBs]; nodes[nR2].next=[nBs]; nodes[nBs].next=[nEx];
+    entryIds=[nL1,nR1];
   }
-
   return {nodes:nodes, entryIds:entryIds, visited:[], fightingNodeId:null};
 }
 
@@ -143,8 +130,7 @@ function getMapNode(id) {
 function getReachable() {
   var map = gs.floorMap;
   if (!map) return [];
-  var vis = map.visited;
-  var out = [];
+  var vis = map.visited, out = [];
   for (var i = 0; i < map.nodes.length; i++) {
     var n = map.nodes[i];
     if (vis.indexOf(n.id) >= 0) continue;
@@ -159,27 +145,21 @@ function getReachable() {
   return out;
 }
 
-function initFloorState() {
-  gs.floorMap = generateFloorMap(gs.floorIdx);
-}
+function initFloorState() { gs.floorMap = generateFloorMap(gs.floorIdx); }
 
 function initGS() {
   gs = {
     screen:'title',
     player:{hp:30,maxHp:30,extraDraw:0},
     backpack:[cloneCard(CARD_DB[0]),cloneCard(CARD_DB[1]),cloneCard(CARD_DB[2])],
-    equipped:[0,1,2],
-    floorIdx:0,
-    floorMap:null,
-    gold:2,
+    equipped:[0,1,2], floorIdx:0, floorMap:null, gold:2,
     combat:null, loot:null, port:null,
-    finalBoss:false,
-    msg:'', msgTimer:0, wave:0
+    finalBoss:false, msg:'', msgTimer:0, wave:0
   };
   initFloorState();
 }
 
-// ── DOMINO / COMBAT HELPERS ─────────────────────────────────────────────────────
+// -- DOMINO / COMBAT HELPERS --------------------------------------------------
 function makeDomino(l,r){return{left:l,right:r,used:false};}
 function rollDominoes(n){
   var r=[];
@@ -188,8 +168,7 @@ function rollDominoes(n){
 }
 
 function pickMove(enemy) {
-  var id   = enemy.moveset[enemy.moveIdx % enemy.moveset.length];
-  enemy.moveIdx = (enemy.moveIdx + 1) % enemy.moveset.length;
+  var id = enemy.moveset[enemy.moveIdx % enemy.moveset.length];
   var base = MOVE_DB[id];
   return {
     id:id, name:base.name, type:base.type,
@@ -197,6 +176,9 @@ function pickMove(enemy) {
     healAmt:base.type==='heal' ? Math.max(3,Math.round(enemy.maxHp*0.15))   : 0,
     desc:base.desc
   };
+}
+function advanceMoveIdx(enemy){
+  enemy.moveIdx=(enemy.moveIdx+1)%enemy.moveset.length;
 }
 
 function dominoFits(dom,card){
@@ -225,6 +207,11 @@ function applyCard(card,cm){
   if(card.heal>0){gs.player.hp=min(gs.player.maxHp,gs.player.hp+card.heal);msgs.push('Healed +'+card.heal+' HP!');}
   if(card.extraDraw>0){gs.player.extraDraw+=card.extraDraw;msgs.push('+'+card.extraDraw+' draws next turn!');}
   if(card.stun){cm.enemy.stunned=true;msgs.push('Enemy anchored!');}
+  if(card.loadedDice){
+    cm.dominoes.push(makeDomino(5,5));
+    cm.dominoes.push(makeDomino(6,6));
+    msgs.push('[5|5] and [6|6] loaded into hand!');
+  }
   card.assigned=[null,null];
   if(msgs.length>0) showMsg(msgs.join(' '));
 }
@@ -239,44 +226,45 @@ function sz(v){return v*sc;}
 function recalcScale(){
   VW=windowWidth;VH=windowHeight;
   sc=min(VW/GW,VH/GH);
-  ox=(VW-GW*sc)/2;
-  oy=(VH-GH*sc)/2;
+  ox=(VW-GW*sc)/2; oy=(VH-GH*sc)/2;
 }
 
-// ── PIP DRAWING ─────────────────────────────────────────────────────────────────────────────
+// -- PIP DRAWING --------------------------------------------------------------
 function drawPips(val,hx,hy,hw,hh,pr,pg,pb,pa){
   if(pa===undefined) pa=255;
-  var r=Math.min(hw,hh)*0.10;
+  if(val===0) return;
+  var r=Math.min(hw,hh)*0.13;
+  var d=Math.max(sz(r)*2, 2.5);
   var lx=hx+hw*0.28, rx=hx+hw*0.72, cx2=hx+hw*0.50;
-  var ty=hy+hh*0.28, midy=hy+hh*0.50, by2=hy+hh*0.72;
+  var ty=hy+hh*0.27, midy=hy+hh*0.50, by2=hy+hh*0.73;
   fill(pr,pg,pb,pa); noStroke();
   if(val===1){
-    ellipse(gx(cx2),gy(midy),sz(r)*2,sz(r)*2);
+    ellipse(gx(cx2),gy(midy),d,d);
   } else if(val===2){
-    ellipse(gx(rx),gy(ty),sz(r)*2,sz(r)*2);
-    ellipse(gx(lx),gy(by2),sz(r)*2,sz(r)*2);
+    ellipse(gx(rx),gy(ty),d,d);
+    ellipse(gx(lx),gy(by2),d,d);
   } else if(val===3){
-    ellipse(gx(rx),gy(ty),sz(r)*2,sz(r)*2);
-    ellipse(gx(cx2),gy(midy),sz(r)*2,sz(r)*2);
-    ellipse(gx(lx),gy(by2),sz(r)*2,sz(r)*2);
+    ellipse(gx(rx),gy(ty),d,d);
+    ellipse(gx(cx2),gy(midy),d,d);
+    ellipse(gx(lx),gy(by2),d,d);
   } else if(val===4){
-    ellipse(gx(lx),gy(ty),sz(r)*2,sz(r)*2);
-    ellipse(gx(rx),gy(ty),sz(r)*2,sz(r)*2);
-    ellipse(gx(lx),gy(by2),sz(r)*2,sz(r)*2);
-    ellipse(gx(rx),gy(by2),sz(r)*2,sz(r)*2);
+    ellipse(gx(lx),gy(ty),d,d);
+    ellipse(gx(rx),gy(ty),d,d);
+    ellipse(gx(lx),gy(by2),d,d);
+    ellipse(gx(rx),gy(by2),d,d);
   } else if(val===5){
-    ellipse(gx(lx),gy(ty),sz(r)*2,sz(r)*2);
-    ellipse(gx(rx),gy(ty),sz(r)*2,sz(r)*2);
-    ellipse(gx(cx2),gy(midy),sz(r)*2,sz(r)*2);
-    ellipse(gx(lx),gy(by2),sz(r)*2,sz(r)*2);
-    ellipse(gx(rx),gy(by2),sz(r)*2,sz(r)*2);
+    ellipse(gx(lx),gy(ty),d,d);
+    ellipse(gx(rx),gy(ty),d,d);
+    ellipse(gx(cx2),gy(midy),d,d);
+    ellipse(gx(lx),gy(by2),d,d);
+    ellipse(gx(rx),gy(by2),d,d);
   } else if(val===6){
-    ellipse(gx(lx),gy(ty),sz(r)*2,sz(r)*2);
-    ellipse(gx(rx),gy(ty),sz(r)*2,sz(r)*2);
-    ellipse(gx(lx),gy(midy),sz(r)*2,sz(r)*2);
-    ellipse(gx(rx),gy(midy),sz(r)*2,sz(r)*2);
-    ellipse(gx(lx),gy(by2),sz(r)*2,sz(r)*2);
-    ellipse(gx(rx),gy(by2),sz(r)*2,sz(r)*2);
+    ellipse(gx(lx),gy(ty),d,d);
+    ellipse(gx(rx),gy(ty),d,d);
+    ellipse(gx(lx),gy(midy),d,d);
+    ellipse(gx(rx),gy(midy),d,d);
+    ellipse(gx(lx),gy(by2),d,d);
+    ellipse(gx(rx),gy(by2),d,d);
   }
 }
 
@@ -327,10 +315,7 @@ function drawWaves(yBase){
 function drawShip(cx,cy,w,enemy){
   var h=w*0.42;
   var img=enemy?imgShipEnemy:imgShipPlayer;
-  if(img){
-    image(img,gx(cx-w/2),gy(cy-h*1.15),sz(w),sz(w*0.75));
-    return;
-  }
+  if(img){ image(img,gx(cx-w/2),gy(cy-h*1.15),sz(w),sz(w*0.75)); return; }
   push();
   fill(enemy?C.DANGER:C.DECK);noStroke();
   beginShape();
@@ -351,7 +336,7 @@ function drawMsgOverlay(){
   var a=min(1,gs.msgTimer/30)*230;
   push();
   rectMode(CENTER);
-  fill(10,20,40,a);noStroke();
+  fill(10,30,80,a);noStroke();
   rect(gx(GW/2),gy(GH-52),sz(GW-30),sz(34),sz(8));
   var gc=color(C.GOLD);
   fill(red(gc),green(gc),blue(gc),a);
@@ -360,7 +345,7 @@ function drawMsgOverlay(){
   pop();
 }
 
-// ── TITLE ──────────────────────────────────────────────────────────────────────────────────────
+// -- TITLE --------------------------------------------------------------------
 function drawTitle(){
   push();
   fill(C.DEEP);noStroke();
@@ -374,7 +359,7 @@ function drawTitle(){
   text('DOMINO',gx(GW/2),gy(GH*0.18));
   text('SEAS',  gx(GW/2),gy(GH*0.27));
   textStyle(NORMAL);
-  textSize(sz(13));fill(C.ROPE);
+  textSize(sz(13));fill(C.TEXT_DIM);
   text('A pirate dominoes game',gx(GW/2),gy(GH*0.36));
   var bw=190,bh=46,bx=GW/2-bw/2,by=GH*0.76;
   fill(C.GOLD);noStroke();
@@ -385,23 +370,20 @@ function drawTitle(){
   pop();
 }
 
-// ── FLOOR MAP ───────────────────────────────────────────────────────────────────────────────────
+// -- FLOOR MAP ----------------------------------------------------------------
 function drawFloor(){
   var map=gs.floorMap;
   var fl=FLOORS[min(gs.floorIdx,FLOORS.length-1)];
   var reach=getReachable();
-
   push();
   fill(C.DEEP);noStroke();
   rect(gx(0),gy(GH*0.5),sz(GW),sz(GH*0.5));
   drawWaves(GH*0.52);
-
   fill(C.GOLD);textAlign(CENTER,TOP);textSize(sz(18));textStyle(BOLD);
   text(fl.name,gx(GW/2),gy(8));
   textStyle(NORMAL);
-  fill(C.ROPE);textSize(sz(10));
+  fill(C.TEXT_DIM);textSize(sz(10));
   text('Floor '+(gs.floorIdx+1)+' of '+FLOORS.length,gx(GW/2),gy(29));
-
   var phpW=110,phpH=12,phpX=8,phpY=46;
   fill(C.HP_BG);noStroke();
   rect(gx(phpX),gy(phpY),sz(phpW),sz(phpH),sz(3));
@@ -412,31 +394,25 @@ function drawFloor(){
   fill(C.GOLD);textAlign(RIGHT,TOP);textSize(sz(12));textStyle(BOLD);
   text('G: '+gs.gold,gx(GW-8),gy(46));
   textStyle(NORMAL);
-
   for(var ni=0;ni<map.nodes.length;ni++){
     var n=map.nodes[ni];
     for(var nj=0;nj<n.next.length;nj++){
       var nn=getMapNode(n.next[nj]);
       if(!nn) continue;
-      var x1=n.x+NW/2, y1t=n.y+NH;
-      var x2=nn.x+NW/2, y2t=nn.y;
+      var x1=n.x+NW/2,y1t=n.y+NH,x2=nn.x+NW/2,y2t=nn.y;
       var srcVis=map.visited.indexOf(n.id)>=0;
-      var dstVis=map.visited.indexOf(nn.id)>=0;
       var dstReach=reach.indexOf(nn.id)>=0;
-      if(srcVis&&dstReach)       {stroke(C.ROPE);strokeWeight(sz(2.5));}
-      else if(srcVis&&dstVis)   {stroke(C.TEXT_DIM);strokeWeight(sz(1));}
-      else                       {stroke('#162030');strokeWeight(sz(1.5));}
+      var dstVis=map.visited.indexOf(nn.id)>=0;
+      if(srcVis&&dstReach){stroke(C.ROPE);strokeWeight(sz(2.5));}
+      else if(srcVis&&dstVis){stroke(C.TEXT_DIM);strokeWeight(sz(1));}
+      else{stroke('#1e3a5a');strokeWeight(sz(1.5));}
       line(gx(x1),gy(y1t),gx(x2),gy(y2t));
     }
   }
-
   for(var ni=0;ni<map.nodes.length;ni++){
     var n=map.nodes[ni];
-    var vis=map.visited.indexOf(n.id)>=0;
-    var can=reach.indexOf(n.id)>=0;
-    drawMapNode(n,vis,can,fl);
+    drawMapNode(n,map.visited.indexOf(n.id)>=0,reach.indexOf(n.id)>=0,fl);
   }
-
   pop();
 }
 
@@ -444,70 +420,51 @@ function drawMapNode(n,visited,reachable,fl){
   push();
   var isFinalFloor=gs.floorIdx>=FLOORS.length-1;
   var bg,bd,bw;
-  if(visited){bg='#090e18';bd='#1a2840';bw=1;}
+  if(visited){bg='#0d3060';bd='#1e5090';bw=1;}
   else if(reachable){
     if(n.type==='exit'){
-      if(isFinalFloor){bg='#0d0020';bd='#9400d3';bw=3;}
-      else{bg='#0f2030';bd=C.GOLD;bw=2.5;}
+      if(isFinalFloor){bg='#1a0040';bd='#9400d3';bw=3;}
+      else{bg='#1a3a6a';bd=C.GOLD;bw=2.5;}
     }
     else if(n.type==='port'){bg=C.PANEL;bd=C.GOLD;bw=2.5;}
     else{bg=C.PANEL2;bd=C.BORDER;bw=2;}
-  } else {bg='#070c14';bd='#0c1520';bw=1;}
-
+  } else {bg='#0a2040';bd='#1a3a5a';bw=1;}
   fill(bg);stroke(bd);strokeWeight(sz(bw));
   rect(gx(n.x),gy(n.y),sz(NW),sz(NH),sz(6));
-
   if(visited){
-    noStroke();fill(C.TEXT_DIM);
-    textAlign(CENTER,CENTER);textSize(sz(10));
-    var vl=n.type==='enemy'?('~ '+ENEMY_DB[n.eId].name+' sunk ~'):
-           n.type==='port'?'~ Port visited ~':'~ Departed ~';
-    text(vl,gx(n.x+NW/2),gy(n.y+NH/2));
-    pop();return;
+    noStroke();fill(C.TEXT_DIM);textAlign(CENTER,CENTER);textSize(sz(10));
+    var vl=n.type==='enemy'?('~ '+ENEMY_DB[n.eId].name+' sunk ~'):n.type==='port'?'~ Port visited ~':'~ Departed ~';
+    text(vl,gx(n.x+NW/2),gy(n.y+NH/2));pop();return;
   }
-
   if(!reachable){
-    noStroke();
-    fill('#1e2e40');textAlign(CENTER,CENTER);textSize(sz(10));
-    var lk=n.type==='enemy'?'?? Enemy ??':n.type==='port'?'Port':'Exit';
-    text(lk,gx(n.x+NW/2),gy(n.y+NH/2));
+    noStroke();fill('#3a6a9a');textAlign(CENTER,CENTER);textSize(sz(10));
+    text(n.type==='enemy'?'?? Enemy ??':n.type==='port'?'Port':'Exit',gx(n.x+NW/2),gy(n.y+NH/2));
     pop();return;
   }
-
   noStroke();
   if(n.type==='enemy'){
     var def=ENEMY_DB[n.eId];
     drawShip(n.x+24,n.y+NH/2,28,true);
     fill(C.TEXT);textAlign(LEFT,TOP);textSize(sz(11));textStyle(BOLD);
-    text(def.name,gx(n.x+48),gy(n.y+7));
-    textStyle(NORMAL);
-    fill(C.EN_FG);textSize(sz(9));
-    text(def.hp+' hull',gx(n.x+48),gy(n.y+24));
-    fill(C.ROPE);textSize(sz(9));
-    text('ATK '+def.atk+'  +'+def.gold+'g',gx(n.x+48),gy(n.y+38));
+    text(def.name,gx(n.x+48),gy(n.y+7));textStyle(NORMAL);
+    fill(C.EN_FG);textSize(sz(9));text(def.hp+' hull',gx(n.x+48),gy(n.y+24));
+    fill(C.TEXT_DIM);textSize(sz(9));text('ATK '+def.atk+'  +'+def.gold+'g',gx(n.x+48),gy(n.y+38));
     fill(C.GOLD);textAlign(RIGHT,CENTER);textSize(sz(16));textStyle(BOLD);
-    text('>',gx(n.x+NW-8),gy(n.y+NH/2));
-    textStyle(NORMAL);
+    text('>',gx(n.x+NW-8),gy(n.y+NH/2));textStyle(NORMAL);
   } else if(n.type==='port'){
     fill(C.GOLD);textAlign(CENTER,CENTER);textSize(sz(12));textStyle(BOLD);
-    text('PORT: '+fl.portName,gx(n.x+NW/2),gy(n.y+NH/2-10));
-    textStyle(NORMAL);
-    fill(C.ROPE);textSize(sz(9));
-    text('Rest & restock',gx(n.x+NW/2),gy(n.y+NH/2+10));
+    text('PORT: '+fl.portName,gx(n.x+NW/2),gy(n.y+NH/2-10));textStyle(NORMAL);
+    fill(C.TEXT_DIM);textSize(sz(9));text('Rest & restock',gx(n.x+NW/2),gy(n.y+NH/2+10));
   } else {
     if(isFinalFloor){
       fill('#cc44ff');textAlign(CENTER,CENTER);textSize(sz(13));textStyle(BOLD);
       text('THE KRAKEN',gx(n.x+NW/2),gy(n.y+NH/2-14));
-      text('AWAITS',gx(n.x+NW/2),gy(n.y+NH/2+1));
-      textStyle(NORMAL);
-      fill('#ee88ff');textSize(sz(8));
-      text('150 hull   ATK 22',gx(n.x+NW/2),gy(n.y+NH/2+15));
+      text('AWAITS',gx(n.x+NW/2),gy(n.y+NH/2+1));textStyle(NORMAL);
+      fill('#ee88ff');textSize(sz(8));text('150 hull   ATK 22',gx(n.x+NW/2),gy(n.y+NH/2+15));
     } else {
       fill(C.GOLD);textAlign(CENTER,CENTER);textSize(sz(13));textStyle(BOLD);
-      text('DEPART',gx(n.x+NW/2),gy(n.y+NH/2-9));
-      textStyle(NORMAL);
-      fill(C.ROPE);textSize(sz(9));
-      text('Advance to next floor >>',gx(n.x+NW/2),gy(n.y+NH/2+9));
+      text('DEPART',gx(n.x+NW/2),gy(n.y+NH/2-9));textStyle(NORMAL);
+      fill(C.TEXT_DIM);textSize(sz(9));text('Advance to next floor >>',gx(n.x+NW/2),gy(n.y+NH/2+9));
     }
   }
   pop();
@@ -522,22 +479,16 @@ function handleFloor(mx,my){
     if(reach.indexOf(n.id)<0) continue;
     if(mx>=n.x&&mx<=n.x+NW&&my>=n.y&&my<=n.y+NH){
       if(n.type==='enemy'){
-        map.fightingNodeId=n.id;
-        gs.screen='equip';
+        map.fightingNodeId=n.id; gs.screen='equip';
       } else if(n.type==='port'){
         map.visited.push(n.id);
-        gs.port=buildPortItems(fl,true);
-        gs.screen='port';
+        gs.port=buildPortItems(fl,true); gs.screen='port';
         showMsg('Welcome to '+fl.portName+'!');
       } else {
         if(gs.floorIdx>=FLOORS.length-1){
-          gs.finalBoss=true;
-          map.fightingNodeId=n.id;
-          gs.screen='equip';
+          gs.finalBoss=true; map.fightingNodeId=n.id; gs.screen='equip';
           showMsg('THE KRAKEN RISES FROM THE DEEP!');
-        } else {
-          exitFloor();
-        }
+        } else { exitFloor(); }
       }
       return;
     }
@@ -549,11 +500,9 @@ function exitFloor(){
   gs.floorIdx++;
   if(gs.floorIdx>=FLOORS.length){
     showMsg('You conquered the seas! VICTORY, CAPTAIN!');
-    setTimeout(function(){initGS();},3500);
-    return;
+    setTimeout(function(){initGS();},3500); return;
   }
-  gs.port=buildPortItems(fl,false);
-  gs.screen='port';
+  gs.port=buildPortItems(fl,false); gs.screen='port';
   showMsg('Welcome to '+fl.portName+'!');
 }
 
@@ -576,7 +525,7 @@ function buildPortItems(fl,isInFloor){
   return{portName:fl.portName,items:items,isInFloor:isInFloor};
 }
 
-// ── EQUIP ─────────────────────────────────────────────────────────────────────────────────────────
+// -- EQUIP --------------------------------------------------------------------
 var EQ={sidePad:10,cols:2,gap:8,cardH:88,cardY0:76,rowGap:8};
 function equipCardRect(i){
   var cw=(GW-2*EQ.sidePad-(EQ.cols-1)*EQ.gap)/EQ.cols;
@@ -589,15 +538,13 @@ function drawEquip(){
   var target=gs.finalBoss?ENEMY_DB[5]:(node?ENEMY_DB[node.eId]:ENEMY_DB[0]);
   if(gs.finalBoss){
     fill('#cc44ff');textAlign(CENTER,TOP);textSize(sz(15));textStyle(BOLD);
-    text('CHOOSE YOUR WEAPONS',gx(GW/2),gy(8));
-    textStyle(NORMAL);
+    text('CHOOSE YOUR WEAPONS',gx(GW/2),gy(8));textStyle(NORMAL);
     textSize(sz(10));fill('#ee88ff');
     text('THE KRAKEN awaits!  (150 hull / ATK 22)',gx(GW/2),gy(27));
   } else {
     fill(C.GOLD);textAlign(CENTER,TOP);textSize(sz(15));textStyle(BOLD);
-    text('CHOOSE YOUR WEAPONS',gx(GW/2),gy(8));
-    textStyle(NORMAL);
-    textSize(sz(10));fill(C.ROPE);
+    text('CHOOSE YOUR WEAPONS',gx(GW/2),gy(8));textStyle(NORMAL);
+    textSize(sz(10));fill(C.TEXT_DIM);
     text('Facing: '+target.name+'  ('+target.hp+' hull / ATK '+target.atk+')',gx(GW/2),gy(27));
   }
   textSize(sz(10));fill(C.TEXT_DIM);
@@ -609,7 +556,7 @@ function drawEquip(){
   }
   var canFight=gs.equipped.length>0;
   var bw=180,bh=42,bx=GW/2-bw/2,by=GH-56;
-  fill(canFight?(gs.finalBoss?'#9400d3':C.GOLD):'#334455');noStroke();
+  fill(canFight?(gs.finalBoss?'#9400d3':C.GOLD):'#2a4a6a');noStroke();
   rect(gx(bx),gy(by),sz(bw),sz(bh),sz(10));
   if(imgCannon){
     var canW=52,canH=30;
@@ -620,7 +567,7 @@ function drawEquip(){
     image(imgCannon,0,0,sz(canW),sz(canH));
     pop();
   }
-  fill(canFight?C.TEXT:'#556677');
+  fill(canFight?C.TEXT:'#6a9ac0');
   textAlign(CENTER,CENTER);textSize(sz(14));textStyle(BOLD);
   text(gs.finalBoss?'FACE THE KRAKEN!':'WEIGH ANCHOR!',gx(GW/2),gy(by+bh/2));
   textStyle(NORMAL);
@@ -629,30 +576,26 @@ function drawEquip(){
 
 function drawEquipCard(card,cx,cy,w,h,equipped){
   push();
-  fill(equipped?'#1a3a5c':C.PANEL);
+  fill(equipped?'#1a4a7a':C.PANEL);
   stroke(equipped?C.GOLD:C.BORDER);strokeWeight(sz(equipped?2.5:1.5));
-  rect(gx(cx),gy(cy),sz(w),sz(h),sz(6));
-  noStroke();
+  rect(gx(cx),gy(cy),sz(w),sz(h),sz(6));noStroke();
   fill(equipped?C.GOLD:C.TEXT);textAlign(LEFT,TOP);textSize(sz(11));textStyle(BOLD);
-  text(card.name,gx(cx+7),gy(cy+7));
-  textStyle(NORMAL);
-  // mini pip domino showing slot requirements
+  text(card.name,gx(cx+7),gy(cy+7));textStyle(NORMAL);
   var dw=48,dh=20,dx2=cx+7,dy2=cy+22;
-  fill(C.OCEAN);stroke(C.BORDER);strokeWeight(sz(1));
+  fill('#111111');stroke(equipped?C.GOLD:'#555555');strokeWeight(sz(1));
   rect(gx(dx2),gy(dy2),sz(dw),sz(dh),sz(3));
-  stroke('#2e5a8a');strokeWeight(sz(0.8));
+  stroke('#555555');strokeWeight(sz(0.8));
   line(gx(dx2+dw/2),gy(dy2+2),gx(dx2+dw/2),gy(dy2+dh-2));
-  var eqC=color(equipped?C.GOLD:C.ROPE);
   if(card.slots[0]!==null){
-    drawPips(card.slots[0],dx2,dy2,dw/2,dh,red(eqC),green(eqC),blue(eqC));
+    drawPips(card.slots[0],dx2,dy2,dw/2,dh,240,230,210);
   } else {
-    noStroke();fill(equipped?C.GOLD:C.ROPE);textSize(sz(9));textAlign(CENTER,CENTER);
+    noStroke();fill(equipped?C.GOLD:C.TEXT_DIM);textSize(sz(9));textAlign(CENTER,CENTER);
     text('?',gx(dx2+dw/4),gy(dy2+dh/2));
   }
   if(card.slots[1]!==null){
-    drawPips(card.slots[1],dx2+dw/2,dy2,dw/2,dh,red(eqC),green(eqC),blue(eqC));
+    drawPips(card.slots[1],dx2+dw/2,dy2,dw/2,dh,240,230,210);
   } else {
-    noStroke();fill(equipped?C.GOLD:C.ROPE);textSize(sz(9));textAlign(CENTER,CENTER);
+    noStroke();fill(equipped?C.GOLD:C.TEXT_DIM);textSize(sz(9));textAlign(CENTER,CENTER);
     text('?',gx(dx2+3*dw/4),gy(dy2+dh/2));
   }
   noStroke();fill(C.TEXT_DIM);textAlign(LEFT,TOP);textSize(sz(9));
@@ -661,11 +604,11 @@ function drawEquipCard(card,cx,cy,w,h,equipped){
   pop();
 }
 
-// ── COMBAT ────────────────────────────────────────────────────────────────────────────────────────
+// -- COMBAT -------------------------------------------------------------------
 var CB={
   shipY:68,hpBarY:136,intentY:156,
   cardY:182,cardH:110,
-  domW:54,domH:28,domPad:6,domRowGap:5,
+  domW:56,domH:28,domPad:6,domRowGap:5,
   domLabelY:306,domY:318,
   btnW:130,btnH:38
 };
@@ -701,25 +644,21 @@ function startCombat(){
     dominoes:rollDominoes(domCount),
     selDom:null,turn:1,
     nextMove:pickMove(enemy),
-    enemyAnim:0,animIsStun:false,
+    enemyAnim:0,animIsStun:false,pendingTurns:0,
     animDom:rollDominoes(1)[0],
     dragDomIdx:null,dragX:0,dragY:0,isDragging:false
   };
   gs.screen='combat';
-  if(gs.finalBoss){
-    showMsg('THE KRAKEN rises! Fight for your life, Captain!');
-  } else {
-    showMsg('A '+def.name+' approaches! Man the cannons!');
-  }
+  if(gs.finalBoss) showMsg('THE KRAKEN rises! Fight for your life, Captain!');
+  else showMsg('A '+def.name+' approaches! Man the cannons!');
 }
 
 function drawCombat(){
   var cm=gs.combat;
   push();
-  fill(gs.finalBoss?'#0d001a':C.DEEP);noStroke();
+  fill(gs.finalBoss?'#1a0040':C.DEEP);noStroke();
   rect(gx(0),gy(GH*0.62),sz(GW),sz(GH*0.38));
   drawWaves(GH*0.64);
-
   if(gs.finalBoss&&imgKraken){
     var kw=110,kh=110;
     image(imgKraken,gx(GW/2-kw/2),gy(CB.shipY-kh*0.6),sz(kw),sz(kh));
@@ -729,56 +668,46 @@ function drawCombat(){
   }else{
     drawShip(GW/2,CB.shipY,90,true);
   }
-
   fill(gs.finalBoss?'#cc44ff':(cm.enemy.name==='Ghost Ship'?'#88ddff':C.TEXT));
   textAlign(CENTER,TOP);textSize(sz(12));textStyle(BOLD);
-  text(cm.enemy.name,gx(GW/2),gy(8));
-  textStyle(NORMAL);
-
+  text(cm.enemy.name,gx(GW/2),gy(8));textStyle(NORMAL);
   var ehpW=200,ehpH=16,ehpX=(GW-ehpW)/2;
-  fill(gs.finalBoss?'#1a0030':C.EN_BG);noStroke();
+  fill(gs.finalBoss?'#2a0050':C.EN_BG);noStroke();
   rect(gx(ehpX),gy(CB.hpBarY),sz(ehpW),sz(ehpH),sz(4));
   fill(gs.finalBoss?'#9400d3':C.EN_FG);
   rect(gx(ehpX),gy(CB.hpBarY),sz(ehpW*max(0,cm.enemy.hp/cm.enemy.maxHp)),sz(ehpH),sz(4));
   fill(C.TEXT);textAlign(CENTER,CENTER);textSize(sz(9));
   text(cm.enemy.hp+'/'+cm.enemy.maxHp+' hull',gx(GW/2),gy(CB.hpBarY+ehpH/2));
-
   var ms=cm.enemy.moveset;
-  var pillW=54,pillH=14,pillGap=4;
+  var pillW=Math.min(54,Math.floor((GW-10)/(ms.length))-4),pillH=16,pillGap=4;
   var totalPW=ms.length*(pillW+pillGap)-pillGap;
   var pillX=(GW-totalPW)/2;
   for(var mi=0;mi<ms.length;mi++){
-    var mId=ms[mi];
-    var mBase=MOVE_DB[mId];
+    var mId=ms[mi],mBase=MOVE_DB[mId];
     var isNext=(mi===cm.enemy.moveIdx%ms.length);
-    var pBg=mBase.type==='atk'?'#3a0808':mBase.type==='heal'?'#0a2a0a':'#0a1428';
-    var pFg=mBase.type==='atk'?C.DANGER:mBase.type==='heal'?C.HP_FG:C.ROPE;
-    fill(pBg);
-    stroke(pFg);strokeWeight(sz(isNext?2:0.8));
-    rect(gx(pillX+mi*(pillW+pillGap)),gy(CB.hpBarY-18),sz(pillW),sz(pillH),sz(3));
+    var pBg=mBase.type==='atk'?'#3a0808':mBase.type==='heal'?'#0a3a0a':'#1a3a6a';
+    var pFg=mBase.type==='atk'?C.DANGER:mBase.type==='heal'?C.HP_FG:C.TEXT_DIM;
+    fill(pBg);stroke(pFg);strokeWeight(sz(isNext?2.5:0.8));
+    rect(gx(pillX+mi*(pillW+pillGap)),gy(CB.hpBarY-20),sz(pillW),sz(pillH),sz(3));
     noStroke();
     var pc=color(pFg);
-    fill(red(pc),green(pc),blue(pc),isNext?255:130);
-    textAlign(CENTER,CENTER);textSize(sz(7.5));
-    text(mBase.name,gx(pillX+mi*(pillW+pillGap)+pillW/2),gy(CB.hpBarY-18+pillH/2));
+    fill(red(pc),green(pc),blue(pc),isNext?255:140);
+    textAlign(CENTER,CENTER);textSize(sz(isNext?8:7));
+    text(mBase.name,gx(pillX+mi*(pillW+pillGap)+pillW/2),gy(CB.hpBarY-20+pillH/2));
   }
-
   var move=cm.nextMove;
-  var iBg=move.type==='atk'?'#3a0808':move.type==='heal'?'#0a2a0a':'#0a1428';
-  var iFg=move.type==='atk'?C.DANGER:move.type==='heal'?C.HP_FG:C.ROPE;
-  if(cm.enemy.stunned){iBg='#2a2a00';iFg=C.GOLD;}
+  var iBg=move.type==='atk'?'#3a0808':move.type==='heal'?'#0a3a0a':'#1a3a6a';
+  var iFg=move.type==='atk'?C.DANGER:move.type==='heal'?C.HP_FG:C.TEXT_DIM;
+  if(cm.enemy.stunned){iBg='#3a3a00';iFg=C.GOLD;}
   fill(iBg);stroke(iFg);strokeWeight(sz(1.5));
   rect(gx(ehpX),gy(CB.intentY),sz(ehpW),sz(20),sz(3));
   noStroke();fill(iFg);
   textAlign(LEFT,CENTER);textSize(sz(9));
-  var iLabel=cm.enemy.stunned?'ANCHORED':move.name;
-  text(iLabel,gx(ehpX+6),gy(CB.intentY+10));
+  text(cm.enemy.stunned?'ANCHORED':move.name,gx(ehpX+6),gy(CB.intentY+10));
   var iRight=cm.enemy.stunned?'skips turn':
     move.type==='atk'?('-'+move.dmg+' crew'):
     move.type==='heal'?('+'+move.healAmt+' hull'):'blocks next hit';
-  textAlign(RIGHT,CENTER);
-  text(iRight,gx(ehpX+ehpW-6),gy(CB.intentY+10));
-
+  textAlign(RIGHT,CENTER);text(iRight,gx(ehpX+ehpW-6),gy(CB.intentY+10));
   var phpW=120,phpH=14,phpX=6,phpY=6;
   fill(C.HP_BG);noStroke();
   rect(gx(phpX),gy(phpY),sz(phpW),sz(phpH),sz(3));
@@ -788,23 +717,18 @@ function drawCombat(){
   text('Crew: '+gs.player.hp+'/'+gs.player.maxHp,gx(phpX+3),gy(phpY+2));
   fill(C.TEXT_DIM);textAlign(RIGHT,TOP);
   text('T'+cm.turn+'  G:'+gs.gold,gx(GW-6),gy(6));
-
   var fl=FLOORS[min(gs.floorIdx,FLOORS.length-1)];
   fill(gs.finalBoss?'#cc44ff':C.TEXT_DIM);textAlign(CENTER,TOP);textSize(sz(9));
-  text(gs.finalBoss?'FINAL BOSS':(fl.name+' - Floor '+(gs.floorIdx+1)+'/'+FLOORS.length),gx(GW/2),gy(CB.hpBarY-32));
-
+  text(gs.finalBoss?'FINAL BOSS':(fl.name+' - Floor '+(gs.floorIdx+1)+'/'+FLOORS.length),gx(GW/2),gy(CB.hpBarY-36));
   var nc=gs.equipped.length;
   var cardW=(GW-12-(nc-1)*6)/nc;
   for(var ci=0;ci<nc;ci++){
-    var card=gs.backpack[gs.equipped[ci]];
-    drawCombatCard(card,6+ci*(cardW+6),CB.cardY,cardW,CB.cardH,cm);
+    drawCombatCard(gs.backpack[gs.equipped[ci]],6+ci*(cardW+6),CB.cardY,cardW,CB.cardH,cm);
   }
-
   fill(C.TEXT_DIM);textAlign(CENTER,BOTTOM);textSize(sz(10));
   if(cm.isDragging) text('Drop onto a card to place',gx(GW/2),gy(CB.domLabelY));
   else if(cm.selDom===null) text('Drag or tap a domino',gx(GW/2),gy(CB.domLabelY));
   else text('Tap a card to place  [tap again to cancel]',gx(GW/2),gy(CB.domLabelY));
-
   var total=cm.dominoes.length;
   for(var di=0;di<total;di++){
     var dom=cm.dominoes[di];
@@ -812,25 +736,23 @@ function drawCombat(){
     if(!dom.used){
       if(cm.isDragging&&cm.dragDomIdx===di){
         push();noFill();stroke(C.BORDER);strokeWeight(sz(1));
-        rect(gx(pos.x),gy(pos.y),sz(CB.domW),sz(CB.domH),sz(4));pop();
+        rect(gx(pos.x),gy(pos.y),sz(CB.domW),sz(CB.domH),sz(5));pop();
       } else {
         drawDomino(dom,pos.x,pos.y,CB.domW,CB.domH,(cm.selDom===di)&&!cm.isDragging);
       }
     } else {
-      push();fill(C.PANEL2);stroke(C.BORDER);strokeWeight(sz(1));
-      rect(gx(pos.x),gy(pos.y),sz(CB.domW),sz(CB.domH),sz(4));pop();
+      push();fill('#1a1a1a');stroke('#333333');strokeWeight(sz(1));
+      rect(gx(pos.x),gy(pos.y),sz(CB.domW),sz(CB.domH),sz(5));pop();
     }
   }
-
   var btnY=domBtnY(total),etX=GW/2-CB.btnW/2;
   var animActive=cm.enemyAnim>0;
-  fill(animActive?'#0d1f30':C.DECK);
-  stroke(animActive?'#1a3040':C.BORDER);strokeWeight(sz(1.5));
+  fill(animActive?'#1a3a6a':C.DECK);
+  stroke(animActive?C.BORDER:C.BORDER);strokeWeight(sz(1.5));
   rect(gx(etX),gy(btnY),sz(CB.btnW),sz(CB.btnH),sz(8));
-  noStroke();fill(animActive?'#334455':C.TEXT);
+  noStroke();fill(animActive?'#6a9ac0':C.TEXT);
   textAlign(CENTER,CENTER);textSize(sz(12));
   text('End Turn',gx(GW/2),gy(btnY+CB.btnH/2));
-
   if(cm.isDragging&&cm.dragDomIdx!==null&&!cm.dominoes[cm.dragDomIdx].used){
     drawDomino(cm.dominoes[cm.dragDomIdx],cm.dragX,cm.dragY,CB.domW,CB.domH,true);
   }
@@ -854,18 +776,16 @@ function drawCombatCard(card,cx,cy,w,h,cm){
   var fits=fitType!==false;
   var goodDrop=dragHover&&(dragFit!==false);
   var badDrop=dragHover&&(dragFit===false);
-  fill(ready?C.GREEN_HI:goodDrop?'#1a4a1a':badDrop?'#2a0a0a':fits?'#1a2f50':C.PANEL);
+  fill(ready?C.GREEN_HI:goodDrop?'#1a4a1a':badDrop?'#3a0a0a':fits?'#1a3a6a':C.PANEL);
   stroke(ready?C.GREEN_BD:goodDrop?'#50ee50':badDrop?C.DANGER:fits?C.GOLD:C.BORDER);
   strokeWeight(sz((goodDrop||badDrop||fits||ready)?2.5:1.5));
-  rect(gx(cx),gy(cy),sz(w),sz(h),sz(6));
-  noStroke();
+  rect(gx(cx),gy(cy),sz(w),sz(h),sz(6));noStroke();
   fill(ready?'#7fff7f':C.TEXT);textAlign(CENTER,TOP);textSize(sz(9));textStyle(BOLD);
   text(card.name,gx(cx+w/2),gy(cy+5));textStyle(NORMAL);
-  // pip domino slot display
   var sW=w*0.82,sH=24,sX=cx+(w-sW)/2,sY=cy+20;
-  fill(C.OCEAN);stroke(C.BORDER);strokeWeight(sz(1));
+  fill('#111111');stroke('#555555');strokeWeight(sz(1));
   rect(gx(sX),gy(sY),sz(sW),sz(sH),sz(3));
-  stroke(C.BORDER);strokeWeight(sz(1));
+  stroke('#555555');strokeWeight(sz(0.8));
   line(gx(sX+sW/2),gy(sY+3),gx(sX+sW/2),gy(sY+sH-3));
   for(var si=0;si<2;si++){
     var hLeftX=sX+si*(sW/2),asgn=card.assigned[si],req=card.slots[si];
@@ -873,11 +793,10 @@ function drawCombatCard(card,cx,cy,w,h,cm){
       var aPC=color(C.GOLD);
       drawPips(asgn,hLeftX,sY,sW/2,sH,red(aPC),green(aPC),blue(aPC));
     } else if(req!==null){
-      var rPCol=fits||goodDrop?'#88aacc':C.TEXT_DIM;
-      var rPC=color(rPCol);
+      var rPC=color(fits||goodDrop?'#88ccee':C.TEXT_DIM);
       drawPips(req,hLeftX,sY,sW/2,sH,red(rPC),green(rPC),blue(rPC),160);
     } else {
-      noStroke();fill(fits||goodDrop?'#88aacc':C.TEXT_DIM);
+      noStroke();fill(fits||goodDrop?'#88ccee':C.TEXT_DIM);
       textSize(sz(10));textAlign(CENTER,CENTER);
       text('?',gx(hLeftX+sW/4),gy(sY+sH/2));
     }
@@ -893,25 +812,30 @@ function drawCombatCard(card,cx,cy,w,h,cm){
 
 function drawDomino(dom,dx,dy,w,h,selected){
   push();
-  fill(selected?C.DECK:C.PANEL2);
-  stroke(selected?C.GOLD:C.BORDER);strokeWeight(sz(selected?2.5:1.5));
-  rect(gx(dx),gy(dy),sz(w),sz(h),sz(4));
-  stroke(selected?C.GOLD:'#2e5a8a');strokeWeight(sz(1));
-  line(gx(dx+w/2),gy(dy+4),gx(dx+w/2),gy(dy+h-4));
-  var pipC=color(selected?C.GOLD:C.TEXT);
-  drawPips(dom.left,dx,dy,w/2,h,red(pipC),green(pipC),blue(pipC));
-  drawPips(dom.right,dx+w/2,dy,w/2,h,red(pipC),green(pipC),blue(pipC));
+  fill(selected?'#222222':'#111111');
+  stroke(selected?C.GOLD:'#555555');strokeWeight(sz(selected?2.5:1.5));
+  rect(gx(dx),gy(dy),sz(w),sz(h),sz(5));
+  stroke('#555555');strokeWeight(sz(0.8));
+  line(gx(dx+w/2),gy(dy+3),gx(dx+w/2),gy(dy+h-3));
+  if(selected){
+    var gc=color(C.GOLD);
+    drawPips(dom.left,dx,dy,w/2,h,red(gc),green(gc),blue(gc));
+    drawPips(dom.right,dx+w/2,dy,w/2,h,red(gc),green(gc),blue(gc));
+  } else {
+    drawPips(dom.left,dx,dy,w/2,h,240,235,220);
+    drawPips(dom.right,dx+w/2,dy,w/2,h,240,235,220);
+  }
   pop();
 }
 
 function drawEnemyDomino(dom,dx,dy,w,h,a){
   push();
-  fill(30,0,0,a);stroke(220,80,80,a);strokeWeight(sz(2));
-  rect(gx(dx),gy(dy),sz(w),sz(h),sz(4));
-  stroke(200,60,60,Math.round(a*0.65));strokeWeight(sz(1));
-  line(gx(dx+w/2),gy(dy+4),gx(dx+w/2),gy(dy+h-4));
-  drawPips(dom.left,dx,dy,w/2,h,255,150,150,a);
-  drawPips(dom.right,dx+w/2,dy,w/2,h,255,150,150,a);
+  fill(20,0,0,a);stroke(200,60,60,a);strokeWeight(sz(2));
+  rect(gx(dx),gy(dy),sz(w),sz(h),sz(5));
+  stroke(160,40,40,Math.round(a*0.6));strokeWeight(sz(0.8));
+  line(gx(dx+w/2),gy(dy+3),gx(dx+w/2),gy(dy+h-3));
+  drawPips(dom.left,dx,dy,w/2,h,255,140,140,a);
+  drawPips(dom.right,dx+w/2,dy,w/2,h,255,140,140,a);
   pop();
 }
 
@@ -922,7 +846,7 @@ function drawEnemyTurnOverlay(cm){
   var a220=Math.round(alpha*220),a160=Math.round(alpha*160);
   var isStun=cm.animIsStun,move=cm.nextMove;
   push();
-  fill(0,0,15,Math.round(alpha*210));noStroke();
+  fill(0,10,30,Math.round(alpha*210));noStroke();
   rect(gx(0),gy(0),sz(GW),sz(GH));
   if(isStun){
     var pulse=sin(entered*0.3)*0.5+0.5;
@@ -941,8 +865,8 @@ function drawEnemyTurnOverlay(cm){
   text("ENEMY'S TURN",gx(GW/2),gy(12));textStyle(NORMAL);
   var cw=220,ch=134,cx=GW/2-cw/2,cy=155;
   var slotW=80,slotH=32,slotX=GW/2-slotW/2,slotY=cy+56;
-  var mc=color(move.type==='atk'?'#3a0808':move.type==='heal'?'#0a2a0a':'#0a1428');
-  var mb=color(move.type==='atk'?C.DANGER:move.type==='heal'?C.HP_FG:C.ROPE);
+  var mc=color(move.type==='atk'?'#3a0808':move.type==='heal'?'#0a3a0a':'#1a3a6a');
+  var mb=color(move.type==='atk'?C.DANGER:move.type==='heal'?C.HP_FG:C.TEXT_DIM);
   for(var fo=2;fo>=1;fo--){
     var fOff=fo*9;
     fill(50,0,0,a220);stroke(100,30,30,a220);strokeWeight(sz(1.5));
@@ -963,13 +887,12 @@ function drawEnemyTurnOverlay(cm){
   textAlign(CENTER,TOP);textSize(sz(13));textStyle(BOLD);
   text(move.name,gx(GW/2),gy(cy+5));textStyle(NORMAL);
   fill(red(mb),green(mb),blue(mb),a160);textSize(sz(8));
-  var tl=move.type==='atk'?'ATTACK':move.type==='heal'?'HEAL':'DEFEND';
-  text(tl,gx(GW/2),gy(cy+22));
+  text(move.type==='atk'?'ATTACK':move.type==='heal'?'HEAL':'DEFEND',gx(GW/2),gy(cy+22));
   fill(0,0,0,Math.round(alpha*100));
   stroke(red(mb),green(mb),blue(mb),a160);strokeWeight(sz(1.5));
-  rect(gx(slotX),gy(slotY),sz(slotW),sz(slotH),sz(4));
-  strokeWeight(sz(1));
-  line(gx(slotX+slotW/2),gy(slotY+4),gx(slotX+slotW/2),gy(slotY+slotH-4));
+  rect(gx(slotX),gy(slotY),sz(slotW),sz(slotH),sz(5));
+  strokeWeight(sz(0.8));
+  line(gx(slotX+slotW/2),gy(slotY+3),gx(slotX+slotW/2),gy(slotY+slotH-3));
   var rawT=(entered-8)/26.0,slideT=Math.min(Math.max(rawT,0),1);
   var eased=1.0-Math.pow(1.0-slideT,2.5);
   var animY=38+(slotY-38)*eased;
@@ -989,8 +912,8 @@ function drawEnemyTurnOverlay(cm){
     var effA=Math.round(Math.min((entered-34)/8.0,1.0)*alpha*220);
     var effStr,effR,effG,effB;
     if(move.type==='atk'){effStr='-'+move.dmg+' crew HP';effR=255;effG=80;effB=80;}
-    else if(move.type==='heal'){effStr='+'+move.healAmt+' hull repaired';var hc=color(C.HP_FG);effR=red(hc);effG=green(hc);effB=blue(hc);}
-    else{effStr='BRACING - next hit halved!';var rc2=color(C.ROPE);effR=red(rc2);effG=green(rc2);effB=blue(rc2);}
+    else if(move.type==='heal'){var hc=color(C.HP_FG);effStr='+'+move.healAmt+' hull';effR=red(hc);effG=green(hc);effB=blue(hc);}
+    else{var rc2=color(C.TEXT_DIM);effStr='BRACING!';effR=red(rc2);effG=green(rc2);effB=blue(rc2);}
     fill(effR,effG,effB,effA);
     textAlign(CENTER,TOP);textSize(sz(15));textStyle(BOLD);
     text(effStr,gx(GW/2),gy(cy+ch+12));textStyle(NORMAL);
@@ -1013,8 +936,7 @@ function resolveEnemyTurn(cm){
       if(gs.player.hp<=0){
         gs.player.hp=0;
         showMsg('Your ship is sunk! Starting over...');
-        setTimeout(function(){initGS();},2200);
-        return;
+        setTimeout(function(){initGS();},2200); return;
       }
     } else if(move.type==='heal'){
       cm.enemy.hp=min(cm.enemy.maxHp,cm.enemy.hp+move.healAmt);
@@ -1024,8 +946,8 @@ function resolveEnemyTurn(cm){
       showMsg(cm.enemy.name+' braces! Your next hit is halved!');
     }
   }
+  advanceMoveIdx(cm.enemy);
   cm.nextMove=pickMove(cm.enemy);
-  cm.animDom=rollDominoes(1)[0];
   cm.turn++;
   for(var i=0;i<gs.equipped.length;i++) gs.backpack[gs.equipped[i]].assigned=[null,null];
   var domCount=4+gs.player.extraDraw;
@@ -1034,7 +956,7 @@ function resolveEnemyTurn(cm){
   cm.selDom=null;cm.dragDomIdx=null;cm.isDragging=false;
 }
 
-// ── LOOT ────────────────────────────────────────────────────────────────────────────────────────
+// -- LOOT ---------------------------------------------------------------------
 function startLoot(){
   var node=getMapNode(gs.floorMap.fightingNodeId);
   var def=gs.finalBoss?ENEMY_DB[5]:(node?ENEMY_DB[node.eId]:ENEMY_DB[0]);
@@ -1042,8 +964,7 @@ function startLoot(){
   if(gs.finalBoss){
     gs.finalBoss=false;
     showMsg('THE KRAKEN IS SLAIN! You rule the seven seas! VICTORY!');
-    setTimeout(function(){initGS();},3500);
-    return;
+    setTimeout(function(){initGS();},3500); return;
   }
   var ownedIds=gs.backpack.map(function(c){return c.id;});
   var pool=CARD_DB.filter(function(c){return ownedIds.indexOf(c.id)<0;});
@@ -1052,22 +973,19 @@ function startLoot(){
     var tmp=pool[i];pool[i]=pool[j];pool[j]=tmp;
   }
   var choices=pool.slice(0,min(2,pool.length)).map(function(c){return cloneCard(c);});
-  gs.loot={choices:choices};
-  gs.screen='loot';
+  gs.loot={choices:choices}; gs.screen='loot';
   showMsg('Victory! +'+def.gold+' gold! Choose your plunder!');
 }
 
 function afterLoot(){
   gs.floorMap.visited.push(gs.floorMap.fightingNodeId);
-  gs.floorMap.fightingNodeId=null;
-  gs.screen='floor';
+  gs.floorMap.fightingNodeId=null; gs.screen='floor';
 }
 
 function drawLoot(){
   push();
   if(imgTreasureChest){
-    var ciw=72,cih=54;
-    image(imgTreasureChest,gx(GW/2-ciw/2),gy(4),sz(ciw),sz(cih));
+    image(imgTreasureChest,gx(GW/2-36),gy(4),sz(72),sz(54));
   }
   fill(C.GOLD);textAlign(CENTER,TOP);textSize(sz(22));textStyle(BOLD);
   text('PLUNDER!',gx(GW/2),gy(60));textStyle(NORMAL);
@@ -1095,23 +1013,21 @@ function drawLootCard(card,cx,cy,w,h){
   rect(gx(cx),gy(cy),sz(w),sz(h),sz(8));noStroke();
   fill(C.GOLD);textAlign(CENTER,TOP);textSize(sz(12));textStyle(BOLD);
   text(card.name,gx(cx+w/2),gy(cy+10));textStyle(NORMAL);
-  // mini pip domino centered
   var dLW=52,dLH=22,dLX=cx+(w-dLW)/2,dLY=cy+26;
-  fill(C.OCEAN);stroke(C.BORDER);strokeWeight(sz(1));
-  rect(gx(dLX),gy(dLY),sz(dLW),sz(dLH),sz(3));
-  stroke('#2e5a8a');strokeWeight(sz(0.8));
+  fill('#111111');stroke('#555555');strokeWeight(sz(1));
+  rect(gx(dLX),gy(dLY),sz(dLW),sz(dLH),sz(4));
+  stroke('#555555');strokeWeight(sz(0.8));
   line(gx(dLX+dLW/2),gy(dLY+2),gx(dLX+dLW/2),gy(dLY+dLH-2));
-  var rC=color(C.ROPE);
   if(card.slots[0]!==null){
-    drawPips(card.slots[0],dLX,dLY,dLW/2,dLH,red(rC),green(rC),blue(rC));
+    drawPips(card.slots[0],dLX,dLY,dLW/2,dLH,240,235,220);
   } else {
-    noStroke();fill(C.ROPE);textSize(sz(9));textAlign(CENTER,CENTER);
+    noStroke();fill(C.TEXT_DIM);textSize(sz(9));textAlign(CENTER,CENTER);
     text('?',gx(dLX+dLW/4),gy(dLY+dLH/2));
   }
   if(card.slots[1]!==null){
-    drawPips(card.slots[1],dLX+dLW/2,dLY,dLW/2,dLH,red(rC),green(rC),blue(rC));
+    drawPips(card.slots[1],dLX+dLW/2,dLY,dLW/2,dLH,240,235,220);
   } else {
-    noStroke();fill(C.ROPE);textSize(sz(9));textAlign(CENTER,CENTER);
+    noStroke();fill(C.TEXT_DIM);textSize(sz(9));textAlign(CENTER,CENTER);
     text('?',gx(dLX+3*dLW/4),gy(dLY+dLH/2));
   }
   noStroke();fill(C.TEXT);textAlign(LEFT,TOP);textSize(sz(10));
@@ -1119,7 +1035,7 @@ function drawLootCard(card,cx,cy,w,h){
   pop();
 }
 
-// ── PORT ────────────────────────────────────────────────────────────────────────────────────────
+// -- PORT ---------------------------------------------------------------------
 function portItemH(item){return item.type==='card'?96:62;}
 function portItemY(idx){
   var y=74;
@@ -1132,7 +1048,7 @@ function drawPort(){
   push();
   fill(C.GOLD);textAlign(CENTER,TOP);textSize(sz(18));textStyle(BOLD);
   text(port.portName,gx(GW/2),gy(8));textStyle(NORMAL);
-  textSize(sz(11));fill(C.ROPE);
+  textSize(sz(11));fill(C.TEXT_DIM);
   text(port.isInFloor?'A hidden harbour. Spend wisely.':'A safe harbour. Spend wisely.',gx(GW/2),gy(28));
   fill(C.GOLD);textSize(sz(13));text('Gold: '+gs.gold,gx(GW/2),gy(46));
   for(var i=0;i<port.items.length;i++){
@@ -1149,46 +1065,45 @@ function drawPort(){
 
 function drawPortItem(item,cx,cy,w,h,canAfford,done){
   push();
-  fill(done?'#0a1a28':(canAfford?C.PANEL2:C.PANEL));
-  stroke(done?'#1a3040':(canAfford?C.GOLD:C.BORDER));
+  fill(done?'#1a3a6a':(canAfford?C.PANEL2:C.PANEL));
+  stroke(done?C.BORDER:(canAfford?C.GOLD:C.BORDER));
   strokeWeight(sz(canAfford&&!done?2:1.5));
   rect(gx(cx),gy(cy),sz(w),sz(h),sz(6));noStroke();
   fill(done?C.TEXT_DIM:(canAfford?C.GOLD:C.DANGER));
   textAlign(RIGHT,TOP);textSize(sz(11));
   text(done?'[done]':(item.cost+'g'),gx(cx+w-8),gy(cy+8));
-  fill(done?C.TEXT_DIM:(canAfford?C.TEXT:'#556677'));
+  fill(done?C.TEXT_DIM:(canAfford?C.TEXT:'#6a9ac0'));
   textAlign(LEFT,TOP);textSize(sz(11));textStyle(BOLD);
   text(item.label,gx(cx+8),gy(cy+8));textStyle(NORMAL);
   if(item.type==='card'){
-    // mini pip domino for slot requirements
     var dPW=46,dPH=20,dPX=cx+8,dPY=cy+26;
-    fill(C.OCEAN);stroke(done?'#1a3040':C.BORDER);strokeWeight(sz(1));
+    fill('#111111');stroke(done?'#555555':C.BORDER);strokeWeight(sz(1));
     rect(gx(dPX),gy(dPY),sz(dPW),sz(dPH),sz(3));
-    stroke('#2e5a8a');strokeWeight(sz(0.8));
+    stroke('#555555');strokeWeight(sz(0.8));
     line(gx(dPX+dPW/2),gy(dPY+2),gx(dPX+dPW/2),gy(dPY+dPH-2));
-    var ppC=color(done?C.TEXT_DIM:C.ROPE);
+    var pAlpha=done?120:220;
     if(item.slot0!==null){
-      drawPips(item.slot0,dPX,dPY,dPW/2,dPH,red(ppC),green(ppC),blue(ppC));
+      drawPips(item.slot0,dPX,dPY,dPW/2,dPH,240,235,220,pAlpha);
     } else {
-      noStroke();fill(done?C.TEXT_DIM:C.ROPE);textSize(sz(9));textAlign(CENTER,CENTER);
+      noStroke();fill(done?C.TEXT_DIM:C.TEXT_DIM);textSize(sz(9));textAlign(CENTER,CENTER);
       text('?',gx(dPX+dPW/4),gy(dPY+dPH/2));
     }
     if(item.slot1!==null){
-      drawPips(item.slot1,dPX+dPW/2,dPY,dPW/2,dPH,red(ppC),green(ppC),blue(ppC));
+      drawPips(item.slot1,dPX+dPW/2,dPY,dPW/2,dPH,240,235,220,pAlpha);
     } else {
-      noStroke();fill(done?C.TEXT_DIM:C.ROPE);textSize(sz(9));textAlign(CENTER,CENTER);
+      noStroke();fill(done?C.TEXT_DIM:C.TEXT_DIM);textSize(sz(9));textAlign(CENTER,CENTER);
       text('?',gx(dPX+3*dPW/4),gy(dPY+dPH/2));
     }
-    noStroke();fill(done?'#334455':C.TEXT_DIM);textSize(sz(9));
+    noStroke();fill(done?C.TEXT_DIM:C.TEXT_DIM);textSize(sz(9));
     text(item.desc,gx(cx+8),gy(cy+50),sz(w-16),sz(h-56));
   } else {
-    noStroke();fill(done?'#334455':C.TEXT_DIM);textSize(sz(9));
+    noStroke();fill(done?C.TEXT_DIM:C.TEXT_DIM);textSize(sz(9));
     text(item.desc,gx(cx+8),gy(cy+26),sz(w-16),sz(h-32));
   }
   pop();
 }
 
-// ── INPUT ───────────────────────────────────────────────────────────────────────────────────────
+// -- INPUT --------------------------------------------------------------------
 function mousePressed(){
   var mx=toGX(mouseX),my=toGY(mouseY);
   if     (gs.screen==='title')  handleTitle(mx,my);
@@ -1344,11 +1259,7 @@ function handlePort(mx,my){
   }
   var bw=180,bh=42,bx=GW/2-bw/2,by=GH-56;
   if(mx>=bx&&mx<=bx+bw&&my>=by&&my<=by+bh){
-    if(port.isInFloor){
-      gs.screen='floor';
-    } else {
-      initFloorState();
-      gs.screen='floor';
-    }
+    if(port.isInFloor) gs.screen='floor';
+    else{initFloorState();gs.screen='floor';}
   }
 }
