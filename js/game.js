@@ -18,17 +18,17 @@ var imgTreasureChest = null, imgCannon = null, imgGhostShip = null;
 
 // maxUses = how many times a card can fire per player turn
 var CARD_DB = [
-  {id:'rusty_cannon',name:'Rusty Cannon', slots:[null,null],dmg:4, heal:0,extraDraw:0,stun:false,loadedDice:false,maxUses:2,desc:'Deal 4 dmg. (2x/turn)'},
-  {id:'bilge_pump',  name:'Bilge Pump',   slots:[null,null],dmg:0, heal:4,extraDraw:0,stun:false,loadedDice:false,maxUses:1,desc:'Heal 4 HP.'},
-  {id:'crows_nest',  name:"Crow's Nest",  slots:[null,null],dmg:0, heal:0,extraDraw:2,stun:false,loadedDice:false,maxUses:1,desc:'+2 dominoes next turn.'},
-  {id:'iron_cannon', name:'Iron Cannon',  slots:[null,6],   dmg:9, heal:0,extraDraw:0,stun:false,loadedDice:false,maxUses:2,desc:'Needs a 6. Deal 9 dmg. (2x/turn)'},
-  {id:'grapeshot',   name:'Grapeshot',    slots:[3,null],   dmg:6, heal:0,extraDraw:0,stun:false,loadedDice:false,maxUses:2,desc:'Needs a 3. Deal 6 dmg. (2x/turn)'},
-  {id:'broadside',   name:'Broadside',    slots:[5,5],      dmg:16,heal:0,extraDraw:0,stun:false,loadedDice:false,maxUses:1,desc:'Double 5s only! Deal 16.'},
-  {id:'powder_keg',  name:'Powder Keg',   slots:[6,6],      dmg:24,heal:0,extraDraw:0,stun:false,loadedDice:false,maxUses:1,desc:'Double 6s only! Deal 24.'},
-  {id:'sea_witch',   name:'Sea Witch',    slots:[null,null],dmg:0, heal:10,extraDraw:0,stun:false,loadedDice:false,maxUses:1,desc:'Heal 10 HP.'},
-  {id:'anchor_drop', name:'Anchor Drop',  slots:[null,null],dmg:2, heal:0,extraDraw:0,stun:true, loadedDice:false,maxUses:1,desc:'Stun enemy. Deal 2 dmg.'},
-  {id:'nav_chart',   name:'Nav Chart',    slots:[null,null],dmg:0, heal:0,extraDraw:3,stun:false,loadedDice:false,maxUses:1,desc:'+3 dominoes next turn.'},
-  {id:'loaded_dice', name:'Loaded Dice',  slots:[null,null],dmg:0, heal:0,extraDraw:0,stun:false,loadedDice:true, maxUses:1,desc:'Spawns [5|5]+[6|6] in hand!'}
+  {id:'rusty_cannon',name:'Rusty Cannon', slots:[null,null],dmg:4, heal:0,extraDraw:0,stun:false,loadedDice:false,maxUses:2,charges:4,desc:'Deal 4 dmg. (2x/turn)'},
+  {id:'bilge_pump',  name:'Bilge Pump',   slots:[null,null],dmg:0, heal:4,extraDraw:0,stun:false,loadedDice:false,maxUses:1,charges:3,desc:'Heal 4 HP.'},
+  {id:'crows_nest',  name:"Crow's Nest",  slots:[null,null],dmg:0, heal:0,extraDraw:2,stun:false,loadedDice:false,maxUses:1,charges:3,desc:'+2 dominoes next turn.'},
+  {id:'iron_cannon', name:'Iron Cannon',  slots:[null,6],   dmg:9, heal:0,extraDraw:0,stun:false,loadedDice:false,maxUses:2,charges:4,desc:'Needs a 6. Deal 9 dmg. (2x/turn)'},
+  {id:'grapeshot',   name:'Grapeshot',    slots:[3,null],   dmg:6, heal:0,extraDraw:0,stun:false,loadedDice:false,maxUses:2,charges:4,desc:'Needs a 3. Deal 6 dmg. (2x/turn)'},
+  {id:'broadside',   name:'Broadside',    slots:[5,5],      dmg:16,heal:0,extraDraw:0,stun:false,loadedDice:false,maxUses:1,charges:2,desc:'Double 5s only! Deal 16.'},
+  {id:'powder_keg',  name:'Powder Keg',   slots:[6,6],      dmg:24,heal:0,extraDraw:0,stun:false,loadedDice:false,maxUses:1,charges:2,desc:'Double 6s only! Deal 24.'},
+  {id:'sea_witch',   name:'Sea Witch',    slots:[null,null],dmg:0, heal:10,extraDraw:0,stun:false,loadedDice:false,maxUses:1,charges:2,desc:'Heal 10 HP.'},
+  {id:'anchor_drop', name:'Anchor Drop',  slots:[null,null],dmg:2, heal:0,extraDraw:0,stun:true, loadedDice:false,maxUses:1,charges:3,desc:'Stun enemy. Deal 2 dmg.'},
+  {id:'nav_chart',   name:'Nav Chart',    slots:[null,null],dmg:0, heal:0,extraDraw:3,stun:false,loadedDice:false,maxUses:1,charges:3,desc:'+3 dominoes next turn.'},
+  {id:'loaded_dice', name:'Loaded Dice',  slots:[null,null],dmg:0, heal:0,extraDraw:0,stun:false,loadedDice:true, maxUses:1,charges:2,desc:'Spawns [5|5]+[6|6] in hand!'}
 ];
 
 var MOVE_DB = {
@@ -100,7 +100,8 @@ function cloneCard(def) {
     id:def.id, name:def.name, slots:[def.slots[0],def.slots[1]],
     dmg:def.dmg, heal:def.heal, extraDraw:def.extraDraw, stun:def.stun,
     loadedDice:!!def.loadedDice, maxUses:def.maxUses||1,
-    usesThisTurn:0, desc:def.desc, assigned:[null,null]
+    charges:def.charges!==undefined?def.charges:3,
+    usesThisTurn:0, desc:def.desc, assigned:[null,null], backpackIdx:-1
   };
 }
 
@@ -192,7 +193,7 @@ function initGS(){
     screen:'title',
     player:{hp:30,maxHp:30,extraDraw:0},
     backpack:[cloneCard(CARD_DB[0]),cloneCard(CARD_DB[1]),cloneCard(CARD_DB[2])],
-    floorIdx:0,floorMap:null,gold:2,
+    backpackMax:8,floorIdx:0,floorMap:null,gold:2,
     combat:null,loot:null,port:null,
     finalBoss:false,msg:'',msgTimer:0,wave:0
   };
@@ -254,6 +255,10 @@ function applyCard(card,cm){
   }
   card.usesThisTurn=(card.usesThisTurn||0)+1;
   card.assigned=[null,null];
+  // Burn one charge from the backpack original
+  if(card.backpackIdx>=0&&gs.backpack[card.backpackIdx]){
+    gs.backpack[card.backpackIdx].charges--;
+  }
   if(msgs.length>0) showMsg(msgs.join(' '));
   // Discard card once maxUses reached, draw replacement
   if(card.usesThisTurn>=(card.maxUses||1)){
@@ -307,13 +312,29 @@ function drawPips(val,hx,hy,hw,hh,pr,pg,pb,pa){
   }
 }
 
+var imgDinghy=null,imgSloop=null,imgBrigantine=null,imgManOWar=null;
+
 function preload(){
-  imgShipPlayer=loadImage('assets/svg/ship_player.svg');
-  imgShipEnemy =loadImage('assets/svg/ship_enemy.svg');
-  imgKraken    =loadImage('assets/svg/kraken.svg');
+  imgShipPlayer   =loadImage('assets/svg/ship_player.svg');
+  imgShipEnemy    =loadImage('assets/svg/ship_enemy.svg');
+  imgKraken       =loadImage('assets/svg/kraken.svg');
   imgTreasureChest=loadImage('assets/svg/treasure_chest.svg');
   imgCannon       =loadImage('assets/svg/cannon.svg');
   imgGhostShip    =loadImage('assets/svg/ghost_ship.svg');
+  imgDinghy       =loadImage('assets/svg/dinghy.svg');
+  imgSloop        =loadImage('assets/svg/sloop.svg');
+  imgBrigantine   =loadImage('assets/svg/brigantine.svg');
+  imgManOWar      =loadImage('assets/svg/man_o_war.svg');
+}
+
+function getEnemyImg(name){
+  if(name==='Dinghy')     return imgDinghy;
+  if(name==='Sloop')      return imgSloop;
+  if(name==='Brigantine') return imgBrigantine;
+  if(name==='Man-o-War')  return imgManOWar;
+  if(name==='Ghost Ship') return imgGhostShip;
+  if(name==='The Kraken') return imgKraken;
+  return imgShipEnemy;
 }
 
 function setup(){createCanvas(windowWidth,windowHeight);textFont('monospace');recalcScale();initGS();}
@@ -592,7 +613,7 @@ function drawEquip(){
   textSize(sz(9));fill(C.TEXT_DIM);textAlign(CENTER,TOP);
   text('Draw 4 at start  |  Draw 2 per turn  |  Max 5 in hand  |  Cards cycle from discard',gx(GW/2),gy(42));
   fill(C.BORDER);textSize(sz(9));
-  text(gs.backpack.length+' cards in hold    Gold: '+gs.gold,gx(GW/2),gy(54));
+  text(gs.backpack.length+'/'+(gs.backpackMax||8)+' cards in hold    Gold: '+gs.gold,gx(GW/2),gy(54));
   for(var i=0;i<gs.backpack.length;i++){
     var r=equipCardRect(i);
     drawEquipCard(gs.backpack[i],r.x,r.y,r.w,r.h,false);
@@ -623,6 +644,12 @@ function drawEquipCard(card,cx,cy,w,h,equipped){
   rect(gx(cx),gy(cy),sz(w),sz(h),sz(6));noStroke();
   fill(equipped?C.GOLD:C.TEXT);textAlign(LEFT,TOP);textSize(sz(11));textStyle(BOLD);
   text(card.name,gx(cx+7),gy(cy+7));textStyle(NORMAL);
+  // charge dots (remaining uses before card is consumed)
+  var chg=card.charges!==undefined?card.charges:3;
+  for(var ci2=0;ci2<chg;ci2++){
+    noStroke();fill(equipped?C.GOLD:'#d4a840');
+    ellipse(gx(cx+w-7-ci2*8),gy(cy+8),sz(5),sz(5));
+  }
   // uses badge
   if(card.maxUses>1){
     fill(equipped?C.GOLD:C.BORDER);textAlign(RIGHT,TOP);textSize(sz(8));
@@ -653,11 +680,14 @@ function drawEquipCard(card,cx,cy,w,h,equipped){
 
 // -- COMBAT -------------------------------------------------------------------
 var CB={
-  shipY:68,hpBarY:136,intentY:156,
-  cardY:182,cardH:110,
+  shipY:60,hpBarY:130,intentY:150,
+  cardY:176,cardH:110,
   domW:56,domH:28,domPad:6,domRowGap:5,
-  domLabelY:306,domY:318,
-  btnW:130,btnH:38
+  domLabelY:300,domY:312,
+  btnW:130,btnH:38,
+  // Pokémon layout: enemy top-right, player bottom-left
+  enemyX:220,enemyY:16,enemyW:130,
+  playerX:10,playerY:70,playerW:80
 };
 
 function domPerRow(total){
@@ -687,7 +717,11 @@ function startCombat(){
   };
   // Build shuffled hold from backpack, draw opening hand of 4
   var hold=[];
-  for(var bi=0;bi<gs.backpack.length;bi++) hold.push(cloneCard(gs.backpack[bi]));
+  for(var bi=0;bi<gs.backpack.length;bi++){
+    var hc=cloneCard(gs.backpack[bi]);
+    hc.backpackIdx=bi;
+    hold.push(hc);
+  }
   shuffleArray(hold);
   var hand=[];
   for(var di=0;di<4&&hold.length>0;di++) hand.push(hold.pop());
@@ -734,14 +768,18 @@ function drawCombat(){
   fill(gs.finalBoss?'#1a0040':C.DEEP);noStroke();
   rect(gx(0),gy(GH*0.62),sz(GW),sz(GH*0.38));
   drawWaves(GH*0.64);
-  if(gs.finalBoss&&imgKraken){
-    var kw=110,kh=110;
-    image(imgKraken,gx(GW/2-kw/2),gy(CB.shipY-kh*0.6),sz(kw),sz(kh));
-  } else if(cm.enemy.name==='Ghost Ship'&&imgGhostShip){
-    var gsw=90,gsh=gsw*0.42;
-    image(imgGhostShip,gx(GW/2-gsw/2),gy(CB.shipY-gsh*1.15),sz(gsw),sz(gsw*0.75));
+  // Enemy sprite - Pokemon style: upper-right corner
+  var eImg=getEnemyImg(cm.enemy.name);
+  if(eImg){
+    image(eImg,gx(CB.enemyX),gy(CB.enemyY),sz(CB.enemyW),sz(CB.enemyW*0.75));
   } else {
-    drawShip(GW/2,CB.shipY,90,true);
+    drawShip(CB.enemyX+CB.enemyW/2,CB.enemyY+CB.enemyW*0.3,CB.enemyW,true);
+  }
+  // Player sprite - lower-left corner
+  if(imgShipPlayer){
+    image(imgShipPlayer,gx(CB.playerX),gy(CB.playerY),sz(CB.playerW),sz(CB.playerW*0.75));
+  } else {
+    drawShip(CB.playerX+CB.playerW/2,CB.playerY+CB.playerW*0.3,CB.playerW,false);
   }
   // captain name + ship class
   var eCol=gs.finalBoss?'#cc44ff':(cm.enemy.name==='Ghost Ship'?'#88ddff':C.TEXT);
@@ -880,6 +918,12 @@ function drawCombatCard(card,cx,cy,w,h,cm){
   rect(gx(cx),gy(cy),sz(w),sz(h),sz(6));noStroke();
   fill(ready?'#7fff7f':C.TEXT);textAlign(CENTER,TOP);textSize(sz(9));textStyle(BOLD);
   text(card.name,gx(cx+w/2),gy(cy+5));textStyle(NORMAL);
+  // charge dots (remaining lifetime uses)
+  var chg2=card.charges!==undefined?card.charges:3;
+  for(var cd=0;cd<chg2;cd++){
+    noStroke();fill(ready?'#7fff7f':'#c4941a');
+    ellipse(gx(cx+w-5-cd*7),gy(cy+6),sz(4),sz(4));
+  }
   // uses counter pip (small badge)
   if(card.maxUses>1){
     var used=card.usesThisTurn||0;
@@ -1107,6 +1151,8 @@ function resolveEnemyTurn(cm){
 
 // -- LOOT ---------------------------------------------------------------------
 function startLoot(){
+  // Remove cards that ran out of charges during combat
+  gs.backpack=gs.backpack.filter(function(c){return c.charges>0;});
   var node=getMapNode(gs.floorMap.fightingNodeId);
   var def=gs.finalBoss?ENEMY_DB[5]:(node?ENEMY_DB[node.eId]:ENEMY_DB[0]);
   gs.gold+=def.gold;
@@ -1137,7 +1183,9 @@ function drawLoot(){
   fill(C.GOLD);textAlign(CENTER,TOP);textSize(sz(22));textStyle(BOLD);
   text('PLUNDER!',gx(GW/2),gy(60));textStyle(NORMAL);
   textSize(sz(11));fill(C.TEXT_DIM);
+  var holdFull=gs.backpack.length>=(gs.backpackMax||8);
   text('Choose a card to add to your hold.   Gold: '+gs.gold,gx(GW/2),gy(86));
+  if(holdFull){fill(C.DANGER);textSize(sz(9));text('HOLD FULL ('+gs.backpack.length+'/'+(gs.backpackMax||8)+')',gx(GW/2),gy(98));}
   var cards=gs.loot.choices,cw=170,ch=120;
   var totalW=cards.length*cw+(cards.length-1)*12;
   var cStartX=(GW-totalW)/2,cStartY=104;
@@ -1375,6 +1423,7 @@ function handleLoot(mx,my){
   for(var i=0;i<cards.length;i++){
     var cx=cStartX+i*(cw+12);
     if(mx>=cx&&mx<=cx+cw&&my>=cStartY&&my<=cStartY+ch){
+      if(gs.backpack.length>=(gs.backpackMax||8)){showMsg('Backpack full! Discard first.');return;}
       gs.backpack.push(cards[i]);
       showMsg('Added '+cards[i].name+' to your hold!');
       afterLoot();return;
@@ -1394,7 +1443,7 @@ function handlePort(mx,my){
       gs.gold-=item.cost;item.done=true;
       if(item.type==='heal'){gs.player.hp=min(gs.player.maxHp,gs.player.hp+15);showMsg('Hull patched! +15 HP. ('+gs.gold+'g left)');}
       else if(item.type==='fullheal'){gs.player.hp=gs.player.maxHp;showMsg('Full overhaul! Hull at max. ('+gs.gold+'g left)');}
-      else if(item.type==='card'){gs.backpack.push(item.card);showMsg('Acquired '+item.card.name+'! ('+gs.gold+'g left)');}
+      else if(item.type==='card'){if(gs.backpack.length>=(gs.backpackMax||8)){showMsg('Backpack full!');return;}gs.backpack.push(item.card);showMsg('Acquired '+item.card.name+'! ('+gs.gold+'g left)');}
       return;
     }
   }

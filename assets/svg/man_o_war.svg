@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120">
+  <!-- water -->
+  <ellipse cx="80" cy="110" rx="72" ry="8" fill="#0d47a1" opacity="0.4"/>
+  <!-- hull - massive, three decks -->
+  <path d="M8 56 Q80 78 152 56 L144 92 Q80 110 16 92 Z" fill="#5a2e0e" stroke="#2a0e00" stroke-width="2.5"/>
+  <!-- deck lines -->
+  <line x1="16" y1="63" x2="144" y2="63" stroke="#7a4a20" stroke-width="1.5"/>
+  <line x1="18" y1="72" x2="142" y2="72" stroke="#7a4a20" stroke-width="1.5"/>
+  <!-- gun ports - THREE rows -->
+  <!-- row 1 -->
+  <rect x="20" y="65" width="10" height="6" fill="#111" rx="1"/>
+  <circle cx="22" cy="68" r="2" fill="#000"/>
+  <rect x="38" y="65" width="10" height="6" fill="#111" rx="1"/>
+  <circle cx="40" cy="68" r="2" fill="#000"/>
+  <rect x="112" y="65" width="10" height="6" fill="#111" rx="1"/>
+  <circle cx="120" cy="68" r="2" fill="#000"/>
+  <rect x="130" y="65" width="10" height="6" fill="#111" rx="1"/>
+  <circle cx="138" cy="68" r="2" fill="#000"/>
+  <!-- row 2 -->
+  <rect x="22" y="74" width="10" height="6" fill="#111" rx="1"/>
+  <circle cx="24" cy="77" r="2" fill="#000"/>
+  <rect x="40" y="74" width="10" height="6" fill="#111" rx="1"/>
+  <circle cx="42" cy="77" r="2" fill="#000"/>
+  <rect x="108" y="74" width="10" height="6" fill="#111" rx="1"/>
+  <circle cx="116" cy="77" r="2" fill="#000"/>
+  <rect x="128" y="74" width="10" height="6" fill="#111" rx="1"/>
+  <circle cx="136" cy="77" r="2" fill="#000"/>
+  <!-- three masts -->
+  <rect x="42" y="4" width="5" height="56" fill="#3a1e06" rx="1"/>
+  <rect x="78" y="2" width="6" height="58" fill="#3a1e06" rx="1"/>
+  <rect x="114" y="6" width="5" height="54" fill="#3a1e06" rx="1"/>
+  <!-- sails -->
+  <path d="M47 6 L80 34 L47 62 Z" fill="#ece4c4" stroke="#b89850" stroke-width="1.5" opacity="0.92"/>
+  <path d="M84 4 L122 34 L84 60 Z" fill="#e8e0c0" stroke="#b89850" stroke-width="1.5" opacity="0.92"/>
+  <path d="M119 8 L150 36 L119 60 Z" fill="#e4dcbc" stroke="#b89850" stroke-width="1.5" opacity="0.9"/>
+  <!-- jib -->
+  <path d="M42 8 L8 46 L42 56 Z" fill="#ddd5b0" stroke="#b89850" stroke-width="1" opacity="0.85"/>
+  <!-- flags - all three masts -->
+  <path d="M47 4 L66 11 L47 18 Z" fill="#b71c1c"/>
+  <path d="M84 2 L103 9 L84 16 Z" fill="#b71c1c"/>
+  <path d="M119 6 L138 13 L119 20 Z" fill="#b71c1c"/>
+  <!-- admiral figure -->
+  <circle cx="80" cy="53" r="7" fill="#f5deb3" stroke="#2a0e00" stroke-width="1.5"/>
+  <rect x="73" y="59" width="14" height="10" fill="#880000" rx="1"/>
+  <!-- epaulettes -->
+  <rect x="70" y="60" width="5" height="4" fill="#f0c040" rx="1"/>
+  <rect x="85" y="60" width="5" height="4" fill="#f0c040" rx="1"/>
+  <!-- admiral hat -->
+  <path d="M71 53 L89 53 L86 43 L74 43 Z" fill="#111"/>
+  <line x1="71" y1="53" x2="89" y2="53" stroke="#f0c040" stroke-width="1.5"/>
+</svg>

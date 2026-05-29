@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120">
+  <!-- water ripple -->
+  <ellipse cx="80" cy="105" rx="55" ry="8" fill="#1976d2" opacity="0.4"/>
+  <!-- hull -->
+  <path d="M25 72 Q80 90 135 72 L125 88 Q80 100 35 88 Z" fill="#8b5e3c" stroke="#5a3a1a" stroke-width="2"/>
+  <!-- hull plank lines -->
+  <line x1="50" y1="76" x2="48" y2="91" stroke="#5a3a1a" stroke-width="1" opacity="0.5"/>
+  <line x1="80" y1="79" x2="80" y2="95" stroke="#5a3a1a" stroke-width="1" opacity="0.5"/>
+  <line x1="110" y1="76" x2="112" y2="91" stroke="#5a3a1a" stroke-width="1" opacity="0.5"/>
+  <!-- mast -->
+  <rect x="78" y="20" width="4" height="55" fill="#6b4226" rx="1"/>
+  <!-- sail -->
+  <path d="M82 22 L115 45 L82 68 Z" fill="#f0e8c8" stroke="#c8b87a" stroke-width="1.5" opacity="0.92"/>
+  <!-- flag -->
+  <path d="M82 20 L100 26 L82 32 Z" fill="#e53935"/>
+  <!-- oar left -->
+  <line x1="30" y1="78" x2="8" y2="95" stroke="#8b5e3c" stroke-width="3" stroke-linecap="round"/>
+  <!-- oar right -->
+  <line x1="130" y1="78" x2="152" y2="95" stroke="#8b5e3c" stroke-width="3" stroke-linecap="round"/>
+  <!-- captain figure -->
+  <circle cx="72" cy="62" r="7" fill="#f5deb3" stroke="#5a3a1a" stroke-width="1"/>
+  <rect x="66" y="68" width="12" height="10" fill="#2244aa" rx="1"/>
+  <!-- hat -->
+  <path d="M65 62 L79 62 L76 54 L68 54 Z" fill="#111"/>
+</svg>

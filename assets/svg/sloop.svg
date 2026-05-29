@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120">
+  <!-- water -->
+  <ellipse cx="80" cy="108" rx="62" ry="8" fill="#1565c0" opacity="0.35"/>
+  <!-- hull -->
+  <path d="M18 68 Q80 86 142 68 L132 88 Q80 102 28 88 Z" fill="#7a4f2e" stroke="#4a2e10" stroke-width="2"/>
+  <!-- deck rail -->
+  <line x1="28" y1="74" x2="132" y2="74" stroke="#9b6e40" stroke-width="2"/>
+  <!-- mast -->
+  <rect x="77" y="8" width="5" height="64" fill="#5a3a18" rx="1"/>
+  <!-- boom -->
+  <line x1="82" y1="50" x2="132" y2="65" stroke="#5a3a18" stroke-width="2.5"/>
+  <!-- main sail -->
+  <path d="M82 10 L130 55 L82 72 Z" fill="#f5edd8" stroke="#c8a86a" stroke-width="1.5" opacity="0.93"/>
+  <!-- jib sail -->
+  <path d="M77 14 L30 58 L77 66 Z" fill="#eee6cc" stroke="#c8a86a" stroke-width="1.5" opacity="0.88"/>
+  <!-- flag -->
+  <path d="M82 8 L102 15 L82 22 Z" fill="#e53935"/>
+  <!-- cannon port left -->
+  <rect x="28" y="77" width="14" height="8" fill="#333" rx="1"/>
+  <circle cx="30" cy="81" r="3" fill="#222"/>
+  <!-- cannon port right -->
+  <rect x="118" y="77" width="14" height="8" fill="#333" rx="1"/>
+  <circle cx="130" cy="81" r="3" fill="#222"/>
+  <!-- captain -->
+  <circle cx="80" cy="60" r="7" fill="#f5deb3" stroke="#4a2e10" stroke-width="1"/>
+  <rect x="74" y="66" width="12" height="10" fill="#c0392b" rx="1"/>
+  <path d="M73 60 L87 60 L84 51 L76 51 Z" fill="#111"/>
+</svg>
