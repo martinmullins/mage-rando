@@ -955,6 +955,45 @@ function drawEnemyDomino(dom,dx,dy,w,h,a){
   pop();
 }
 
+function drawEnemyMoveCard(moveId,cx,cy,w,h,isActive,alpha,cm){
+  var base=MOVE_DB[moveId];
+  var bg=base.type==='atk'?'#3a0808':base.type==='heal'?'#0a3a0a':'#0a1a3a';
+  var bd=base.type==='atk'?C.DANGER:base.type==='heal'?C.HP_FG:C.TEXT_DIM;
+  var bgc=color(bg),bdc=color(bd);
+  push();
+  fill(red(bgc),green(bgc),blue(bgc),Math.round(alpha*(isActive?220:100)));
+  stroke(red(bdc),green(bdc),blue(bdc),Math.round(alpha*(isActive?255:70)));
+  strokeWeight(sz(isActive?2.5:1));
+  rect(gx(cx),gy(cy),sz(w),sz(h),sz(5));noStroke();
+  fill(red(bdc),green(bdc),blue(bdc),Math.round(alpha*(isActive?230:85)));
+  textAlign(CENTER,TOP);textSize(sz(isActive?9:7));textStyle(isActive?BOLD:NORMAL);
+  text(base.name,gx(cx+w/2),gy(cy+5));textStyle(NORMAL);
+  fill(red(bdc),green(bdc),blue(bdc),Math.round(alpha*(isActive?160:60)));
+  textSize(sz(6.5));
+  text(base.type==='atk'?'ATTACK':base.type==='heal'?'HEAL':'DEFEND',gx(cx+w/2),gy(cy+16));
+  var sW=w*0.84,sH=20,sX=cx+(w-sW)/2,sY=cy+26;
+  fill(0,0,0,Math.round(alpha*(isActive?180:60)));
+  stroke(red(bdc),green(bdc),blue(bdc),Math.round(alpha*(isActive?150:45)));
+  strokeWeight(sz(0.8));
+  rect(gx(sX),gy(sY),sz(sW),sz(sH),sz(3));
+  strokeWeight(sz(0.6));
+  line(gx(sX+sW/2),gy(sY+2),gx(sX+sW/2),gy(sY+sH-2));
+  noStroke();
+  fill(red(bdc),green(bdc),blue(bdc),Math.round(alpha*(isActive?170:60)));
+  textAlign(CENTER,TOP);textSize(sz(7.5));
+  var effStr='';
+  if(base.type==='atk') effStr='-'+Math.max(1,Math.round(cm.enemy.atk*base.mult))+'hp';
+  else if(base.type==='heal') effStr='+'+Math.max(3,Math.round(cm.enemy.maxHp*0.15))+'hull';
+  else effStr='blocks';
+  text(effStr,gx(cx+w/2),gy(sY+sH+3));
+  if(isActive){
+    fill(red(bdc),green(bdc),blue(bdc),Math.round(alpha*120));
+    textAlign(CENTER,BOTTOM);textSize(sz(8));textStyle(BOLD);
+    text('PLAYING',gx(cx+w/2),gy(cy+h-3));textStyle(NORMAL);
+  }
+  pop();
+}
+
 function drawEnemyTurnOverlay(cm){
   var TOTAL=70,f=cm.enemyAnim,entered=TOTAL-f;
   var alpha=Math.min(Math.min(entered/8.0,1.0),Math.min(f/8.0,1.0));
@@ -962,80 +1001,74 @@ function drawEnemyTurnOverlay(cm){
   var a220=Math.round(alpha*220),a160=Math.round(alpha*160);
   var isStun=cm.animIsStun,move=cm.nextMove;
   push();
-  fill(0,10,30,Math.round(alpha*210));noStroke();
-  rect(gx(0),gy(0),sz(GW),sz(GH));
+  // Darken player area only (cards + dominoes region)
+  fill(0,8,20,Math.round(alpha*210));noStroke();
+  rect(gx(0),gy(CB.cardY-16),sz(GW),sz(GH-(CB.cardY-16)));
   if(isStun){
     var pulse=sin(entered*0.3)*0.5+0.5;
     var gc2=color(C.GOLD);
     fill(red(gc2),green(gc2),blue(gc2),a220);
     textAlign(CENTER,CENTER);textSize(sz(28+pulse*4));textStyle(BOLD);
-    text('ANCHORED!',gx(GW/2),gy(GH*0.36));textStyle(NORMAL);
+    text('ANCHORED!',gx(GW/2),gy(CB.cardY+CB.cardH/2));textStyle(NORMAL);
     fill(red(gc2),green(gc2),blue(gc2),a160);textSize(sz(12));
-    text('Enemy skips this attack',gx(GW/2),gy(GH*0.48));
+    text('Enemy skips this attack',gx(GW/2),gy(CB.cardY+CB.cardH/2+28));
     pop();return;
   }
+  // "CAPTAIN ATTACKS!" header
   var pulse2=sin(entered*0.28)*0.5+0.5;
   var rc=color(C.DANGER);
-  fill(red(rc),green(rc),blue(rc),Math.round(alpha*(160+pulse2*50)));
+  fill(red(rc),green(rc),blue(rc),Math.round(alpha*(155+pulse2*90)));
   textAlign(CENTER,TOP);textSize(sz(10));textStyle(BOLD);
-  text(cm.enemy.captain.toUpperCase()+" ATTACKS!",gx(GW/2),gy(12));textStyle(NORMAL);
-  var cw=220,ch=134,cx=GW/2-cw/2,cy=155;
-  var slotW=80,slotH=32,slotX=GW/2-slotW/2,slotY=cy+56;
-  var mc=color(move.type==='atk'?'#3a0808':move.type==='heal'?'#0a3a0a':'#1a3a6a');
-  var mb=color(move.type==='atk'?C.DANGER:move.type==='heal'?C.HP_FG:C.TEXT_DIM);
-  for(var fo=2;fo>=1;fo--){
-    var fOff=fo*9;
-    fill(50,0,0,a220);stroke(100,30,30,a220);strokeWeight(sz(1.5));
-    rect(gx(cx-fOff),gy(cy-fOff*0.5),sz(cw),sz(ch),sz(8));
-    noStroke();fill(80,20,20,a160);
-    textAlign(CENTER,CENTER);textSize(sz(20));textStyle(BOLD);
-    text('?',gx(GW/2-fOff),gy(cy-fOff*0.5+ch/2));textStyle(NORMAL);
+  text(cm.enemy.captain.toUpperCase()+' ATTACKS!',gx(GW/2),gy(CB.cardY-13));
+  textStyle(NORMAL);
+  // Enemy move cards (up to 5, centered on active)
+  var ms=cm.enemy.moveset,nc=ms.length;
+  var dispN=Math.min(nc,5);
+  var actIdx=cm.enemy.moveIdx%nc;
+  var startMi=Math.max(0,Math.min(actIdx-2,nc-dispN));
+  var cardW2=Math.min(76,Math.floor((GW-12-(dispN-1)*5)/dispN));
+  var totalCW=dispN*(cardW2+5)-5;
+  var cStartX=(GW-totalCW)/2;
+  for(var di=0;di<dispN;di++){
+    var realMi=startMi+di;
+    var cxe=cStartX+di*(cardW2+5);
+    drawEnemyMoveCard(ms[realMi],cxe,CB.cardY,cardW2,CB.cardH,(realMi===actIdx),alpha,cm);
   }
-  fill(0,0,0,Math.round(alpha*90));noStroke();
-  rect(gx(cx+4),gy(cy+4),sz(cw),sz(ch),sz(10));
-  fill(red(mc),green(mc),blue(mc),a220);
-  stroke(red(mb),green(mb),blue(mb),a220);strokeWeight(sz(2.5));
-  rect(gx(cx),gy(cy),sz(cw),sz(ch),sz(10));
-  noStroke();fill(red(mb),green(mb),blue(mb),Math.round(alpha*70));
-  rect(gx(cx),gy(cy),sz(cw),sz(26),sz(10));
-  rect(gx(cx),gy(cy+16),sz(cw),sz(10));
-  fill(red(mb),green(mb),blue(mb),a220);
-  textAlign(CENTER,TOP);textSize(sz(13));textStyle(BOLD);
-  text(move.name,gx(GW/2),gy(cy+5));textStyle(NORMAL);
-  fill(red(mb),green(mb),blue(mb),a160);textSize(sz(8));
-  text(move.type==='atk'?'ATTACK':move.type==='heal'?'HEAL':'DEFEND',gx(GW/2),gy(cy+22));
-  fill(0,0,0,Math.round(alpha*100));
-  stroke(red(mb),green(mb),blue(mb),a160);strokeWeight(sz(1.5));
-  rect(gx(slotX),gy(slotY),sz(slotW),sz(slotH),sz(5));
-  strokeWeight(sz(0.8));
-  line(gx(slotX+slotW/2),gy(slotY+3),gx(slotX+slotW/2),gy(slotY+slotH-3));
-  var rawT=(entered-8)/26.0,slideT=Math.min(Math.max(rawT,0),1);
+  // Domino slides from domino row UP into the active card slot
+  var actDispIdx=actIdx-startMi;
+  var actCX=cStartX+actDispIdx*(cardW2+5);
+  var slotY2=CB.cardY+26;
+  var domStartY=CB.domY+4;
+  var rawT=(entered-8)/22.0;
+  var slideT=Math.min(Math.max(rawT,0),1);
   var eased=1.0-Math.pow(1.0-slideT,2.5);
-  var animY=38+(slotY-38)*eased;
-  var arrived=(entered>=34);
-  var dom=cm.animDom;
+  var arrived=(entered>=32);
+  var animDomX=actCX+(cardW2-CB.domW)/2;
+  var animDomY=domStartY+(slotY2-domStartY)*eased;
   if(!arrived){
-    var floatA=Math.round(Math.min(Math.max(entered-6,0)/3.0,1)*alpha*220);
-    if(floatA>0) drawEnemyDomino(dom,slotX,animY,slotW,slotH,floatA);
-    noStroke();fill(red(mb),green(mb),blue(mb),a160);
-    textAlign(CENTER,CENTER);textSize(sz(13));textStyle(BOLD);
-    text('?',gx(slotX+slotW/4),gy(slotY+slotH/2));
-    text('?',gx(slotX+3*slotW/4),gy(slotY+slotH/2));textStyle(NORMAL);
+    var floatA=Math.round(Math.min(Math.max(entered-5,0)/3.0,1)*alpha*235);
+    if(floatA>0) drawEnemyDomino(cm.animDom,animDomX,animDomY,CB.domW,CB.domH,floatA);
   } else {
-    drawEnemyDomino(dom,slotX,slotY,slotW,slotH,a220);
-    var ff=entered-34;
-    if(ff<12){noStroke();fill(255,255,255,Math.round(alpha*140*(1.0-ff/12.0)));rect(gx(cx),gy(cy),sz(cw),sz(ch),sz(10));}
-    var effA=Math.round(Math.min((entered-34)/8.0,1.0)*alpha*220);
-    var effStr,effR,effG,effB;
-    if(move.type==='atk'){effStr='-'+move.dmg+' crew HP';effR=255;effG=80;effB=80;}
-    else if(move.type==='heal'){var hc=color(C.HP_FG);effStr='+'+move.healAmt+' hull';effR=red(hc);effG=green(hc);effB=blue(hc);}
-    else{var rc2=color(C.TEXT_DIM);effStr='BRACING!';effR=red(rc2);effG=green(rc2);effB=blue(rc2);}
-    fill(effR,effG,effB,effA);
-    textAlign(CENTER,TOP);textSize(sz(15));textStyle(BOLD);
-    text(effStr,gx(GW/2),gy(cy+ch+12));textStyle(NORMAL);
-    var dc=color(C.TEXT_DIM);
-    fill(red(dc),green(dc),blue(dc),Math.round(Math.min((entered-34)/10.0,1.0)*alpha*150));
-    textSize(sz(9));text(move.desc,gx(GW/2),gy(cy+ch+32));
+    drawEnemyDomino(cm.animDom,animDomX,slotY2,CB.domW,CB.domH,a220);
+    var ff=entered-32;
+    // Flash on landing
+    if(ff<10){
+      noStroke();fill(255,80,80,Math.round(alpha*130*(1.0-ff/10.0)));
+      rect(gx(actCX),gy(CB.cardY),sz(cardW2),sz(CB.cardH),sz(5));
+    }
+    // Effect text
+    var effA=Math.round(Math.min(ff/8.0,1.0)*alpha*235);
+    if(effA>0){
+      var effStr2,effR,effG,effB;
+      if(move.type==='atk'){effStr2='-'+move.dmg+' crew!';effR=255;effG=80;effB=80;}
+      else if(move.type==='heal'){var hcol=color(C.HP_FG);effStr2='+'+move.healAmt+' hull!';effR=red(hcol);effG=green(hcol);effB=blue(hcol);}
+      else{var rc2=color(C.TEXT_DIM);effStr2='BRACING!';effR=red(rc2);effG=green(rc2);effB=blue(rc2);}
+      fill(effR,effG,effB,effA);
+      textAlign(CENTER,TOP);textSize(sz(17));textStyle(BOLD);
+      text(effStr2,gx(GW/2),gy(CB.cardY+CB.cardH+10));textStyle(NORMAL);
+      fill(effR,effG,effB,Math.round(effA*0.55));
+      textSize(sz(9));text(move.desc,gx(GW/2),gy(CB.cardY+CB.cardH+31));
+    }
   }
   pop();
 }
