@@ -689,14 +689,13 @@ function drawEquipCard(card,cx,cy,w,h,equipped){
 
 // -- COMBAT -------------------------------------------------------------------
 var CB={
-  shipY:60,hpBarY:130,intentY:150,
-  cardY:176,cardH:110,
-  domW:56,domH:28,domPad:6,domRowGap:5,
-  domLabelY:300,domY:312,
-  btnW:130,btnH:38,
-  // Pokémon layout: enemy top-right, player bottom-left
-  enemyX:220,enemyY:16,enemyW:130,
-  playerX:10,playerY:70,playerW:80
+  hpBarY:208,intentY:232,
+  cardY:262,cardH:145,
+  domW:58,domH:30,domPad:7,domRowGap:6,
+  domLabelY:420,domY:434,
+  btnW:144,btnH:44,
+  enemyX:212,enemyY:18,enemyW:170,
+  playerX:4,playerY:88,playerW:104
 };
 
 function domPerRow(total){
@@ -797,10 +796,10 @@ function drawCombat(){
   // captain name + ship class
   var eCol=gs.finalBoss?'#cc44ff':(cm.enemy.name==='Ghost Ship'?'#88ddff':C.TEXT);
   var eColDim=gs.finalBoss?'#ee88ff':(cm.enemy.name==='Ghost Ship'?'#55bbdd':C.TEXT_DIM);
-  fill(eCol);textAlign(CENTER,TOP);textSize(sz(12));textStyle(BOLD);
-  text(cm.enemy.title+' '+cm.enemy.captain,gx(GW/2),gy(6));textStyle(NORMAL);
-  fill(eColDim);textSize(sz(8));
-  text('[ '+cm.enemy.name+' ]',gx(GW/2),gy(21));
+  fill(eCol);textAlign(CENTER,TOP);textSize(sz(13));textStyle(BOLD);
+  text(cm.enemy.title+' '+cm.enemy.captain,gx(GW/2),gy(150));textStyle(NORMAL);
+  fill(eColDim);textSize(sz(9));
+  text('[ '+cm.enemy.name+' ]',gx(GW/2),gy(166));
   var ehpW=200,ehpH=16,ehpX=(GW-ehpW)/2;
   fill(gs.finalBoss?'#2a0050':C.EN_BG);noStroke();
   rect(gx(ehpX),gy(CB.hpBarY),sz(ehpW),sz(ehpH),sz(4));
@@ -819,12 +818,12 @@ function drawCombat(){
     var pBg=mBase.type==='atk'?'#3a0808':mBase.type==='heal'?'#0a3a0a':'#1a3a6a';
     var pFg=mBase.type==='atk'?C.DANGER:mBase.type==='heal'?C.HP_FG:C.TEXT_DIM;
     fill(pBg);stroke(pFg);strokeWeight(sz(isNext?2.5:0.8));
-    rect(gx(pillX+mi*(pillW+pillGap)),gy(CB.hpBarY-22),sz(pillW),sz(pillH),sz(3));
+    rect(gx(pillX+mi*(pillW+pillGap)),gy(189),sz(pillW),sz(pillH),sz(3));
     noStroke();
     var pc=color(pFg);
     fill(red(pc),green(pc),blue(pc),isNext?255:130);
     textAlign(CENTER,CENTER);textSize(sz(isNext?8:7));
-    text(mBase.name,gx(pillX+mi*(pillW+pillGap)+pillW/2),gy(CB.hpBarY-22+pillH/2));
+    text(mBase.name,gx(pillX+mi*(pillW+pillGap)+pillW/2),gy(189+pillH/2));
   }
   // intent bar
   var move=cm.nextMove;
@@ -841,18 +840,18 @@ function drawCombat(){
     move.type==='heal'?('+'+move.healAmt+' hull'):'blocks next hit';
   textAlign(RIGHT,CENTER);text(iRight,gx(ehpX+ehpW-6),gy(CB.intentY+10));
   // player HP
-  var phpW=120,phpH=14,phpX=6,phpY=6;
+  var phpW=132,phpH=16,phpX=4,phpY=3;
   fill(C.HP_BG);noStroke();
   rect(gx(phpX),gy(phpY),sz(phpW),sz(phpH),sz(3));
   fill(C.HP_FG);
   rect(gx(phpX),gy(phpY),sz(phpW*max(0,gs.player.hp/gs.player.maxHp)),sz(phpH),sz(3));
   fill(C.TEXT);textAlign(LEFT,TOP);textSize(sz(9));
-  text('Crew: '+gs.player.hp+'/'+gs.player.maxHp,gx(phpX+3),gy(phpY+2));
+  text('Crew: '+gs.player.hp+'/'+gs.player.maxHp,gx(phpX+3),gy(phpY+3));
   fill(C.TEXT_DIM);textAlign(RIGHT,TOP);
-  text('T'+cm.turn+'  G:'+gs.gold,gx(GW-6),gy(6));
+  text('T'+cm.turn+'  G:'+gs.gold,gx(GW-4),gy(5));
   var fl=FLOORS[min(gs.floorIdx,FLOORS.length-1)];
-  fill(gs.finalBoss?'#cc44ff':C.TEXT_DIM);textAlign(CENTER,TOP);textSize(sz(9));
-  text(gs.finalBoss?'FINAL BOSS':(fl.name+' - Floor '+(gs.floorIdx+1)+'/'+FLOORS.length),gx(GW/2),gy(CB.hpBarY-38));
+  fill(gs.finalBoss?'#cc44ff':C.TEXT_DIM);textAlign(CENTER,TOP);textSize(sz(8));
+  text(gs.finalBoss?'FINAL BOSS':(fl.name+' '+(gs.floorIdx+1)+'/'+FLOORS.length),gx(GW/2),gy(177));
   // hold / discard indicators
   noStroke();fill(C.TEXT_DIM);textSize(sz(9));textAlign(LEFT,TOP);
   text('Hold:'+cm.hold.length,gx(6),gy(CB.cardY-13));
@@ -966,8 +965,8 @@ function drawCombatCard(card,cx,cy,w,h,cm){
     }
   }
   // description
-  noStroke();fill(C.CARD_DESC);textAlign(LEFT,TOP);textSize(sz(7.5));
-  text(card.desc,gx(cx+5),gy(sY4+sH4+5),sz(w-10),sz(20));
+  noStroke();fill(C.CARD_DESC);textAlign(LEFT,TOP);textSize(sz(8));
+  text(card.desc,gx(cx+5),gy(sY4+sH4+6),sz(w-10),sz(h-sH4-48));
   // lifetime charge diamonds (bottom-left row)
   var liveChg4=(card.backpackIdx>=0&&gs.backpack[card.backpackIdx])?gs.backpack[card.backpackIdx].charges:(card.charges||3);
   var maxChg4=card.charges||3;
