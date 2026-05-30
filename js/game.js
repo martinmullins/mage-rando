@@ -197,7 +197,8 @@ function initGS(){
     backpack:[cloneCard(CARD_DB[0]),cloneCard(CARD_DB[1]),cloneCard(CARD_DB[2])],
     backpackMax:8,floorIdx:0,floorMap:null,gold:2,
     combat:null,loot:null,port:null,
-    finalBoss:false,msg:'',msgTimer:0,wave:0
+    finalBoss:false,msg:'',msgTimer:0,wave:0,
+    equippedSlots:[0,1,2,null],equippedMax:4,equipDrag:null
   };
   initFloorState();
 }
@@ -591,51 +592,83 @@ function buildPortItems(fl,isInFloor){
 }
 
 // -- EQUIP --------------------------------------------------------------------
-var EQ={sidePad:10,cols:2,gap:8,cardH:88,cardY0:76,rowGap:8};
-function equipCardRect(i){
-  var cw=(GW-2*EQ.sidePad-(EQ.cols-1)*EQ.gap)/EQ.cols;
-  return{x:EQ.sidePad+(i%EQ.cols)*(cw+EQ.gap),y:EQ.cardY0+Math.floor(i/EQ.cols)*(EQ.cardH+EQ.rowGap),w:cw,h:EQ.cardH};
-}
+// cardW=(400-8-8-4)/2=190; eqGrid: 2x2 slots; bpGrid: 2xN cards
+var EQ={pad:8,gap:4,cardW:190,eqCardH:90,eqY0:55,bpCardH:82,bpY0:260};
+function eqSlotPos(si){return{x:EQ.pad+(si%2)*(EQ.cardW+EQ.gap),y:EQ.eqY0+Math.floor(si/2)*(EQ.eqCardH+EQ.gap),w:EQ.cardW,h:EQ.eqCardH};}
+function bpCardPos(bi){return{x:EQ.pad+(bi%2)*(EQ.cardW+EQ.gap),y:EQ.bpY0+Math.floor(bi/2)*(EQ.bpCardH+EQ.gap),w:EQ.cardW,h:EQ.bpCardH};}
+function getEqCard(si){var idx=gs.equippedSlots[si];return(idx!==null&&idx!==undefined&&idx<gs.backpack.length)?gs.backpack[idx]:null;}
 
 function drawEquip(){
   push();
   var node=gs.floorMap?getMapNode(gs.floorMap.fightingNodeId):null;
   var target=gs.finalBoss?ENEMY_DB[5]:(node?ENEMY_DB[node.eId]:ENEMY_DB[0]);
+  // Header
   if(gs.finalBoss){
-    fill('#cc44ff');textAlign(CENTER,TOP);textSize(sz(15));textStyle(BOLD);
-    text("SHIP'S HOLD",gx(GW/2),gy(8));textStyle(NORMAL);
-    textSize(sz(10));fill('#ee88ff');
-    text('THE KRAKEN awaits!  (150 hull / ATK 22)',gx(GW/2),gy(27));
+    fill('#cc44ff');textAlign(CENTER,TOP);textSize(sz(14));textStyle(BOLD);
+    text("SHIP'S HOLD",gx(GW/2),gy(6));textStyle(NORMAL);
+    fill('#ee88ff');textSize(sz(9));
+    text('THE KRAKEN awaits!   150 hull / ATK 22',gx(GW/2),gy(23));
   } else {
-    fill(C.GOLD);textAlign(CENTER,TOP);textSize(sz(15));textStyle(BOLD);
-    text("SHIP'S HOLD",gx(GW/2),gy(8));textStyle(NORMAL);
-    textSize(sz(10));fill(C.TEXT_DIM);
-    text('Facing: '+target.title+' '+target.captain+'  ('+target.hp+' hull)',gx(GW/2),gy(27));
+    fill(C.GOLD);textAlign(CENTER,TOP);textSize(sz(14));textStyle(BOLD);
+    text("SHIP'S HOLD",gx(GW/2),gy(6));textStyle(NORMAL);
+    fill(C.TEXT_DIM);textSize(sz(9));
+    text('Facing: '+target.title+' '+target.captain+'  ('+target.hp+' hull)    Gold: '+gs.gold,gx(GW/2),gy(23));
   }
-  textSize(sz(9));fill(C.TEXT_DIM);textAlign(CENTER,TOP);
-  text('Draw 4 at start  |  Draw 2 per turn  |  Max 5 in hand  |  Cards cycle from discard',gx(GW/2),gy(42));
-  fill(C.BORDER);textSize(sz(9));
-  text(gs.backpack.length+'/'+(gs.backpackMax||8)+' cards in hold    Gold: '+gs.gold,gx(GW/2),gy(54));
-  for(var i=0;i<gs.backpack.length;i++){
-    var r=equipCardRect(i);
-    drawEquipCard(gs.backpack[i],r.x,r.y,r.w,r.h,false);
+  // ---- EQUIPPED ZONE ----
+  var nEq=gs.equippedSlots.filter(function(x){return x!==null;}).length;
+  fill(C.GOLD);textAlign(LEFT,BOTTOM);textSize(sz(10));textStyle(BOLD);
+  text('EQUIPPED  '+nEq+'/'+(gs.equippedMax||4),gx(EQ.pad),gy(EQ.eqY0-2));textStyle(NORMAL);
+  fill(C.TEXT_DIM);textAlign(RIGHT,BOTTOM);textSize(sz(8));
+  text('tap to remove',gx(GW-EQ.pad),gy(EQ.eqY0-2));
+  var draggingFromEq=gs.equipDrag&&gs.equipDrag.source==='eq';
+  var draggingFromBp=gs.equipDrag&&gs.equipDrag.source==='bp';
+  for(var si=0;si<(gs.equippedMax||4);si++){
+    var sp=eqSlotPos(si);
+    var isDraggingThis=draggingFromEq&&gs.equipDrag.si===si;
+    var ecard=getEqCard(si);
+    if(ecard&&!isDraggingThis){
+      drawEquipCard(ecard,sp.x,sp.y,sp.w,sp.h,true);
+    } else {
+      fill('#0a1828');stroke(draggingFromBp?C.GOLD:C.TEXT_DIM);strokeWeight(sz(draggingFromBp?2:1));
+      rect(gx(sp.x),gy(sp.y),sz(sp.w),sz(sp.h),sz(6));
+      noStroke();fill(C.TEXT_DIM);textAlign(CENTER,CENTER);textSize(sz(9));
+      text('+ drop card here',gx(sp.x+sp.w/2),gy(sp.y+sp.h/2));
+    }
   }
-  var bw=180,bh=42,bx=GW/2-bw/2,by=GH-56;
-  fill(gs.finalBoss?'#9400d3':C.GOLD);noStroke();
+  // ---- BACKPACK ZONE ----
+  fill(C.BORDER);textAlign(LEFT,BOTTOM);textSize(sz(10));textStyle(BOLD);
+  text('BACKPACK  '+gs.backpack.length+'/'+(gs.backpackMax||8),gx(EQ.pad),gy(EQ.bpY0-2));textStyle(NORMAL);
+  fill(C.TEXT_DIM);textAlign(RIGHT,BOTTOM);textSize(sz(8));
+  text('tap or drag to equip',gx(GW-EQ.pad),gy(EQ.bpY0-2));
+  for(var bi=0;bi<gs.backpack.length;bi++){
+    var bp=bpCardPos(bi);
+    var isEq=gs.equippedSlots.indexOf(bi)>=0;
+    var isDragBp=draggingFromBp&&gs.equipDrag.bi===bi;
+    if(!isDragBp){
+      drawEquipCard(gs.backpack[bi],bp.x,bp.y,bp.w,bp.h,isEq);
+    } else {
+      fill('#0a1828');stroke('#334455');strokeWeight(sz(1));
+      rect(gx(bp.x),gy(bp.y),sz(bp.w),sz(bp.h),sz(6));
+      noStroke();fill('#334455');textAlign(CENTER,CENTER);textSize(sz(8));
+      text('dragging...',gx(bp.x+bp.w/2),gy(bp.y+bp.h/2));
+    }
+  }
+  // ---- WEIGH ANCHOR BUTTON ----
+  var bw=180,bh=44,bx=GW/2-bw/2,by=GH-56;
+  var canSail=nEq>0;
+  fill(gs.finalBoss?'#9400d3':(canSail?C.GOLD:'#243040'));noStroke();
   rect(gx(bx),gy(by),sz(bw),sz(bh),sz(10));
-  if(imgCannon){
-    var canW=52,canH=30;
-    image(imgCannon,gx(bx-canW-8),gy(by+bh/2-canH/2),sz(canW),sz(canH));
-    push();
-    translate(gx(bx+bw+8+canW),gy(by+bh/2-canH/2));
-    scale(-1,1);
-    image(imgCannon,0,0,sz(canW),sz(canH));
-    pop();
-  }
-  fill(C.TEXT);
+  fill(canSail?C.OCEAN:'#4a7090');
   textAlign(CENTER,CENTER);textSize(sz(14));textStyle(BOLD);
-  text(gs.finalBoss?'FACE THE KRAKEN!':'WEIGH ANCHOR!',gx(GW/2),gy(by+bh/2));
+  text(gs.finalBoss?'FACE THE KRAKEN!':(canSail?'WEIGH ANCHOR!':'Equip a card first'),gx(GW/2),gy(by+bh/2));
   textStyle(NORMAL);
+  // ---- FLOATING DRAG CARD ----
+  if(gs.equipDrag){
+    var fc=null,fw=EQ.cardW,fh;
+    if(draggingFromBp){fc=gs.backpack[gs.equipDrag.bi];fh=EQ.bpCardH;}
+    else if(draggingFromEq){var fbi=gs.equippedSlots[gs.equipDrag.si];fc=(fbi!==null?gs.backpack[fbi]:null);fh=EQ.eqCardH;}
+    if(fc) drawEquipCard(fc,gs.equipDrag.x-fw/2,gs.equipDrag.y-fh/2,fw,fh,false);
+  }
   pop();
 }
 
@@ -723,9 +756,11 @@ function startCombat(){
     hp:def.hp,maxHp:def.hp,atk:def.atk,gold:def.gold,
     moveset:def.moveset,stunned:false,braceActive:false,moveIdx:0
   };
-  // Build shuffled hold from backpack, draw opening hand of 4
+  // Build shuffled hold from equipped cards only
   var hold=[];
-  for(var bi=0;bi<gs.backpack.length;bi++){
+  for(var ei=0;ei<gs.equippedSlots.length;ei++){
+    var bi=gs.equippedSlots[ei];
+    if(bi===null||bi>=gs.backpack.length) continue;
     var hc=cloneCard(gs.backpack[bi]);
     hc.backpackIdx=bi;
     hold.push(hc);
@@ -1186,8 +1221,16 @@ function resolveEnemyTurn(cm){
 
 // -- LOOT ---------------------------------------------------------------------
 function startLoot(){
-  // Remove cards that ran out of charges during combat
+  // Remove cards that ran out of charges; remap equipped slots to new indices
+  var preFilter=gs.backpack.slice();
   gs.backpack=gs.backpack.filter(function(c){return c.charges>0;});
+  gs.equippedSlots=gs.equippedSlots.map(function(bi){
+    if(bi===null) return null;
+    var card=preFilter[bi];
+    if(!card||card.charges<=0) return null;
+    var newIdx=gs.backpack.indexOf(card);
+    return newIdx>=0?newIdx:null;
+  });
   var node=getMapNode(gs.floorMap.fightingNodeId);
   var def=gs.finalBoss?ENEMY_DB[5]:(node?ENEMY_DB[node.eId]:ENEMY_DB[0]);
   gs.gold+=def.gold;
@@ -1369,15 +1412,66 @@ function mouseReleased(){handleRelease();}
 function touchEnded(){handleRelease();return false;}
 
 function handleDrag(){
+  var mx=toGX(mouseX),my=toGY(mouseY);
+  if(gs.screen==='equip'){
+    if(gs.equipDrag){gs.equipDrag.moved=true;gs.equipDrag.x=mx;gs.equipDrag.y=my;}
+    return;
+  }
   if(gs.screen!=='combat') return;
   var cm=gs.combat;
   if(!cm||cm.enemyAnim>0||cm.dragDomIdx===null) return;
-  var mx=toGX(mouseX),my=toGY(mouseY);
   cm.dragX=mx-CB.domW/2;cm.dragY=my-CB.domH/2;
   cm.isDragging=true;
 }
 
 function handleRelease(){
+  if(gs.screen==='equip'){
+    var drag=gs.equipDrag;
+    if(!drag){return;}
+    var mx=toGX(mouseX),my=toGY(mouseY);
+    var dropped=false;
+    for(var tsi=0;tsi<(gs.equippedMax||4);tsi++){
+      var tsp=eqSlotPos(tsi);
+      if(mx>=tsp.x&&mx<=tsp.x+tsp.w&&my>=tsp.y&&my<=tsp.y+tsp.h){
+        if(drag.source==='bp'){
+          var tbi=drag.bi;
+          for(var oi=0;oi<gs.equippedSlots.length;oi++){if(gs.equippedSlots[oi]===tbi)gs.equippedSlots[oi]=null;}
+          gs.equippedSlots[tsi]=tbi;
+          showMsg(gs.backpack[tbi].name+' equipped!');
+        } else if(drag.source==='eq'&&drag.si!==tsi){
+          var tmp=gs.equippedSlots[tsi];
+          gs.equippedSlots[tsi]=gs.equippedSlots[drag.si];
+          gs.equippedSlots[drag.si]=tmp;
+        }
+        dropped=true;break;
+      }
+    }
+    if(!dropped){
+      if(!drag.moved){
+        if(drag.source==='eq'){
+          var cbi=gs.equippedSlots[drag.si];
+          gs.equippedSlots[drag.si]=null;
+          if(cbi!==null) showMsg(gs.backpack[cbi].name+' unequipped.');
+        } else {
+          var tbi2=drag.bi;
+          var eqPos=gs.equippedSlots.indexOf(tbi2);
+          if(eqPos>=0){
+            gs.equippedSlots[eqPos]=null;
+            showMsg(gs.backpack[tbi2].name+' unequipped.');
+          } else {
+            var emptySlot=gs.equippedSlots.indexOf(null);
+            if(emptySlot>=0){gs.equippedSlots[emptySlot]=tbi2;showMsg(gs.backpack[tbi2].name+' equipped!');}
+            else showMsg('Equip slots full! Tap an equipped card to remove it.');
+          }
+        }
+      } else if(drag.source==='eq'&&my>EQ.eqY0+2*(EQ.eqCardH+EQ.gap)){
+        var cbi2=gs.equippedSlots[drag.si];
+        gs.equippedSlots[drag.si]=null;
+        if(cbi2!==null) showMsg(gs.backpack[cbi2].name+' unequipped.');
+      }
+    }
+    gs.equipDrag=null;return;
+  }
   if(gs.screen!=='combat') return;
   var cm=gs.combat;
   if(!cm||cm.enemyAnim>0) return;
@@ -1412,8 +1506,30 @@ function handleTitle(mx,my){
 }
 
 function handleEquip(mx,my){
-  var bw=180,bh=42,bx=GW/2-bw/2,by=GH-56;
-  if(mx>=bx&&mx<=bx+bw&&my>=by&&my<=by+bh) startCombat();
+  gs.equipDrag=null;
+  // Start drag from equip slot
+  for(var si=0;si<(gs.equippedMax||4);si++){
+    var sp=eqSlotPos(si);
+    if(mx>=sp.x&&mx<=sp.x+sp.w&&my>=sp.y&&my<=sp.y+sp.h){
+      if(gs.equippedSlots[si]!==null) gs.equipDrag={source:'eq',si:si,x:mx,y:my,moved:false};
+      return;
+    }
+  }
+  // Start drag from backpack card
+  for(var bi=0;bi<gs.backpack.length;bi++){
+    var bp=bpCardPos(bi);
+    if(mx>=bp.x&&mx<=bp.x+bp.w&&my>=bp.y&&my<=bp.y+bp.h){
+      gs.equipDrag={source:'bp',bi:bi,x:mx,y:my,moved:false};
+      return;
+    }
+  }
+  // Weigh Anchor button
+  var bw=180,bh=44,bx=GW/2-bw/2,by=GH-56;
+  if(mx>=bx&&mx<=bx+bw&&my>=by&&my<=by+bh){
+    var canSail=gs.equippedSlots.some(function(x){return x!==null;});
+    if(canSail) startCombat();
+    else showMsg('Equip at least one card first!');
+  }
 }
 
 function handleCombat(mx,my){
