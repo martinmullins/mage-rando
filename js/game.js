@@ -11,8 +11,8 @@ var C = {
   HP_FG:'#43a047', HP_BG:'#1b5e20', EN_FG:'#ef5350', EN_BG:'#4a1515',
   PANEL:'#0d47a1', PANEL2:'#1565c0', BORDER:'#64b5f6',
   GREEN_HI:'#0c2010', GREEN_BD:'#00d060',
-  CARD_BG:'#0d1421', CARD_FACE:'#131d2e', CARD_BD:'#1e2d4a',
-  CARD_NAME:'#d8c890', CARD_DESC:'#5a78a8', CARD_SLOT:'#060c16'
+  CARD_BG:'#1a3050', CARD_FACE:'#243c62', CARD_BD:'#3a6898',
+  CARD_NAME:'#ffffff', CARD_DESC:'#8ab8e0', CARD_SLOT:'#0e1e30'
 };
 
 var imgShipPlayer = null, imgShipEnemy = null, imgKraken = null;
@@ -753,8 +753,12 @@ function drawCard(cm){
   if(cm.hand.length>=cm.handMax) return;
   if(cm.hold.length===0){
     if(cm.discard.length===0) return;
-    cm.hold=cm.discard.slice();
+    cm.hold=cm.discard.filter(function(c){
+      if(c.backpackIdx<0) return true;
+      return gs.backpack[c.backpackIdx]&&gs.backpack[c.backpackIdx].charges>0;
+    });
     cm.discard=[];
+    if(cm.hold.length===0){showMsg('Hold exhausted!');return;}
     shuffleArray(cm.hold);
     showMsg('Hold reshuffled!');
   }
