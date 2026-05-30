@@ -263,11 +263,10 @@ function applyCard(card,cm){
     gs.backpack[card.backpackIdx].charges=Math.max(0,gs.backpack[card.backpackIdx].charges-1);
   }
   if(msgs.length>0) showMsg(msgs.join(' '));
-  // Discard card once maxUses reached, draw replacement
+  // Remove card from hand when max uses for this turn reached
   if(card.usesThisTurn>=(card.maxUses||1)){
     var hi=cm.hand.indexOf(card);
-    if(hi>=0){cm.hand.splice(hi,1);cm.discard.push(card);}
-    drawCard(cm);
+    if(hi>=0) cm.hand.splice(hi,1);
   }
 }
 
@@ -723,12 +722,12 @@ function drawEquipCard(card,cx,cy,w,h,equipped){
 // -- COMBAT -------------------------------------------------------------------
 var CB={
   hpBarY:208,intentY:232,
-  cardY:262,cardH:145,
+  cardY:272,cardH:145,
   domW:58,domH:30,domPad:7,domRowGap:6,
-  domLabelY:420,domY:434,
+  domLabelY:430,domY:444,
   btnW:144,btnH:44,
-  enemyX:212,enemyY:18,enemyW:170,
-  playerX:4,playerY:88,playerW:104
+  enemyX:210,enemyY:10,enemyW:178,
+  playerX:4,playerY:162,playerW:116
 };
 
 function domPerRow(total){
@@ -756,18 +755,16 @@ function startCombat(){
     hp:def.hp,maxHp:def.hp,atk:def.atk,gold:def.gold,
     moveset:def.moveset,stunned:false,braceActive:false,moveIdx:0
   };
-  // Build shuffled hold from equipped cards only
-  var hold=[];
+  // Build hand from equipped slots in order — no shuffle, all cards available
+  var hand=[];
   for(var ei=0;ei<gs.equippedSlots.length;ei++){
     var bi=gs.equippedSlots[ei];
     if(bi===null||bi>=gs.backpack.length) continue;
+    if(gs.backpack[bi].charges<=0) continue;
     var hc=cloneCard(gs.backpack[bi]);
     hc.backpackIdx=bi;
-    hold.push(hc);
+    hand.push(hc);
   }
-  shuffleArray(hold);
-  var hand=[];
-  for(var di=0;di<4&&hold.length>0;di++) hand.push(hold.pop());
   gs.combat={
     enemy:enemy,
     dominoes:rollDominoes(domCount),
@@ -776,7 +773,7 @@ function startCombat(){
     enemyAnim:0,animIsStun:false,pendingTurns:0,
     animDom:rollDominoes(1)[0],
     dragDomIdx:null,dragX:0,dragY:0,isDragging:false,
-    hold:hold,hand:hand,discard:[],handMax:5
+    hold:[],hand:hand,discard:[],handMax:hand.length+2
   };
   gs.screen='combat';
   if(gs.finalBoss) showMsg('THE KRAKEN: "'+def.intro+'"');
@@ -802,11 +799,16 @@ function drawCard(cm){
 }
 
 function refillHand(cm){
-  for(var i=0;i<cm.hand.length;i++){
-    cm.hand[i].usesThisTurn=0;
-    cm.hand[i].assigned=[null,null];
+  // Restore full hand from equipped slots at turn start
+  cm.hand=[];
+  for(var ei=0;ei<gs.equippedSlots.length;ei++){
+    var bi=gs.equippedSlots[ei];
+    if(bi===null||bi>=gs.backpack.length) continue;
+    if(gs.backpack[bi].charges<=0) continue;
+    var hc=cloneCard(gs.backpack[bi]);
+    hc.backpackIdx=bi;
+    cm.hand.push(hc);
   }
-  for(var d=0;d<2;d++) drawCard(cm);
 }
 
 function drawCombat(){
@@ -874,29 +876,25 @@ function drawCombat(){
     move.type==='atk'?('-'+move.dmg+' crew'):
     move.type==='heal'?('+'+move.healAmt+' hull'):'blocks next hit';
   textAlign(RIGHT,CENTER);text(iRight,gx(ehpX+ehpW-6),gy(CB.intentY+10));
-  // player HP
-  var phpW=132,phpH=16,phpX=4,phpY=3;
+  // Turn / Gold / Floor — top-right
+  fill(C.TEXT_DIM);textAlign(RIGHT,TOP);textSize(sz(9));
+  text('T'+cm.turn+'  G:'+gs.gold,gx(GW-4),gy(4));
+  var fl=FLOORS[min(gs.floorIdx,FLOORS.length-1)];
+  fill(gs.finalBoss?'#cc44ff':C.TEXT_DIM);textAlign(CENTER,TOP);textSize(sz(8));
+  text(gs.finalBoss?'FINAL BOSS':(fl.name+' '+(gs.floorIdx+1)+'/'+FLOORS.length),gx(GW/2),gy(177));
+  // Player HP — bottom-left, below player sprite
+  var phpY=CB.playerY+Math.ceil(CB.playerW*0.76),phpW=138,phpH=14,phpX=CB.playerX;
   fill(C.HP_BG);noStroke();
   rect(gx(phpX),gy(phpY),sz(phpW),sz(phpH),sz(3));
   fill(C.HP_FG);
   rect(gx(phpX),gy(phpY),sz(phpW*max(0,gs.player.hp/gs.player.maxHp)),sz(phpH),sz(3));
   fill(C.TEXT);textAlign(LEFT,TOP);textSize(sz(9));
-  text('Crew: '+gs.player.hp+'/'+gs.player.maxHp,gx(phpX+3),gy(phpY+3));
-  fill(C.TEXT_DIM);textAlign(RIGHT,TOP);
-  text('T'+cm.turn+'  G:'+gs.gold,gx(GW-4),gy(5));
-  var fl=FLOORS[min(gs.floorIdx,FLOORS.length-1)];
-  fill(gs.finalBoss?'#cc44ff':C.TEXT_DIM);textAlign(CENTER,TOP);textSize(sz(8));
-  text(gs.finalBoss?'FINAL BOSS':(fl.name+' '+(gs.floorIdx+1)+'/'+FLOORS.length),gx(GW/2),gy(177));
-  // hold / discard indicators
-  noStroke();fill(C.TEXT_DIM);textSize(sz(9));textAlign(LEFT,TOP);
-  text('Hold:'+cm.hold.length,gx(6),gy(CB.cardY-13));
-  textAlign(RIGHT,TOP);
-  text('Disc:'+cm.discard.length,gx(GW-6),gy(CB.cardY-13));
+  text('Crew: '+gs.player.hp+'/'+gs.player.maxHp,gx(phpX+3),gy(phpY+2));
   // combat cards from hand
   var nc=cm.hand.length;
   if(nc===0){
     noStroke();fill(C.TEXT_DIM);textAlign(CENTER,CENTER);textSize(sz(10));
-    text('No cards in hand - End Turn to draw',gx(GW/2),gy(CB.cardY+CB.cardH/2));
+    text('All cards spent - End Turn to refresh',gx(GW/2),gy(CB.cardY+CB.cardH/2));
   } else {
     var cardW=(GW-12-(nc-1)*6)/nc;
     for(var ci=0;ci<nc;ci++){
