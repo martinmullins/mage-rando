@@ -19,18 +19,23 @@ var imgShipPlayer = null, imgShipEnemy = null, imgKraken = null;
 var imgTreasureChest = null, imgCannon = null, imgGhostShip = null;
 
 // maxUses = how many times a card can fire per player turn
+// pipScale: damage += both placed pips; burn: stacks enemy burning dmg/turn; shield: adds player shield HP
 var CARD_DB = [
-  {id:'rusty_cannon',name:'Rusty Cannon', slots:[null,null],dmg:4, heal:0,extraDraw:0,stun:false,loadedDice:false,maxUses:2,charges:4,desc:'Deal 4 dmg. (2x/turn)'},
-  {id:'bilge_pump',  name:'Bilge Pump',   slots:[null,null],dmg:0, heal:4,extraDraw:0,stun:false,loadedDice:false,maxUses:1,charges:3,desc:'Heal 4 HP.'},
-  {id:'crows_nest',  name:"Crow's Nest",  slots:[null,null],dmg:0, heal:0,extraDraw:2,stun:false,loadedDice:false,maxUses:1,charges:3,desc:'+2 dominoes next turn.'},
-  {id:'iron_cannon', name:'Iron Cannon',  slots:[null,6],   dmg:9, heal:0,extraDraw:0,stun:false,loadedDice:false,maxUses:2,charges:4,desc:'Needs a 6. Deal 9 dmg. (2x/turn)'},
-  {id:'grapeshot',   name:'Grapeshot',    slots:[3,null],   dmg:6, heal:0,extraDraw:0,stun:false,loadedDice:false,maxUses:2,charges:4,desc:'Needs a 3. Deal 6 dmg. (2x/turn)'},
-  {id:'broadside',   name:'Broadside',    slots:[5,5],      dmg:16,heal:0,extraDraw:0,stun:false,loadedDice:false,maxUses:1,charges:2,desc:'Double 5s only! Deal 16.'},
-  {id:'powder_keg',  name:'Powder Keg',   slots:[6,6],      dmg:24,heal:0,extraDraw:0,stun:false,loadedDice:false,maxUses:1,charges:2,desc:'Double 6s only! Deal 24.'},
-  {id:'sea_witch',   name:'Sea Witch',    slots:[null,null],dmg:0, heal:10,extraDraw:0,stun:false,loadedDice:false,maxUses:1,charges:2,desc:'Heal 10 HP.'},
-  {id:'anchor_drop', name:'Anchor Drop',  slots:[null,null],dmg:2, heal:0,extraDraw:0,stun:true, loadedDice:false,maxUses:1,charges:3,desc:'Stun enemy. Deal 2 dmg.'},
-  {id:'nav_chart',   name:'Nav Chart',    slots:[null,null],dmg:0, heal:0,extraDraw:3,stun:false,loadedDice:false,maxUses:1,charges:3,desc:'+3 dominoes next turn.'},
-  {id:'loaded_dice', name:'Loaded Dice',  slots:[null,null],dmg:0, heal:0,extraDraw:0,stun:false,loadedDice:true, maxUses:1,charges:2,desc:'Spawns [5|5]+[6|6] in hand!'}
+  {id:'rusty_cannon', name:'Rusty Cannon',  slots:[null,null],dmg:4, heal:0,extraDraw:0,stun:false,loadedDice:false,pipScale:false,burn:0,shield:0,maxUses:2,charges:4,desc:'Deal 4 dmg. (2x/turn)'},
+  {id:'bilge_pump',   name:'Bilge Pump',    slots:[null,null],dmg:0, heal:4,extraDraw:0,stun:false,loadedDice:false,pipScale:false,burn:0,shield:0,maxUses:2,charges:4,desc:'Heal 4 HP. (2x/turn)'},
+  {id:'crows_nest',   name:"Crow's Nest",   slots:[null,null],dmg:0, heal:0,extraDraw:2,stun:false,loadedDice:false,pipScale:false,burn:0,shield:0,maxUses:1,charges:3,desc:'+2 dominoes next turn.'},
+  {id:'iron_cannon',  name:'Iron Cannon',   slots:[null,6],   dmg:9, heal:0,extraDraw:0,stun:false,loadedDice:false,pipScale:false,burn:0,shield:0,maxUses:2,charges:4,desc:'Needs a 6. Deal 9 dmg. (2x)'},
+  {id:'grapeshot',    name:'Grapeshot',     slots:[3,null],   dmg:4, heal:0,extraDraw:0,stun:false,loadedDice:false,pipScale:false,burn:2,shield:0,maxUses:2,charges:4,desc:'Needs a 3. Deal 4+burn 2/turn. (2x)'},
+  {id:'broadside',    name:'Broadside',     slots:[5,5],      dmg:16,heal:0,extraDraw:0,stun:false,loadedDice:false,pipScale:false,burn:0,shield:0,maxUses:1,charges:2,desc:'Double 5s only! Deal 16.'},
+  {id:'powder_keg',   name:'Powder Keg',    slots:[6,6],      dmg:24,heal:0,extraDraw:0,stun:false,loadedDice:false,pipScale:false,burn:0,shield:0,maxUses:1,charges:2,desc:'Double 6s only! Deal 24.'},
+  {id:'sea_witch',    name:'Sea Witch',     slots:[null,null],dmg:0, heal:10,extraDraw:0,stun:false,loadedDice:false,pipScale:false,burn:0,shield:0,maxUses:1,charges:2,desc:'Heal 10 HP.'},
+  {id:'anchor_drop',  name:'Anchor Drop',   slots:[null,null],dmg:2, heal:0,extraDraw:0,stun:true, loadedDice:false,pipScale:false,burn:0,shield:0,maxUses:1,charges:3,desc:'Stun enemy. Deal 2 dmg.'},
+  {id:'nav_chart',    name:'Nav Chart',     slots:[null,null],dmg:0, heal:0,extraDraw:3,stun:false,loadedDice:false,pipScale:false,burn:0,shield:0,maxUses:1,charges:3,desc:'+3 dominoes next turn.'},
+  {id:'loaded_dice',  name:'Loaded Dice',   slots:[null,null],dmg:0, heal:0,extraDraw:0,stun:false,loadedDice:true, pipScale:false,burn:0,shield:0,maxUses:1,charges:2,desc:'Spawns [5|5]+[6|6] in hand!'},
+  {id:'boarding_axe', name:'Boarding Axe',  slots:[null,null],dmg:1, heal:0,extraDraw:0,stun:false,loadedDice:false,pipScale:true, burn:0,shield:0,maxUses:2,charges:3,desc:'Deal 1+pips dmg. (2x/turn)'},
+  {id:'hull_patch',   name:'Hull Patch',    slots:[null,null],dmg:0, heal:6,extraDraw:0,stun:false,loadedDice:false,pipScale:false,burn:0,shield:0,maxUses:2,charges:4,desc:'Heal 6 HP. (2x/turn)'},
+  {id:'cannon_fuse',  name:'Cannon Fuse',   slots:[4,null],   dmg:4, heal:0,extraDraw:0,stun:false,loadedDice:false,pipScale:false,burn:3,shield:0,maxUses:1,charges:3,desc:'Needs a 4. Deal 4+burn 3/turn.'},
+  {id:'iron_hull',    name:'Iron Hull',     slots:[null,null],dmg:0, heal:0,extraDraw:0,stun:false,loadedDice:false,pipScale:false,burn:0,shield:8,maxUses:1,charges:3,desc:'Gain 8 shield HP.'}
 ];
 
 var MOVE_DB = {
@@ -42,46 +47,47 @@ var MOVE_DB = {
 };
 
 // Each enemy is a named captain with a personality-driven strategy
+// domCount = how many dominoes the enemy rolls each turn (max pip scales their damage)
 var ENEMY_DB = [
   {
     name:'Dinghy', captain:'Barnsworth', title:'Bilge Rat',
-    hp:14, atk:2, gold:1,
-    moveset:['light','light','brace'],
+    hp:14, atk:3, gold:1, domCount:1,
+    moveset:['light','light','light','brace'],
     intro:'Come get some, landlubber!',
     strategy:'reckless'
   },
   {
     name:'Sloop', captain:'Vane', title:'Quickshot',
-    hp:24, atk:4, gold:2,
-    moveset:['cannon','light','repair'],
+    hp:24, atk:5, gold:2, domCount:2,
+    moveset:['cannon','light','light','cannon','repair'],
     intro:"I'll be counting yer gold soon!",
     strategy:'opportunist'
   },
   {
     name:'Brigantine', captain:'Ironhook', title:'Captain',
-    hp:38, atk:6, gold:3,
-    moveset:['cannon','heavy','brace'],
+    hp:38, atk:7, gold:3, domCount:2,
+    moveset:['cannon','brace','heavy','cannon','brace','repair'],
     intro:"Another ship to add to me tally!",
     strategy:'disciplined'
   },
   {
     name:'Man-o-War', captain:'Reeves', title:'Admiral',
-    hp:55, atk:9, gold:4,
-    moveset:['heavy','cannon','brace','heavy','cannon'],
+    hp:55, atk:10, gold:4, domCount:3,
+    moveset:['heavy','cannon','brace','heavy','cannon','repair','heavy'],
     intro:'Full broadside! Fire at will!',
     strategy:'relentless'
   },
   {
     name:'Ghost Ship', captain:'Morvaine', title:'The Revenant',
-    hp:75, atk:13, gold:5,
-    moveset:['heavy','heavy','repair','heavy','brace','heavy'],
+    hp:75, atk:14, gold:5, domCount:3,
+    moveset:['heavy','heavy','brace','heavy','repair','heavy','cannon','heavy'],
     intro:'The dead do not yield...',
     strategy:'undying'
   },
   {
     name:'The Kraken', captain:'The Kraken', title:'Ancient Terror',
-    hp:150, atk:22, gold:15,
-    moveset:['heavy','cannon','heavy','repair','heavy','brace','cannon','heavy'],
+    hp:150, atk:22, gold:15, domCount:4,
+    moveset:['heavy','cannon','heavy','heavy','repair','brace','cannon','heavy','heavy','cannon'],
     intro:'FROM THE DEEP IT RISES!',
     strategy:'leviathan'
   }
@@ -101,7 +107,9 @@ function cloneCard(def) {
   return {
     id:def.id, name:def.name, slots:[def.slots[0],def.slots[1]],
     dmg:def.dmg, heal:def.heal, extraDraw:def.extraDraw, stun:def.stun,
-    loadedDice:!!def.loadedDice, maxUses:def.maxUses||1,
+    loadedDice:!!def.loadedDice, pipScale:!!def.pipScale,
+    burn:def.burn||0, shield:def.shield||0,
+    maxUses:def.maxUses||1,
     charges:def.charges!==undefined?def.charges:3,
     usesThisTurn:0, desc:def.desc, assigned:[null,null], backpackIdx:-1
   };
@@ -193,7 +201,7 @@ function initFloorState(){gs.floorMap=generateFloorMap(gs.floorIdx);}
 function initGS(){
   gs={
     screen:'title',
-    player:{hp:30,maxHp:30,extraDraw:0},
+    player:{hp:30,maxHp:30,extraDraw:0,shield:0},
     backpack:[cloneCard(CARD_DB[0]),cloneCard(CARD_DB[1]),cloneCard(CARD_DB[2])],
     backpackMax:8,floorIdx:0,floorMap:null,gold:2,
     combat:null,loot:null,port:null,
@@ -239,8 +247,10 @@ function isReady(card){return card.assigned[0]!==null&&card.assigned[1]!==null;}
 function applyCard(card,cm){
   if(!isReady(card)) return;
   var msgs=[];
-  if(card.dmg>0){
-    var dmg=card.dmg;
+  var pip0=card.assigned[0]!==null?card.assigned[0]:0;
+  var pip1=card.assigned[1]!==null?card.assigned[1]:0;
+  if(card.dmg>0||card.pipScale){
+    var dmg=card.dmg+(card.pipScale?pip0+pip1:0);
     if(cm.enemy.braceActive){
       dmg=Math.max(1,Math.round(dmg*0.5));
       cm.enemy.braceActive=false;
@@ -256,14 +266,14 @@ function applyCard(card,cm){
     cm.dominoes.push(makeDomino(6,6));
     msgs.push('[5|5] and [6|6] loaded into hand!');
   }
+  if(card.burn>0){cm.enemy.burning+=card.burn;msgs.push('Burning! +'+card.burn+'/turn stacked!');}
+  if(card.shield>0){gs.player.shield=(gs.player.shield||0)+card.shield;msgs.push('Shield +'+card.shield+'!');}
   card.usesThisTurn=(card.usesThisTurn||0)+1;
   card.assigned=[null,null];
-  // Burn one charge from the backpack original
   if(card.backpackIdx>=0&&gs.backpack[card.backpackIdx]){
     gs.backpack[card.backpackIdx].charges=Math.max(0,gs.backpack[card.backpackIdx].charges-1);
   }
   if(msgs.length>0) showMsg(msgs.join(' '));
-  // Remove card from hand when max uses for this turn reached
   if(card.usesThisTurn>=(card.maxUses||1)){
     var hi=cm.hand.indexOf(card);
     if(hi>=0) cm.hand.splice(hi,1);
@@ -753,7 +763,8 @@ function startCombat(){
   var enemy={
     name:def.name,captain:def.captain,title:def.title,
     hp:def.hp,maxHp:def.hp,atk:def.atk,gold:def.gold,
-    moveset:def.moveset,stunned:false,braceActive:false,moveIdx:0
+    moveset:def.moveset,stunned:false,braceActive:false,moveIdx:0,
+    burning:0,domCount:def.domCount||1
   };
   // Build hand from equipped slots in order — no shuffle, all cards available
   var hand=[];
@@ -772,6 +783,7 @@ function startCombat(){
     nextMove:pickMove(enemy),
     enemyAnim:0,animIsStun:false,pendingTurns:0,
     animDom:rollDominoes(1)[0],
+    enemyDomRoll:[],enemyMaxPip:0,enemyAnimDomIdx:0,
     dragDomIdx:null,dragX:0,dragY:0,isDragging:false,
     hold:[],hand:hand,discard:[],handMax:hand.length+2
   };
@@ -876,6 +888,10 @@ function drawCombat(){
     move.type==='atk'?('-'+move.dmg+' crew'):
     move.type==='heal'?('+'+move.healAmt+' hull'):'blocks next hit';
   textAlign(RIGHT,CENTER);text(iRight,gx(ehpX+ehpW-6),gy(CB.intentY+10));
+  if(gs.combat.enemy.burning>0){
+    fill('#ff6600');noStroke();textAlign(LEFT,TOP);textSize(sz(8));
+    text('BURNING: -'+gs.combat.enemy.burning+'/turn',gx(ehpX),gy(CB.intentY+22));
+  }
   // Turn / Gold / Floor — top-right
   fill(C.TEXT_DIM);textAlign(RIGHT,TOP);textSize(sz(9));
   text('T'+cm.turn+'  G:'+gs.gold,gx(GW-4),gy(4));
@@ -888,8 +904,14 @@ function drawCombat(){
   rect(gx(phpX),gy(phpY),sz(phpW),sz(phpH),sz(3));
   fill(C.HP_FG);
   rect(gx(phpX),gy(phpY),sz(phpW*max(0,gs.player.hp/gs.player.maxHp)),sz(phpH),sz(3));
+  if(gs.player.shield>0){
+    var shW=phpW*Math.min(1,gs.player.shield/gs.player.maxHp);
+    fill('#3366ee');noStroke();
+    rect(gx(phpX+phpW*max(0,gs.player.hp/gs.player.maxHp)-shW),gy(phpY),sz(shW),sz(phpH),sz(3));
+  }
   fill(C.TEXT);textAlign(LEFT,TOP);textSize(sz(9));
-  text('Crew: '+gs.player.hp+'/'+gs.player.maxHp,gx(phpX+3),gy(phpY+2));
+  var crewStr='Crew: '+gs.player.hp+'/'+gs.player.maxHp+(gs.player.shield>0?' [SH:'+gs.player.shield+']':'');
+  text(crewStr,gx(phpX+3),gy(phpY+2));
   // combat cards from hand
   var nc=cm.hand.length;
   if(nc===0){
@@ -1015,8 +1037,12 @@ function drawCombatCard(card,cx,cy,w,h,cm){
   // action label
   if(!exhausted){
     if(ready){
-      fill(C.GREEN_BD);textAlign(CENTER,BOTTOM);textSize(sz(10));textStyle(BOLD);
-      text('FIRE!',gx(cx+w/2),gy(cy+h-2));textStyle(NORMAL);
+      var fireLabel='FIRE!';
+      if(card.pipScale&&card.assigned[0]!==null&&card.assigned[1]!==null){
+        fireLabel='FIRE! '+(card.dmg+card.assigned[0]+card.assigned[1])+'dmg';
+      }
+      fill(C.GREEN_BD);textAlign(CENTER,BOTTOM);textSize(sz(ready&&card.pipScale?8.5:10));textStyle(BOLD);
+      text(fireLabel,gx(cx+w/2),gy(cy+h-2));textStyle(NORMAL);
     } else if(goodDrop){
       fill('#50ee50');textAlign(CENTER,BOTTOM);textSize(sz(9));textStyle(BOLD);
       text('DROP',gx(cx+w/2),gy(cy+h-2));textStyle(NORMAL);
@@ -1113,7 +1139,6 @@ function drawEnemyTurnOverlay(cm){
   var a220=Math.round(alpha*220),a160=Math.round(alpha*160);
   var isStun=cm.animIsStun,move=cm.nextMove;
   push();
-  // Darken player area only (cards + dominoes region)
   fill(0,8,20,Math.round(alpha*210));noStroke();
   rect(gx(0),gy(CB.cardY-16),sz(GW),sz(GH-(CB.cardY-16)));
   if(isStun){
@@ -1133,7 +1158,7 @@ function drawEnemyTurnOverlay(cm){
   textAlign(CENTER,TOP);textSize(sz(10));textStyle(BOLD);
   text(cm.enemy.captain.toUpperCase()+' ATTACKS!',gx(GW/2),gy(CB.cardY-13));
   textStyle(NORMAL);
-  // Enemy move cards (up to 5, centered on active)
+  // Enemy move cards
   var ms=cm.enemy.moveset,nc=ms.length;
   var dispN=Math.min(nc,5);
   var actIdx=cm.enemy.moveIdx%nc;
@@ -1146,40 +1171,78 @@ function drawEnemyTurnOverlay(cm){
     var cxe=cStartX+di*(cardW2+5);
     drawEnemyMoveCard(ms[realMi],cxe,CB.cardY,cardW2,CB.cardH,(realMi===actIdx),alpha,cm);
   }
-  // Domino slides from domino row UP into the active card slot
+  // Enemy domino roll row (shown below move cards)
+  var roll=cm.enemyDomRoll||[];
+  var nRoll=roll.length;
+  var rowY=CB.cardY+CB.cardH+10;
+  var rollRowW=nRoll*(CB.domW+CB.domPad)-CB.domPad;
+  var rollRowStartX=(GW-rollRowW)/2;
+  var animIdx=cm.enemyAnimDomIdx||0;
   var actDispIdx=actIdx-startMi;
   var actCX=cStartX+actDispIdx*(cardW2+5);
   var slotY2=CB.cardY+26;
-  var domStartY=CB.domY+4;
-  var rawT=(entered-8)/22.0;
+  var animStartX=rollRowStartX+animIdx*(CB.domW+CB.domPad);
+  var animEndX=actCX+(cardW2-CB.domW)/2;
+  var rawT=(entered-8)/20.0;
   var slideT=Math.min(Math.max(rawT,0),1);
   var eased=1.0-Math.pow(1.0-slideT,2.5);
-  var arrived=(entered>=32);
-  var animDomX=actCX+(cardW2-CB.domW)/2;
-  var animDomY=domStartY+(slotY2-domStartY)*eased;
+  var arrived=(entered>=30);
+  var animCurX=animStartX+(animEndX-animStartX)*eased;
+  var animCurY=rowY+(slotY2-rowY)*eased;
+  // Draw static row dominoes
+  if(nRoll>0){
+    var rowLabelA=Math.round(Math.min(entered/8.0,1)*alpha*110);
+    if(rowLabelA>0){
+      noStroke();fill(255,80,80,rowLabelA);
+      textAlign(CENTER,BOTTOM);textSize(sz(7.5));
+      text('Enemy rolls:',gx(GW/2),gy(rowY-1));
+    }
+    for(var ri=0;ri<nRoll;ri++){
+      if(!arrived&&ri===animIdx) continue;
+      var rdx=rollRowStartX+ri*(CB.domW+CB.domPad);
+      var rdA=Math.round(Math.min(entered/8.0,1)*alpha*(ri===animIdx?200:150));
+      if(rdA>0) drawEnemyDomino(roll[ri],rdx,rowY,CB.domW,CB.domH,rdA);
+      if(ri===animIdx&&rdA>0){
+        noFill();stroke(255,200,50,Math.round(alpha*160));strokeWeight(sz(2));
+        rect(gx(rdx-1),gy(rowY-1),sz(CB.domW+2),sz(CB.domH+2),sz(6));
+        noStroke();
+      }
+    }
+  }
+  // Animate the max-pip domino sliding from its row position up into the card slot
   if(!arrived){
-    var floatA=Math.round(Math.min(Math.max(entered-5,0)/3.0,1)*alpha*235);
-    if(floatA>0) drawEnemyDomino(cm.animDom,animDomX,animDomY,CB.domW,CB.domH,floatA);
+    var floatA=Math.round(Math.min(Math.max(entered-4,0)/4.0,1)*alpha*235);
+    if(floatA>0) drawEnemyDomino(cm.animDom,animCurX,animCurY,CB.domW,CB.domH,floatA);
   } else {
-    drawEnemyDomino(cm.animDom,animDomX,slotY2,CB.domW,CB.domH,a220);
-    var ff=entered-32;
-    // Flash on landing
+    drawEnemyDomino(cm.animDom,animEndX,slotY2,CB.domW,CB.domH,a220);
+    var ff=entered-30;
     if(ff<10){
       noStroke();fill(255,80,80,Math.round(alpha*130*(1.0-ff/10.0)));
       rect(gx(actCX),gy(CB.cardY),sz(cardW2),sz(CB.cardH),sz(5));
     }
-    // Effect text
     var effA=Math.round(Math.min(ff/8.0,1.0)*alpha*235);
     if(effA>0){
       var effStr2,effR,effG,effB;
-      if(move.type==='atk'){effStr2='-'+move.dmg+' crew!';effR=255;effG=80;effB=80;}
-      else if(move.type==='heal'){var hcol=color(C.HP_FG);effStr2='+'+move.healAmt+' hull!';effR=red(hcol);effG=green(hcol);effB=blue(hcol);}
-      else{var rc2=color(C.TEXT_DIM);effStr2='BRACING!';effR=red(rc2);effG=green(rc2);effB=blue(rc2);}
+      if(move.type==='atk'){
+        var scaledDmg=Math.max(1,Math.round(move.dmg*(0.6+(cm.enemyMaxPip||3)*0.1)));
+        var isCrit=cm.enemyMaxPip>=5;
+        effStr2=(isCrit?'CRITICAL! ':'')+'-'+scaledDmg+' crew!';
+        effR=255;effG=isCrit?50:80;effB=isCrit?50:80;
+      } else if(move.type==='heal'){
+        var hcol=color(C.HP_FG);effStr2='+'+move.healAmt+' hull!';
+        effR=red(hcol);effG=green(hcol);effB=blue(hcol);
+      } else {
+        var rc2=color(C.TEXT_DIM);effStr2='BRACING!';
+        effR=red(rc2);effG=green(rc2);effB=blue(rc2);
+      }
+      var effY=rowY+CB.domH+8;
       fill(effR,effG,effB,effA);
       textAlign(CENTER,TOP);textSize(sz(17));textStyle(BOLD);
-      text(effStr2,gx(GW/2),gy(CB.cardY+CB.cardH+10));textStyle(NORMAL);
+      text(effStr2,gx(GW/2),gy(effY));textStyle(NORMAL);
       fill(effR,effG,effB,Math.round(effA*0.55));
-      textSize(sz(9));text(move.desc,gx(GW/2),gy(CB.cardY+CB.cardH+31));
+      textSize(sz(9));
+      var pipStr=nRoll>1?'Rolled '+nRoll+' dice, max pip: '+cm.enemyMaxPip:move.desc;
+      text(pipStr,gx(GW/2),gy(effY+22));
     }
   }
   pop();
@@ -1187,13 +1250,35 @@ function drawEnemyTurnOverlay(cm){
 
 function resolveEnemyTurn(cm){
   var move=cm.nextMove;
+  // Apply burn to enemy before their move
+  if(cm.enemy.burning>0){
+    cm.enemy.hp-=cm.enemy.burning;
+    if(cm.enemy.hp<=0){cm.enemy.hp=0;startLoot();return;}
+  }
   if(cm.animIsStun){
     cm.enemy.stunned=false;
     showMsg(cm.enemy.captain+' was anchored and skipped the attack!');
   } else {
     if(move.type==='atk'){
-      gs.player.hp-=move.dmg;
-      showMsg(cm.enemy.captain+' fires '+move.name+'! -'+move.dmg+' HP!');
+      // Scale damage by max pip on enemy roll: 0.6x at pip 0, 1.2x at pip 6
+      var dmgMult=0.6+(cm.enemyMaxPip||3)*0.1;
+      var finalDmg=Math.max(1,Math.round(move.dmg*dmgMult));
+      var shield=gs.player.shield||0;
+      if(shield>0){
+        var absorbed=Math.min(shield,finalDmg);
+        gs.player.shield=shield-absorbed;
+        finalDmg-=absorbed;
+        if(finalDmg<=0){
+          showMsg('Shield fully absorbed the hit! ('+absorbed+' blocked)');
+        } else {
+          gs.player.hp-=finalDmg;
+          showMsg(cm.enemy.captain+' hits! Shield blocked '+absorbed+'! -'+finalDmg+' HP!');
+        }
+      } else {
+        gs.player.hp-=finalDmg;
+        var pipNote=cm.enemyMaxPip>=5?' CRITICAL HIT!':'';
+        showMsg(cm.enemy.captain+' fires '+move.name+'!'+pipNote+' -'+finalDmg+' HP!');
+      }
       if(gs.player.hp<=0){
         gs.player.hp=0;
         showMsg('Your ship is sunk! Starting over...');
@@ -1571,7 +1656,17 @@ function handleCombat(mx,my){
 function doEndTurn(){
   var cm=gs.combat;
   cm.animIsStun=cm.enemy.stunned;
-  cm.animDom=rollDominoes(1)[0];
+  var dc=cm.enemy.domCount||1;
+  cm.enemyDomRoll=rollDominoes(dc);
+  var maxPip=0,maxIdx=0;
+  for(var i=0;i<cm.enemyDomRoll.length;i++){
+    var d=cm.enemyDomRoll[i];
+    var p=Math.max(d.left,d.right);
+    if(p>maxPip){maxPip=p;maxIdx=i;}
+  }
+  cm.animDom=cm.enemyDomRoll[maxIdx];
+  cm.enemyMaxPip=maxPip;
+  cm.enemyAnimDomIdx=maxIdx;
   cm.enemyAnim=70;
 }
 
