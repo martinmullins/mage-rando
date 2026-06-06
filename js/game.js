@@ -32,9 +32,9 @@ var CARD_DB = [
   {id:'anchor_drop',  name:'Anchor Drop',   slots:[null,null],dmg:2, heal:0,extraDraw:0,stun:true, loadedDice:false,pipScale:false,burn:0,shield:0,maxUses:1,charges:3,desc:'Stun enemy. Deal 2 dmg.'},
   {id:'nav_chart',    name:'Nav Chart',     slots:[null,null],dmg:0, heal:0,extraDraw:3,stun:false,loadedDice:false,pipScale:false,burn:0,shield:0,maxUses:1,charges:3,desc:'+3 dominoes next turn.'},
   {id:'loaded_dice',  name:'Loaded Dice',   slots:[null,null],dmg:0, heal:0,extraDraw:0,stun:false,loadedDice:true, pipScale:false,burn:0,shield:0,maxUses:1,charges:2,desc:'Spawns [5|5]+[6|6] in hand!'},
-  {id:'boarding_axe', name:'Boarding Axe',  slots:[null,null],dmg:1, heal:0,extraDraw:0,stun:false,loadedDice:false,pipScale:true, burn:0,shield:0,maxUses:2,charges:3,desc:'Deal 1+pips dmg. (2x/turn)'},
+  {id:'boarding_axe', name:'Boarding Axe',  slots:['odd','odd'],dmg:1, heal:0,extraDraw:0,stun:false,loadedDice:false,pipScale:true, burn:0,shield:0,maxUses:2,charges:3,desc:'Odd pips only. Deal 1+both pips. (2x)'},
   {id:'hull_patch',   name:'Hull Patch',    slots:[null,null],dmg:0, heal:6,extraDraw:0,stun:false,loadedDice:false,pipScale:false,burn:0,shield:0,maxUses:2,charges:4,desc:'Heal 6 HP. (2x/turn)'},
-  {id:'cannon_fuse',  name:'Cannon Fuse',   slots:[4,null],   dmg:4, heal:0,extraDraw:0,stun:false,loadedDice:false,pipScale:false,burn:3,shield:0,maxUses:1,charges:3,desc:'Needs a 4. Deal 4+burn 3/turn.'},
+  {id:'cannon_fuse',  name:'Cannon Fuse',   slots:['even',null],dmg:4, heal:0,extraDraw:0,stun:false,loadedDice:false,pipScale:false,burn:3,shield:0,maxUses:1,charges:3,desc:'Even+any. Deal 4+burn 3/turn.'},
   {id:'iron_hull',    name:'Iron Hull',     slots:[null,null],dmg:0, heal:0,extraDraw:0,stun:false,loadedDice:false,pipScale:false,burn:0,shield:8,maxUses:1,charges:3,desc:'Gain 8 shield HP.'}
 ];
 
@@ -231,13 +231,18 @@ function pickMove(enemy){
 }
 function advanceMoveIdx(enemy){enemy.moveIdx=(enemy.moveIdx+1)%enemy.moveset.length;}
 
+function sideMatches(req,pip){
+  if(req===null) return true;
+  if(req==='even') return pip%2===0;
+  if(req==='odd') return pip%2!==0;
+  return req===pip;
+}
 function dominoFits(dom,card){
-  // exhausted cards can't accept more dominoes this turn
   if((card.usesThisTurn||0)>=(card.maxUses||1)) return false;
   if(card.assigned[0]!==null&&card.assigned[1]!==null) return false;
   var s0=card.slots[0],s1=card.slots[1];
-  var norm=(s0===null||s0===dom.left)&&(s1===null||s1===dom.right);
-  var flip=(s0===null||s0===dom.right)&&(s1===null||s1===dom.left);
+  var norm=sideMatches(s0,dom.left)&&sideMatches(s1,dom.right);
+  var flip=sideMatches(s0,dom.right)&&sideMatches(s1,dom.left);
   if(norm) return 'normal';
   if(flip) return 'flipped';
   return false;
@@ -274,10 +279,7 @@ function applyCard(card,cm){
     gs.backpack[card.backpackIdx].charges=Math.max(0,gs.backpack[card.backpackIdx].charges-1);
   }
   if(msgs.length>0) showMsg(msgs.join(' '));
-  if(card.usesThisTurn>=(card.maxUses||1)){
-    var hi=cm.hand.indexOf(card);
-    if(hi>=0) cm.hand.splice(hi,1);
-  }
+  // Card stays in hand position showing SPENT overlay — refillHand restores all next turn
 }
 
 // resetCardUses removed - refillHand(cm) is used instead
@@ -681,21 +683,32 @@ function drawEquip(){
   pop();
 }
 
+function getCardTheme(card){
+  if(card.pipScale)        return {bg:'#1e1000',face:'#2e1a00',bd:'#a05010',name:'#ffaa44',desc:'#cc8833'};
+  if(card.shield>0)        return {bg:'#08101e',face:'#121c34',bd:'#2244b0',name:'#6090ff',desc:'#4068cc'};
+  if(card.dmg>0||card.burn>0) return {bg:'#1e0a08',face:'#301210',bd:'#922020',name:'#ff7070',desc:'#cc5050'};
+  if(card.heal>0)          return {bg:'#081808',face:'#102410',bd:'#207840',name:'#60dd60',desc:'#44aa44'};
+  if(card.stun||card.loadedDice||card.extraDraw>0)
+                           return {bg:'#100a1e',face:'#18102e',bd:'#5020a0',name:'#bb88ff',desc:'#8855dd'};
+  return {bg:C.CARD_BG,face:C.CARD_FACE,bd:C.CARD_BD,name:C.CARD_NAME,desc:C.CARD_DESC};
+}
+
 function drawEquipCard(card,cx,cy,w,h,equipped){
   push();
-  fill(C.CARD_BG);stroke(equipped?C.GOLD:C.CARD_BD);strokeWeight(sz(equipped?2:1.5));
+  var th=getCardTheme(card);
+  fill(th.bg);stroke(equipped?C.GOLD:th.bd);strokeWeight(sz(equipped?2:1.5));
   rect(gx(cx),gy(cy),sz(w),sz(h),sz(6));
   // title strip
-  noStroke();fill(equipped?'#161e10':C.CARD_FACE);
+  noStroke();fill(equipped?'#0c1808':th.face);
   rect(gx(cx+1),gy(cy+1),sz(w-2),sz(17),sz(5));
   rect(gx(cx+1),gy(cy+10),sz(w-2),sz(8));
   // card name
-  fill(equipped?C.GOLD:C.CARD_NAME);textAlign(LEFT,CENTER);textSize(sz(9));textStyle(BOLD);
+  fill(equipped?C.GOLD:th.name);textAlign(LEFT,CENTER);textSize(sz(9));textStyle(BOLD);
   text(card.name,gx(cx+6),gy(cy+9));textStyle(NORMAL);
   // charge diamonds (top-right of title)
   var chgE=card.charges!==undefined?card.charges:3;
   for(var ceI=0;ceI<chgE;ceI++){
-    noStroke();fill(equipped?C.GOLD:'#c09028');
+    noStroke();fill(equipped?C.GOLD:th.bd);
     var dxE=cx+w-4-(chgE-1-ceI)*7;
     beginShape();
     vertex(gx(dxE+3),gy(cy+5));vertex(gx(dxE+6),gy(cy+9));
@@ -704,26 +717,29 @@ function drawEquipCard(card,cx,cy,w,h,equipped){
   }
   // maxUses badge
   if(card.maxUses>1){
-    noStroke();fill(C.CARD_DESC);textAlign(RIGHT,TOP);textSize(sz(7.5));
+    noStroke();fill(th.desc);textAlign(RIGHT,TOP);textSize(sz(7.5));
     text(card.maxUses+'x/turn',gx(cx+w-6),gy(cy+20));
   }
   // domino slot preview
   var dEW=w-14,dEH=20,dEX=cx+7,dEY=cy+20;
-  fill(C.CARD_SLOT);stroke(C.CARD_BD);strokeWeight(sz(0.8));
+  fill(C.CARD_SLOT);stroke(th.bd);strokeWeight(sz(0.8));
   rect(gx(dEX),gy(dEY),sz(dEW),sz(dEH),sz(3));
-  stroke(C.CARD_BD);strokeWeight(sz(0.6));
+  stroke(th.bd);strokeWeight(sz(0.6));
   line(gx(dEX+dEW/2),gy(dEY+2),gx(dEX+dEW/2),gy(dEY+dEH-2));
   for(var seI=0;seI<2;seI++){
     var hEx=dEX+seI*(dEW/2),reqE=card.slots[seI];
-    if(reqE!==null){
+    if(reqE==='even'||reqE==='odd'){
+      noStroke();fill(th.name);textSize(sz(11));textStyle(BOLD);textAlign(CENTER,CENTER);
+      text(reqE==='even'?'E':'O',gx(hEx+dEW/4),gy(dEY+dEH/2));textStyle(NORMAL);
+    } else if(reqE!==null){
       drawPips(reqE,hEx,dEY,dEW/2,dEH,240,230,210);
     } else {
-      noStroke();fill(C.CARD_DESC);textSize(sz(9));textAlign(CENTER,CENTER);
+      noStroke();fill(th.desc);textSize(sz(9));textAlign(CENTER,CENTER);
       text('?',gx(hEx+dEW/4),gy(dEY+dEH/2));
     }
   }
   // description
-  noStroke();fill(C.CARD_DESC);textAlign(LEFT,TOP);textSize(sz(8.5));
+  noStroke();fill(th.desc);textAlign(LEFT,TOP);textSize(sz(8.5));
   text(card.desc,gx(cx+7),gy(dEY+dEH+5),sz(w-14),sz(h-dEH-35));
   pop();
 }
@@ -737,18 +753,20 @@ var CB={
   domLabelY:430,domY:444,
   btnW:144,btnH:44,
   enemyX:210,enemyY:10,enemyW:178,
-  playerX:4,playerY:162,playerW:116
+  playerX:292,playerY:434,playerW:100
 };
 
 function domPerRow(total){
-  return Math.min(total,Math.max(1,Math.floor((GW-14)/(CB.domW+CB.domPad))));
+  var avail=CB.playerX-10;
+  return Math.min(total,Math.max(1,Math.floor(avail/(CB.domW+CB.domPad))));
 }
 function getDomPos(di,total){
+  var avail=CB.playerX-10;
   var ppr=domPerRow(total),row=Math.floor(di/ppr),col=di%ppr;
   var rows=Math.ceil(total/ppr);
   var rowCount=(row<rows-1)?ppr:(total-row*ppr);
   var rowW=rowCount*(CB.domW+CB.domPad)-CB.domPad;
-  return{x:(GW-rowW)/2+col*(CB.domW+CB.domPad),y:CB.domY+row*(CB.domH+CB.domRowGap)};
+  return{x:7+(avail-rowW)/2+col*(CB.domW+CB.domPad),y:CB.domY+row*(CB.domH+CB.domRowGap)};
 }
 function domBtnY(total){
   var rows=Math.ceil(total/domPerRow(total));
@@ -836,7 +854,7 @@ function drawCombat(){
   } else {
     drawShip(CB.enemyX+CB.enemyW/2,CB.enemyY+CB.enemyW*0.3,CB.enemyW,true);
   }
-  // Player sprite - lower-left corner
+  // Player sprite - bottom right, below cards in ocean area
   if(imgShipPlayer){
     image(imgShipPlayer,gx(CB.playerX),gy(CB.playerY),sz(CB.playerW),sz(CB.playerW*0.75));
   } else {
@@ -898,20 +916,20 @@ function drawCombat(){
   var fl=FLOORS[min(gs.floorIdx,FLOORS.length-1)];
   fill(gs.finalBoss?'#cc44ff':C.TEXT_DIM);textAlign(CENTER,TOP);textSize(sz(8));
   text(gs.finalBoss?'FINAL BOSS':(fl.name+' '+(gs.floorIdx+1)+'/'+FLOORS.length),gx(GW/2),gy(177));
-  // Player HP — bottom-left, below player sprite
-  var phpY=CB.playerY+Math.ceil(CB.playerW*0.76),phpW=138,phpH=14,phpX=CB.playerX;
+  // Player HP — bottom right, below player sprite
+  var phpW=GW-CB.playerX-4,phpH=13,phpX=CB.playerX;
+  var phpY=CB.playerY+Math.ceil(CB.playerW*0.76);
   fill(C.HP_BG);noStroke();
   rect(gx(phpX),gy(phpY),sz(phpW),sz(phpH),sz(3));
   fill(C.HP_FG);
   rect(gx(phpX),gy(phpY),sz(phpW*max(0,gs.player.hp/gs.player.maxHp)),sz(phpH),sz(3));
   if(gs.player.shield>0){
-    var shW=phpW*Math.min(1,gs.player.shield/gs.player.maxHp);
     fill('#3366ee');noStroke();
-    rect(gx(phpX+phpW*max(0,gs.player.hp/gs.player.maxHp)-shW),gy(phpY),sz(shW),sz(phpH),sz(3));
+    rect(gx(phpX),gy(phpY),sz(phpW*Math.min(1,gs.player.shield/gs.player.maxHp)),sz(phpH),sz(3));
   }
-  fill(C.TEXT);textAlign(LEFT,TOP);textSize(sz(9));
-  var crewStr='Crew: '+gs.player.hp+'/'+gs.player.maxHp+(gs.player.shield>0?' [SH:'+gs.player.shield+']':'');
-  text(crewStr,gx(phpX+3),gy(phpY+2));
+  fill(C.TEXT);textAlign(LEFT,TOP);textSize(sz(8));
+  var crewStr='HP: '+gs.player.hp+'/'+gs.player.maxHp+(gs.player.shield>0?' SH:'+gs.player.shield:'');
+  text(crewStr,gx(phpX+2),gy(phpY+2));
   // combat cards from hand
   var nc=cm.hand.length;
   if(nc===0){
@@ -979,17 +997,18 @@ function drawCombatCard(card,cx,cy,w,h,cm){
   var fits=fitType!==false;
   var goodDrop=dragHover&&(dragFit!==false);
   var badDrop=dragHover&&(dragFit===false);
+  var th4=getCardTheme(card);
   // card shell
-  fill(ready?C.GREEN_HI:goodDrop?C.GREEN_HI:badDrop?'#1e0808':C.CARD_BG);
-  stroke(ready?C.GREEN_BD:goodDrop?C.GREEN_BD:badDrop?C.DANGER:fits?C.GOLD:C.CARD_BD);
+  fill(ready?C.GREEN_HI:goodDrop?C.GREEN_HI:badDrop?'#1e0808':th4.bg);
+  stroke(ready?C.GREEN_BD:goodDrop?C.GREEN_BD:badDrop?C.DANGER:fits?C.GOLD:th4.bd);
   strokeWeight(sz(ready||fits||goodDrop||badDrop?2.5:1.5));
   rect(gx(cx),gy(cy),sz(w),sz(h),sz(6));
   // title strip
-  noStroke();fill(ready?'#102016':C.CARD_FACE);
+  noStroke();fill(ready?'#102016':th4.face);
   rect(gx(cx+1),gy(cy+1),sz(w-2),sz(17),sz(5));
   rect(gx(cx+1),gy(cy+10),sz(w-2),sz(8));
   // card name (left-aligned in title)
-  fill(ready?'#80ffaa':C.CARD_NAME);
+  fill(ready?'#80ffaa':th4.name);
   textAlign(LEFT,CENTER);textSize(sz(8));textStyle(BOLD);
   text(card.name,gx(cx+5),gy(cy+9));textStyle(NORMAL);
   // per-turn uses (right side of title, dots)
@@ -1010,6 +1029,11 @@ function drawCombatCard(card,cx,cy,w,h,cm){
     var hx4=sX4+si4*(sW4/2),asgn4=card.assigned[si4],req4=card.slots[si4];
     if(asgn4!==null){
       var apc4=color(C.GOLD);drawPips(asgn4,hx4,sY4,sW4/2,sH4,red(apc4),green(apc4),blue(apc4));
+    } else if(req4==='even'||req4==='odd'){
+      var eoHl=fits||goodDrop;
+      noStroke();fill(eoHl?'#88ccee':th4.name);
+      textSize(sz(12));textStyle(BOLD);textAlign(CENTER,CENTER);
+      text(req4==='even'?'E':'O',gx(hx4+sW4/4),gy(sY4+sH4/2));textStyle(NORMAL);
     } else if(req4!==null){
       var rpc4=color(fits||goodDrop?'#88ccee':C.CARD_DESC);
       drawPips(req4,hx4,sY4,sW4/2,sH4,red(rpc4),green(rpc4),blue(rpc4),140);
@@ -1020,7 +1044,7 @@ function drawCombatCard(card,cx,cy,w,h,cm){
     }
   }
   // description
-  noStroke();fill(C.CARD_DESC);textAlign(LEFT,TOP);textSize(sz(8));
+  noStroke();fill(exhausted?'#445566':th4.desc);textAlign(LEFT,TOP);textSize(sz(8));
   text(card.desc,gx(cx+5),gy(sY4+sH4+6),sz(w-10),sz(h-sH4-48));
   // lifetime charge diamonds (bottom-left row)
   var liveChg4=(card.backpackIdx>=0&&gs.backpack[card.backpackIdx])?gs.backpack[card.backpackIdx].charges:(card.charges||3);
@@ -1054,11 +1078,11 @@ function drawCombatCard(card,cx,cy,w,h,cm){
       text('PLACE',gx(cx+w/2),gy(cy+h-2));textStyle(NORMAL);
     }
   }
-  // SPENT overlay
+  // SPENT overlay — card stays in position, semi-transparent so type color shows
   if(exhausted){
-    noStroke();fill(0,5,15,210);
+    noStroke();fill(0,5,15,155);
     rect(gx(cx),gy(cy),sz(w),sz(h),sz(6));
-    fill(C.CARD_DESC);textAlign(CENTER,CENTER);textSize(sz(11));textStyle(BOLD);
+    fill('#667788');textAlign(CENTER,CENTER);textSize(sz(11));textStyle(BOLD);
     text('SPENT',gx(cx+w/2),gy(cy+h/2));textStyle(NORMAL);
   }
   pop();
@@ -1392,7 +1416,10 @@ function drawLootCard(card,cx,cy,w,h){
   line(gx(dLX+dLW/2),gy(dLY+2),gx(dLX+dLW/2),gy(dLY+dLH-2));
   for(var slL=0;slL<2;slL++){
     var hLx=dLX+slL*(dLW/2),reqL=card.slots[slL];
-    if(reqL!==null){
+    if(reqL==='even'||reqL==='odd'){
+      noStroke();fill(C.GOLD);textSize(sz(11));textStyle(BOLD);textAlign(CENTER,CENTER);
+      text(reqL==='even'?'E':'O',gx(hLx+dLW/4),gy(dLY+dLH/2));textStyle(NORMAL);
+    } else if(reqL!==null){
       drawPips(reqL,hLx,dLY,dLW/2,dLH,240,235,220);
     } else {
       noStroke();fill(C.CARD_DESC);textSize(sz(9));textAlign(CENTER,CENTER);
@@ -1457,13 +1484,19 @@ function drawPortItem(item,cx,cy,w,h,canAfford,done){
     stroke('#555555');strokeWeight(sz(0.8));
     line(gx(dPX+dPW/2),gy(dPY+2),gx(dPX+dPW/2),gy(dPY+dPH-2));
     var pAlpha=done?100:220;
-    if(item.slot0!==null){
+    if(item.slot0==='even'||item.slot0==='odd'){
+      noStroke();fill(done?C.TEXT_DIM:C.GOLD);textSize(sz(10));textStyle(BOLD);textAlign(CENTER,CENTER);
+      text(item.slot0==='even'?'E':'O',gx(dPX+dPW/4),gy(dPY+dPH/2));textStyle(NORMAL);
+    } else if(item.slot0!==null){
       drawPips(item.slot0,dPX,dPY,dPW/2,dPH,240,235,220,pAlpha);
     } else {
       noStroke();fill(C.TEXT_DIM);textSize(sz(9));textAlign(CENTER,CENTER);
       text('?',gx(dPX+dPW/4),gy(dPY+dPH/2));
     }
-    if(item.slot1!==null){
+    if(item.slot1==='even'||item.slot1==='odd'){
+      noStroke();fill(done?C.TEXT_DIM:C.GOLD);textSize(sz(10));textStyle(BOLD);textAlign(CENTER,CENTER);
+      text(item.slot1==='even'?'E':'O',gx(dPX+3*dPW/4),gy(dPY+dPH/2));textStyle(NORMAL);
+    } else if(item.slot1!==null){
       drawPips(item.slot1,dPX+dPW/2,dPY,dPW/2,dPH,240,235,220,pAlpha);
     } else {
       noStroke();fill(C.TEXT_DIM);textSize(sz(9));textAlign(CENTER,CENTER);
